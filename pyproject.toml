@@ -1,0 +1,34 @@
+[project]
+name = "gtm-linear"
+version = "0.0.1"
+description = "GTM workflow adapter for Linear."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Elvis Kahoro", email = "elvis@dlthub.com" }]
+keywords = ["linear", "gtm", "sdk"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/elviskahoro/sdk-python-linear"
+Repository = "https://github.com/elviskahoro/sdk-python-linear"
+Issues = "https://github.com/elviskahoro/sdk-python-linear/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gtm_linear"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/gtm_linear", "README.md", "LICENSE"]
