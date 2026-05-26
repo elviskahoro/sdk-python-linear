@@ -79,6 +79,10 @@ class LinearClient:
                 ],
             )
 
+        if not isinstance(data, dict):
+            error_msg = "Invalid response format"
+            raise LinearAPIError(error_msg, errors=[])
+
         return data["data"]
 
     async def execute_async(
@@ -123,6 +127,10 @@ class LinearClient:
                     {"status_code": response.status_code, "message": response.text},
                 ],
             )
+
+        if not isinstance(data, dict):
+            error_msg = "Invalid response format"
+            raise LinearAPIError(error_msg, errors=[])
 
         return data["data"]
 

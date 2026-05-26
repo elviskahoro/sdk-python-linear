@@ -1,3 +1,5 @@
+from typing import Any
+
 import httpx
 import respx
 
@@ -7,7 +9,7 @@ from src.client import LinearClient as ClientCls
 API_URL = ClientCls.BASE_URL
 
 
-def _issue_payload(issue_id: str = "iss-1") -> dict:
+def _issue_payload(issue_id: str = "iss-1") -> dict[str, Any]:
     return {
         "id": issue_id,
         "title": "Hello",
@@ -25,30 +27,30 @@ def _issue_payload(issue_id: str = "iss-1") -> dict:
     }
 
 
-@respx.mock
+@respx.mock  # type: ignore[misc]
 async def test_get_issue_returns_parsed_issue() -> None:
     respx.post(API_URL).mock(
         return_value=httpx.Response(200, json={"data": {"issue": _issue_payload()}}),
     )
     async with LinearClient(api_key="key") as client:
         issue = await LinearQueries(client).get_issue("iss-1")
-    assert issue is not None
-    assert issue.identifier == "ENG-1"
-    assert issue.status == "In Progress"
-    assert issue.assignee is not None
-    assert issue.assignee.email == "alice@example.com"
+    assert issue is not None  # noqa: S101
+    assert issue.identifier == "ENG-1"  # noqa: S101
+    assert issue.status == "In Progress"  # noqa: S101
+    assert issue.assignee is not None  # noqa: S101
+    assert issue.assignee.email == "alice@example.com"  # noqa: S101
 
 
-@respx.mock
+@respx.mock  # type: ignore[misc]
 async def test_get_issue_returns_none_when_missing() -> None:
     respx.post(API_URL).mock(
         return_value=httpx.Response(200, json={"data": {"issue": None}}),
     )
     async with LinearClient(api_key="key") as client:
-        assert await LinearQueries(client).get_issue("nope") is None
+        assert await LinearQueries(client).get_issue("nope") is None  # noqa: S101
 
 
-@respx.mock
+@respx.mock  # type: ignore[misc]
 async def test_list_issues() -> None:
     respx.post(API_URL).mock(
         return_value=httpx.Response(
@@ -66,10 +68,10 @@ async def test_list_issues() -> None:
     )
     async with LinearClient(api_key="key") as client:
         issues = await LinearQueries(client).list_issues("team-1")
-    assert [i.id for i in issues] == ["a", "b"]
+    assert [i.id for i in issues] == ["a", "b"]  # noqa: S101
 
 
-@respx.mock
+@respx.mock  # type: ignore[misc]
 async def test_get_team() -> None:
     respx.post(API_URL).mock(
         return_value=httpx.Response(
@@ -79,11 +81,11 @@ async def test_get_team() -> None:
     )
     async with LinearClient(api_key="key") as client:
         team = await LinearQueries(client).get_team("t1")
-    assert team is not None
-    assert team.key == "ENG"
+    assert team is not None  # noqa: S101
+    assert team.key == "ENG"  # noqa: S101
 
 
-@respx.mock
+@respx.mock  # type: ignore[misc]
 async def test_search_issues() -> None:
     respx.post(API_URL).mock(
         return_value=httpx.Response(
@@ -93,10 +95,10 @@ async def test_search_issues() -> None:
     )
     async with LinearClient(api_key="key") as client:
         results = await LinearQueries(client).search_issues("hello")
-    assert len(results) == 1
+    assert len(results) == 1  # noqa: S101
 
 
-@respx.mock
+@respx.mock  # type: ignore[misc]
 async def test_get_user() -> None:
     respx.post(API_URL).mock(
         return_value=httpx.Response(
@@ -115,5 +117,5 @@ async def test_get_user() -> None:
     )
     async with LinearClient(api_key="key") as client:
         user = await LinearQueries(client).get_user("u1")
-    assert user is not None
-    assert user.name == "Bob"
+    assert user is not None  # noqa: S101
+    assert user.name == "Bob"  # noqa: S101

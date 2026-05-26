@@ -54,7 +54,8 @@ async def main() -> None:
 
     api_key = os.environ.get("LINEAR_API_KEY")
     if not api_key:
-        raise SystemExit("LINEAR_API_KEY not set")
+        msg = "LINEAR_API_KEY not set"
+        raise SystemExit(msg)
 
     async with LinearClient(api_key=api_key) as client:
         queries = LinearQueries(client)
@@ -86,10 +87,10 @@ async def main() -> None:
         if args.create:
             mutations = LinearMutations(client)
             created = await mutations.create_issue(
-                IssueCreateInput(
-                    title="[smoke test] delete me",
-                    teamId=team_id,
-                    description="created by scripts/smoke.py",
+                IssueCreateInput(  # pyright: ignore[reportCallIssue]
+                    title="[smoke test] delete me",  # pyright: ignore[reportCallIssue]
+                    teamId=team_id,  # pyright: ignore[reportCallIssue]
+                    description="created by scripts/smoke.py",  # pyright: ignore[reportCallIssue]
                 ),
             )
             print(f"created: {created.identifier} ({created.id})")

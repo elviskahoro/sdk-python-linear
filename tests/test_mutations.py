@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 import httpx
 import pytest
@@ -14,7 +15,7 @@ from src import (
 API_URL = LinearClient.BASE_URL
 
 
-def _issue_payload() -> dict:
+def _issue_payload() -> dict[str, Any]:
     return {
         "id": "iss-1",
         "title": "Hello",
@@ -27,7 +28,7 @@ def _issue_payload() -> dict:
     }
 
 
-@respx.mock
+@respx.mock  # type: ignore[misc]
 async def test_create_issue_sends_input_and_parses_response() -> None:
     route = respx.post(API_URL).mock(
         return_value=httpx.Response(
@@ -39,18 +40,22 @@ async def test_create_issue_sends_input_and_parses_response() -> None:
     )
     async with LinearClient(api_key="key") as client:
         issue = await LinearMutations(client).create_issue(
-            IssueCreateInput(title="Hello", teamId="team-1", description="desc"),
+            IssueCreateInput(  # pyright: ignore[reportCallIssue]
+                title="Hello",  # pyright: ignore[reportCallIssue]
+                teamId="team-1",  # pyright: ignore[reportCallIssue]
+                description="desc",  # pyright: ignore[reportCallIssue]
+            ),
         )
     body = json.loads(route.calls.last.request.read())
-    assert body["variables"]["input"] == {
+    assert body["variables"]["input"] == {  # noqa: S101
         "title": "Hello",
         "teamId": "team-1",
         "description": "desc",
     }
-    assert issue.identifier == "ENG-1"
+    assert issue.identifier == "ENG-1"  # noqa: S101
 
 
-@respx.mock
+@respx.mock  # type: ignore[misc]
 async def test_create_issue_omits_none_description() -> None:
     route = respx.post(API_URL).mock(
         return_value=httpx.Response(
@@ -62,13 +67,13 @@ async def test_create_issue_omits_none_description() -> None:
     )
     async with LinearClient(api_key="key") as client:
         await LinearMutations(client).create_issue(
-            IssueCreateInput(title="Hello", teamId="team-1"),
+            IssueCreateInput(title="Hello", teamId="team-1"),  # pyright: ignore[reportCallIssue]
         )
     body = json.loads(route.calls.last.request.read())
-    assert "description" not in body["variables"]["input"]
+    assert "description" not in body["variables"]["input"]  # noqa: S101
 
 
-@respx.mock
+@respx.mock  # type: ignore[misc]
 async def test_create_issue_raises_when_no_issue_returned() -> None:
     respx.post(API_URL).mock(
         return_value=httpx.Response(
@@ -77,13 +82,13 @@ async def test_create_issue_raises_when_no_issue_returned() -> None:
         ),
     )
     async with LinearClient(api_key="key") as client:
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError):  # noqa: PT011
             await LinearMutations(client).create_issue(
-                IssueCreateInput(title="x", teamId="t"),
+                IssueCreateInput(title="x", teamId="t"),  # pyright: ignore[reportCallIssue]
             )
 
 
-@respx.mock
+@respx.mock  # type: ignore[misc]
 async def test_update_issue() -> None:
     route = respx.post(API_URL).mock(
         return_value=httpx.Response(
@@ -96,14 +101,14 @@ async def test_update_issue() -> None:
     async with LinearClient(api_key="key") as client:
         issue = await LinearMutations(client).update_issue(
             "iss-1",
-            IssueUpdateInput(title="New title"),
+            IssueUpdateInput(title="New title"),  # pyright: ignore[reportCallIssue]
         )
     body = json.loads(route.calls.last.request.read())
-    assert body["variables"] == {"id": "iss-1", "input": {"title": "New title"}}
-    assert issue.id == "iss-1"
+    assert body["variables"] == {"id": "iss-1", "input": {"title": "New title"}}  # noqa: S101
+    assert issue.id == "iss-1"  # noqa: S101
 
 
-@respx.mock
+@respx.mock  # type: ignore[misc]
 async def test_delete_issue_returns_success_bool() -> None:
     respx.post(API_URL).mock(
         return_value=httpx.Response(
@@ -112,4 +117,4 @@ async def test_delete_issue_returns_success_bool() -> None:
         ),
     )
     async with LinearClient(api_key="key") as client:
-        assert await LinearMutations(client).delete_issue("iss-1") is True
+        assert await LinearMutations(client).delete_issue("iss-1") is True  # noqa: S101
