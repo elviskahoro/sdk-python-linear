@@ -9,7 +9,7 @@ Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, t
 ## When to use this (agent triage)
 
 | Situation | Use this SDK? |
-|---|---|
+| --- | --- |
 | Read/write Linear issues from Python with typed responses | Yes |
 | Need ad-hoc GraphQL escape hatch alongside typed helpers | Yes — `LinearClient.execute_async(query, variables)` |
 | Building MCP-style tooling against Linear | Yes (low-level), or prefer the official Linear MCP server for higher-level intent |
@@ -49,7 +49,7 @@ The SDK does not read env vars on its own. Caller is responsible for passing `ap
 
 Three classes, all importable from the package root:
 
-```
+```text
 LinearClient        # transport + auth + GraphQL execution
   ├── LinearQueries # typed read wrappers (get_issue, list_issues, search_issues, get_team, get_user)
   └── LinearMutations # typed write wrappers (create_issue, update_issue, delete_issue)
@@ -82,7 +82,7 @@ asyncio.run(main())
 Importable from `src` (will be `gtm_linear` once renamed for publish):
 
 | Symbol | Kind | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | `LinearClient` | class | Transport + auth + raw GraphQL execution |
 | `LinearQueries` | class | Typed read helpers |
 | `LinearMutations` | class | Typed write helpers |
@@ -117,7 +117,7 @@ State:
 ### Methods
 
 | Method | Sync/Async | Returns | Raises |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `execute(query, variables=None)` | sync | `dict[str, Any]` — the `data` payload | `LinearAPIError` |
 | `execute_async(query, variables=None)` | async | `dict[str, Any]` — the `data` payload | `LinearAPIError` |
 | `close()` | sync | `None` | — |
@@ -137,7 +137,7 @@ State:
 
 The methods **strip the outer `{"data": ...}` envelope** and return the inner dict. So for a query of `query { viewer { id } }`, you get back `{"viewer": {"id": "..."}}`.
 
-### Pitfalls
+### Client pitfalls
 
 - The sync `__exit__` calls `close()`, which closes the sync client. The async `__aexit__` *also* calls `close()` — but it only nulls the reference to the async client without awaiting `aclose()`. If you need clean async shutdown for connection-pool reasons, call `await client._async_client.aclose()` yourself before exiting.
 - `BASE_URL` is the **production** Linear endpoint. There is no staging URL toggle.
@@ -150,7 +150,7 @@ The methods **strip the outer `{"data": ...}` envelope** and return the inner di
 All methods are `async`. All accept Linear UUIDs unless noted.
 
 | Method | Args | Returns | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `get_issue(issue_id)` | `str` | `Issue \| None` | Returns `None` on not-found (not an error) |
 | `list_issues(team_id, first=50)` | `str`, `int` | `list[Issue]` | Single page only — pagination not yet wrapped |
 | `search_issues(term)` | `str` | `list[Issue]` | Backed by Linear's `searchIssues` GraphQL field |
@@ -195,12 +195,12 @@ Issue(
 ## `LinearMutations` reference
 
 | Method | Args | Returns | Raises |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `create_issue(input_)` | `IssueCreateInput` | `Issue` (full) | `ValueError` if API returns no issue; `LinearAPIError` on transport failure |
 | `update_issue(issue_id, update)` | `str`, `IssueUpdateInput` | `Issue` (full) | `ValueError` if API returns no issue; `LinearAPIError` on transport failure |
 | `delete_issue(issue_id)` | `str` | `bool` (success flag) | `LinearAPIError` on transport failure |
 
-### Pitfalls
+### Mutation pitfalls
 
 - `IssueUpdateInput` currently exposes only `title` and `description`. To change priority, assignee, or status, use `execute_async` against `issueUpdate` directly.
 - `delete_issue` returns Linear's `success` bool. A `False` return is *not* an exception — check it explicitly if you care.
@@ -268,7 +268,7 @@ The script exercises: `viewer` query, `get_team` (with team-key → UUID resolut
 
 ## Repository layout
 
-```
+```text
 sdk-python-linear/
 ├── src/
 │   ├── __init__.py           # public re-exports
