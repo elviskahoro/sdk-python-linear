@@ -16,11 +16,13 @@ from .generated_types import (
     UserConnection,
 )
 from .mutations import LinearMutations
+from .queries import LinearQueries
 
 __all__ = [
     "LinearClient",
     "LinearAPIError",
     "LinearMutations",
+    "LinearQueries",
     "Issue",
     "IssueConnection",
     "IssueCreateInput",
