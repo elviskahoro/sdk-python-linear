@@ -33,7 +33,7 @@ class LinearQueries:
                 identifier
                 url
                 priority
-                status {
+                status: state {
                     name
                 }
                 assignee {
@@ -72,7 +72,7 @@ class LinearQueries:
                         identifier
                         url
                         priority
-                        status {
+                        status: state {
                             name
                         }
                         assignee {
@@ -140,7 +140,7 @@ class LinearQueries:
                     identifier
                     url
                     priority
-                    status {
+                    status: state {
                         name
                     }
                     assignee {

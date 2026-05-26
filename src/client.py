@@ -60,6 +60,16 @@ class LinearClient:
 
         response = client.post(self.BASE_URL, json=payload)
 
+        try:
+            data = response.json()
+        except ValueError:
+            data = None
+
+        if isinstance(data, dict) and "errors" in data:
+            error_messages = [e.get("message", str(e)) for e in data["errors"]]
+            error_msg = f"GraphQL error: {'; '.join(error_messages)}"
+            raise LinearAPIError(error_msg, errors=data["errors"])
+
         if response.status_code != self.HTTP_OK:
             error_msg = f"HTTP error: {response.status_code}"
             raise LinearAPIError(
@@ -67,16 +77,6 @@ class LinearClient:
                 errors=[
                     {"status_code": response.status_code, "message": response.text},
                 ],
-            )
-
-        data = response.json()
-
-        if "errors" in data:
-            error_messages = [e.get("message", str(e)) for e in data["errors"]]
-            error_msg = f"GraphQL error: {'; '.join(error_messages)}"
-            raise LinearAPIError(
-                error_msg,
-                errors=data["errors"],
             )
 
         return data["data"]
@@ -105,6 +105,16 @@ class LinearClient:
 
         response = await client.post(self.BASE_URL, json=payload)
 
+        try:
+            data = response.json()
+        except ValueError:
+            data = None
+
+        if isinstance(data, dict) and "errors" in data:
+            error_messages = [e.get("message", str(e)) for e in data["errors"]]
+            error_msg = f"GraphQL error: {'; '.join(error_messages)}"
+            raise LinearAPIError(error_msg, errors=data["errors"])
+
         if response.status_code != self.HTTP_OK:
             error_msg = f"HTTP error: {response.status_code}"
             raise LinearAPIError(
@@ -112,16 +122,6 @@ class LinearClient:
                 errors=[
                     {"status_code": response.status_code, "message": response.text},
                 ],
-            )
-
-        data = response.json()
-
-        if "errors" in data:
-            error_messages = [e.get("message", str(e)) for e in data["errors"]]
-            error_msg = f"GraphQL error: {'; '.join(error_messages)}"
-            raise LinearAPIError(
-                error_msg,
-                errors=data["errors"],
             )
 
         return data["data"]

@@ -39,7 +39,7 @@ class LinearMutations:
                     identifier
                     url
                     priority
-                    status {
+                    status: state {
                         name
                     }
                     assignee {
@@ -94,7 +94,7 @@ class LinearMutations:
                     identifier
                     url
                     priority
-                    status {
+                    status: state {
                         name
                     }
                     assignee {
