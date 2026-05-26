@@ -169,7 +169,6 @@ lint:
       paths:
         - "*.ipynb"
 
-
     - linters: [checkov, semgrep]
       paths:
         - "**/*.py"

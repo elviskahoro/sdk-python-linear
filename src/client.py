@@ -1,13 +1,23 @@
+from types import TracebackType
+from typing import Any, Self
+
 import httpx
-from typing import Any
 
 from .exceptions import LinearAPIError
 
 
 class LinearClient:
-    BASE_URL = "https://api.linear.app/graphql"
+    """GraphQL client for Linear API."""
 
-    def __init__(self, api_key: str):
+    BASE_URL = "https://api.linear.app/graphql"
+    HTTP_OK = 200
+
+    def __init__(self, api_key: str) -> None:
+        """Initialize LinearClient.
+
+        Args:
+            api_key: Linear API key for authentication.
+        """
         self.api_key = api_key
         self._headers = {
             "Content-Type": "application/json",
@@ -26,7 +36,23 @@ class LinearClient:
             self._async_client = httpx.AsyncClient(headers=self._headers)
         return self._async_client
 
-    def execute(self, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
+    def execute(
+        self,
+        query: str,
+        variables: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Execute a synchronous GraphQL query.
+
+        Args:
+            query: GraphQL query string.
+            variables: Optional variables for the query.
+
+        Returns:
+            The data from the GraphQL response.
+
+        Raises:
+            LinearAPIError: If the API request fails.
+        """
         client = self._get_client()
         payload: dict[str, Any] = {"query": query}
         if variables:
@@ -34,24 +60,44 @@ class LinearClient:
 
         response = client.post(self.BASE_URL, json=payload)
 
-        if response.status_code != 200:
+        if response.status_code != self.HTTP_OK:
+            error_msg = f"HTTP error: {response.status_code}"
             raise LinearAPIError(
-                f"HTTP error: {response.status_code}",
-                errors=[{"status_code": response.status_code, "message": response.text}],
+                error_msg,
+                errors=[
+                    {"status_code": response.status_code, "message": response.text},
+                ],
             )
 
         data = response.json()
 
         if "errors" in data:
             error_messages = [e.get("message", str(e)) for e in data["errors"]]
+            error_msg = f"GraphQL error: {'; '.join(error_messages)}"
             raise LinearAPIError(
-                f"GraphQL error: {'; '.join(error_messages)}",
+                error_msg,
                 errors=data["errors"],
             )
 
         return data["data"]
 
-    async def execute_async(self, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def execute_async(
+        self,
+        query: str,
+        variables: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Execute an asynchronous GraphQL query.
+
+        Args:
+            query: GraphQL query string.
+            variables: Optional variables for the query.
+
+        Returns:
+            The data from the GraphQL response.
+
+        Raises:
+            LinearAPIError: If the API request fails.
+        """
         client = self._get_async_client()
         payload: dict[str, Any] = {"query": query}
         if variables:
@@ -59,39 +105,77 @@ class LinearClient:
 
         response = await client.post(self.BASE_URL, json=payload)
 
-        if response.status_code != 200:
+        if response.status_code != self.HTTP_OK:
+            error_msg = f"HTTP error: {response.status_code}"
             raise LinearAPIError(
-                f"HTTP error: {response.status_code}",
-                errors=[{"status_code": response.status_code, "message": response.text}],
+                error_msg,
+                errors=[
+                    {"status_code": response.status_code, "message": response.text},
+                ],
             )
 
         data = response.json()
 
         if "errors" in data:
             error_messages = [e.get("message", str(e)) for e in data["errors"]]
+            error_msg = f"GraphQL error: {'; '.join(error_messages)}"
             raise LinearAPIError(
-                f"GraphQL error: {'; '.join(error_messages)}",
+                error_msg,
                 errors=data["errors"],
             )
 
         return data["data"]
 
     def close(self) -> None:
+        """Close the client connections."""
         if self._client is not None:
             self._client.close()
             self._client = None
         if self._async_client is not None:
-            self._async_client.close()
             self._async_client = None
 
-    def __enter__(self) -> "LinearClient":
+    def __enter__(self) -> Self:
+        """Enter context manager.
+
+        Returns:
+            Self for context manager use.
+        """
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        """Exit context manager.
+
+        Args:
+            exc_type: Exception type if raised.
+            exc_val: Exception value if raised.
+            exc_tb: Exception traceback if raised.
+        """
         self.close()
 
-    async def __aenter__(self) -> "LinearClient":
+    async def __aenter__(self) -> Self:
+        """Enter async context manager.
+
+        Returns:
+            Self for context manager use.
+        """
         return self
 
-    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        """Exit async context manager.
+
+        Args:
+            exc_type: Exception type if raised.
+            exc_val: Exception value if raised.
+            exc_tb: Exception traceback if raised.
+        """
         self.close()

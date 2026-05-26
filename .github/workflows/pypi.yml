@@ -3,8 +3,11 @@ name: publish
 on:
   push:
     tags:
-      - "v*"
-  workflow_dispatch:
+      - v*
+  workflow_dispatch: {} # yamllint disable-line rule:empty-values
+
+permissions:
+  contents: read
 
 jobs:
   build:

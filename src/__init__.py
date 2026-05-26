@@ -19,14 +19,14 @@ from .mutations import LinearMutations
 from .queries import LinearQueries
 
 __all__ = [
-    "LinearClient",
-    "LinearAPIError",
-    "LinearMutations",
-    "LinearQueries",
     "Issue",
     "IssueConnection",
     "IssueCreateInput",
     "IssueUpdateInput",
+    "LinearAPIError",
+    "LinearClient",
+    "LinearMutations",
+    "LinearQueries",
     "PageInfo",
     "Project",
     "ProjectConnection",

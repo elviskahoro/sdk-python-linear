@@ -7,14 +7,19 @@ from .generated_types import Issue, IssueCreateInput, IssueUpdateInput, User
 class LinearMutations:
     """Typed mutation methods for Linear CRUD operations."""
 
-    def __init__(self, client: LinearClient):
+    def __init__(self, client: LinearClient) -> None:
+        """Initialize LinearMutations.
+
+        Args:
+            client: LinearClient instance for API access.
+        """
         self._client = client
 
-    async def create_issue(self, input: IssueCreateInput) -> Issue:
+    async def create_issue(self, input_: IssueCreateInput) -> Issue:
         """Create a new issue in Linear.
 
         Args:
-            input: IssueCreateInput with title, teamId, and optional description.
+            input_: IssueCreateInput with title, teamId, and optional description.
 
         Returns:
             The newly created Issue.
@@ -49,17 +54,18 @@ class LinearMutations:
         """
         variables: dict[str, Any] = {
             "input": {
-                "title": input.title,
-                "teamId": input.teamId,
+                "title": input_.title,
+                "teamId": input_.teamId,
             },
         }
-        if input.description is not None:
-            variables["input"]["description"] = input.description
+        if input_.description is not None:
+            variables["input"]["description"] = input_.description
 
         data = await self._client.execute_async(query, variables)
         issue_data = data.get("issueCreate", {}).get("issue")
         if not issue_data:
-            raise ValueError("Failed to create issue: API did not return an issue object")
+            error_msg = "Failed to create issue: API did not return an issue object"
+            raise ValueError(error_msg)
 
         return self._parse_issue(issue_data)
 
@@ -107,10 +113,16 @@ class LinearMutations:
         if update.description is not None:
             update_input["description"] = update.description
 
-        data = await self._client.execute_async(query, {"id": issue_id, "input": update_input})
+        data = await self._client.execute_async(
+            query,
+            {"id": issue_id, "input": update_input},
+        )
         issue_data = data.get("issueUpdate", {}).get("issue")
         if not issue_data:
-            raise ValueError(f"Failed to update issue {issue_id}: API did not return an issue object")
+            error_msg = (
+                f"Failed to update issue {issue_id}: API did not return an issue object"
+            )
+            raise ValueError(error_msg)
 
         return self._parse_issue(issue_data)
 
@@ -137,23 +149,39 @@ class LinearMutations:
         return bool(data.get("issueDelete", {}).get("success", False))
 
     def _parse_user(self, data: dict[str, Any] | None) -> User | None:
+        """Parse user data from API response.
+
+        Args:
+            data: User data dictionary from API.
+
+        Returns:
+            User instance or None if data is None.
+        """
         if not data:
             return None
         return User(
-            id=data["id"],
-            name=data["name"],
-            email=data.get("email", ""),
-            active=data.get("active", False),
+            id=data["id"],  # type: ignore[call-arg]
+            name=data["name"],  # type: ignore[call-arg]
+            email=data.get("email", ""),  # type: ignore[call-arg]
+            active=data.get("active", False),  # type: ignore[call-arg]
         )
 
     def _parse_issue(self, data: dict[str, Any]) -> Issue:
+        """Parse issue data from API response.
+
+        Args:
+            data: Issue data dictionary from API.
+
+        Returns:
+            Issue instance.
+        """
         return Issue(
-            id=data["id"],
-            title=data["title"],
-            description=data.get("description"),
-            identifier=data["identifier"],
-            url=data["url"],
-            priority=data.get("priority"),
-            status=data.get("status", {}).get("name") if data.get("status") else None,
-            assignee=self._parse_user(data.get("assignee")),
+            id=data["id"],  # type: ignore[call-arg]
+            title=data["title"],  # type: ignore[call-arg]
+            description=data.get("description"),  # type: ignore[call-arg]
+            identifier=data["identifier"],  # type: ignore[call-arg]
+            url=data["url"],  # type: ignore[call-arg]
+            priority=data.get("priority"),  # type: ignore[call-arg]
+            status=data.get("status", {}).get("name") if data.get("status") else None,  # type: ignore[call-arg]
+            assignee=self._parse_user(data.get("assignee")),  # type: ignore[call-arg]
         )

@@ -1,3 +1,5 @@
+from typing import Any
+
 from .client import LinearClient
 from .generated_types import Issue, Team, User
 
@@ -5,7 +7,12 @@ from .generated_types import Issue, Team, User
 class LinearQueries:
     """Typed query methods for common Linear read operations."""
 
-    def __init__(self, client: LinearClient):
+    def __init__(self, client: LinearClient) -> None:
+        """Initialize LinearQueries.
+
+        Args:
+            client: LinearClient instance for API access.
+        """
         self._client = client
 
     async def get_issue(self, issue_id: str) -> Issue | None:
@@ -79,7 +86,10 @@ class LinearQueries:
             }
         }
         """
-        data = await self._client.execute_async(query, {"teamId": team_id, "first": first})
+        data = await self._client.execute_async(
+            query,
+            {"teamId": team_id, "first": first},
+        )
         nodes = data.get("team", {}).get("issues", {}).get("nodes", [])
         return [self._parse_issue(node) for node in nodes]
 
@@ -106,9 +116,9 @@ class LinearQueries:
         if not team_data:
             return None
         return Team(
-            id=team_data["id"],
-            name=team_data["name"],
-            key=team_data["key"],
+            id=team_data["id"],  # type: ignore[call-arg]
+            name=team_data["name"],  # type: ignore[call-arg]
+            key=team_data["key"],  # type: ignore[call-arg]
         )
 
     async def search_issues(self, term: str) -> list[Issue]:
@@ -172,24 +182,42 @@ class LinearQueries:
             return None
         return self._parse_user(user_data)
 
-    # --- Private helpers ---
+    def _parse_user(self, data: dict[str, Any]) -> User:
+        """Parse user data from API response.
 
-    def _parse_user(self, data: dict) -> User:
+        Args:
+            data: User data dictionary from API.
+
+        Returns:
+            User instance.
+        """
         return User(
-            id=data["id"],
-            name=data["name"],
-            email=data.get("email", ""),
-            active=data.get("active", False),
+            id=data["id"],  # type: ignore[call-arg]
+            name=data["name"],  # type: ignore[call-arg]
+            email=data.get("email", ""),  # type: ignore[call-arg]
+            active=data.get("active", False),  # type: ignore[call-arg]
         )
 
-    def _parse_issue(self, data: dict) -> Issue:
+    def _parse_issue(self, data: dict[str, Any]) -> Issue:
+        """Parse issue data from API response.
+
+        Args:
+            data: Issue data dictionary from API.
+
+        Returns:
+            Issue instance.
+        """
         return Issue(
-            id=data["id"],
-            title=data["title"],
-            description=data.get("description"),
-            identifier=data["identifier"],
-            url=data["url"],
-            priority=data.get("priority"),
-            status=data.get("status", {}).get("name") if data.get("status") else None,
-            assignee=self._parse_user(data["assignee"]) if data.get("assignee") else None,
+            id=data["id"],  # type: ignore[call-arg]
+            title=data["title"],  # type: ignore[call-arg]
+            description=data.get("description"),  # type: ignore[call-arg]
+            identifier=data["identifier"],  # type: ignore[call-arg]
+            url=data["url"],  # type: ignore[call-arg]
+            priority=data.get("priority"),  # type: ignore[call-arg]
+            status=data.get("status", {}).get("name")  # type: ignore[call-arg]
+            if data.get("status")
+            else None,
+            assignee=self._parse_user(data["assignee"])  # type: ignore[call-arg]
+            if data.get("assignee")
+            else None,
         )
