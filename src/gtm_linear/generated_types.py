@@ -1,5 +1,4 @@
 import strawberry
-from typing import Any
 
 
 @strawberry.type
@@ -72,6 +71,7 @@ class ProjectConnection:
 class IssueCreateInput:
     title: str
     teamId: str
+    description: str | None = None
 
 
 @strawberry.input
