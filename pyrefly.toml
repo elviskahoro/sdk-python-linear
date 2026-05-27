@@ -7,7 +7,7 @@
 # `--python-interpreter-path ${workspace}/.venv/bin/python` explicitly because
 # Trunk runs linters from a sandboxed tmp dir, so relative paths in this file
 # would otherwise resolve to the sandbox.
-project-includes = ["src/**/*.py"]
+project-includes = ["gtm_linear/**/*.py"]
 project-excludes = ["tmp/**", "node_modules/**", "venv/**"]
 search-path = ["."]
 python-interpreter-path = ".venv/bin/python"

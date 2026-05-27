@@ -1,6 +1,6 @@
 [project]
 name = "gtm-linear"
-version = "0.0.1"
+version = "0.0.2"
 description = "GTM workflow adapter for Linear."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -35,7 +35,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+packages = ["gtm_linear"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src", "README.md", "LICENSE"]
+include = ["gtm_linear", "README.md", "LICENSE"]

@@ -5,7 +5,7 @@ import httpx
 import pytest
 import respx
 
-from src import (
+from gtm_linear import (
     IssueCreateInput,
     IssueUpdateInput,
     LinearClient,

@@ -2,7 +2,7 @@ import httpx
 import pytest
 import respx
 
-from src import LinearAPIError, LinearClient
+from gtm_linear import LinearAPIError, LinearClient
 
 API_URL = LinearClient.BASE_URL
 

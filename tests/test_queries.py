@@ -3,8 +3,8 @@ from typing import Any
 import httpx
 import respx
 
-from src import LinearClient, LinearQueries
-from src.client import LinearClient as ClientCls
+from gtm_linear import LinearClient, LinearQueries
+from gtm_linear.client import LinearClient as ClientCls
 
 API_URL = ClientCls.BASE_URL
 

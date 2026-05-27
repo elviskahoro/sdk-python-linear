@@ -59,7 +59,7 @@ LinearClient        # transport + auth + GraphQL execution
 
 ```python
 import asyncio
-from src import LinearClient, LinearQueries, LinearMutations, IssueCreateInput
+from gtm_linear import LinearClient, LinearQueries, LinearMutations, IssueCreateInput
 
 async def main() -> None:
     async with LinearClient(api_key="lin_api_xxx") as client:
@@ -79,7 +79,7 @@ asyncio.run(main())
 
 ## Public API surface
 
-Importable from `src` (will be `gtm_linear` once renamed for publish):
+Importable from `gtm_linear`:
 
 | Symbol | Kind | Purpose |
 | --- | --- | --- |
@@ -214,7 +214,7 @@ The transport supports both. The typed wrappers (`LinearQueries`, `LinearMutatio
 
 ```python
 import asyncio
-from src import LinearClient, LinearQueries
+from gtm_linear import LinearClient, LinearQueries
 
 async def fetch() -> None:
     async with LinearClient(api_key="...") as client:
@@ -230,7 +230,7 @@ For sync-only use, drop down to `LinearClient.execute(...)` directly.
 ## Error handling pattern
 
 ```python
-from src import LinearAPIError, LinearClient
+from gtm_linear import LinearAPIError, LinearClient
 
 try:
     async with LinearClient(api_key=key) as client:
@@ -288,7 +288,7 @@ sdk-python-linear/
 └── .trunk/                   # lint config (trunk.io)
 ```
 
-Build backend: `hatchling`. Wheel packages: `["src"]` (will be renamed to `gtm_linear` before publish).
+Build backend: `hatchling`. Wheel packages: `["gtm_linear"]`.
 
 ---
 
