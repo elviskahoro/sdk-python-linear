@@ -61,15 +61,31 @@ Pydantic models validate Linear response payloads and mutation inputs internally
 
 ```python
 import asyncio
-from gtm_linear import LinearClient, LinearQueries, LinearMutations, IssueCreateInput
+from gtm_linear import (
+    IssueCreateInput,
+    IssueFilterInput,
+    LinearClient,
+    LinearMutations,
+    LinearQueries,
+    PaginationOrderBy,
+    StringComparatorInput,
+    TeamFilterInput,
+)
 
 async def main() -> None:
     async with LinearClient(api_key="lin_api_xxx") as client:
         queries = LinearQueries(client)
         mutations = LinearMutations(client)
 
-        team = await queries.get_team("team-uuid")
-        issues = await queries.list_issues(team.id, first=20)
+        team = await queries.get_team_by_key("ENG")
+        assert team is not None
+        issues = await queries.list_issues_page(
+            IssueFilterInput(
+                team=TeamFilterInput(id=StringComparatorInput(eq=team.id)),
+            ),
+            first=20,
+            order_by=PaginationOrderBy.UPDATED_AT,
+        )
         created = await mutations.create_issue(
             IssueCreateInput(title="Hello", teamId=team.id, description="from agent"),
         )
@@ -94,6 +110,13 @@ Importable from `gtm_linear`:
 | `IssueConnection` | model | Paginated issue list (`nodes`, `pageInfo`) |
 | `IssueCreateInput` | input | `title`, `teamId`, optional `description`, `labelIds`, `priority`, `assigneeId`, `projectId`, `stateId` |
 | `IssueUpdateInput` | input | Optional `title`, `description`, `labelIds`, `priority`, `assigneeId`, `projectId`, `stateId` |
+| `IssueFilterInput` | input | Linear-shaped nested issue filter for issue connections |
+| `StringComparatorInput` | input | String comparison operators (`eq`, `neq`, `in_`, `nin`) |
+| `TeamFilterInput` | input | Nested team filter, including ID comparison |
+| `WorkflowStateFilterInput` | input | Nested workflow-state filter |
+| `WorkflowStateTypeComparatorInput` | input | Workflow-state-type comparison operators |
+| `WorkflowStateType` | enum | Linear workflow state categories for issue filters |
+| `PaginationOrderBy` | enum | Supported issue connection ordering (`createdAt`, `updatedAt`) |
 | `Team` | model | `id`, `name`, `key` |
 | `TeamConnection` | model | Paginated teams |
 | `User` | model | `id`, `name`, `email`, `active` |
@@ -158,24 +181,60 @@ All methods are `async`. All accept Linear UUIDs unless noted.
 | Method | Args | Returns | Notes |
 | --- | --- | --- | --- |
 | `get_issue(issue_id)` | `str` | `Issue \| None` | Returns `None` on not-found (not an error) |
-| `list_issues(team_id, first=50)` | `str`, `int` | `list[Issue]` | Single page only — pagination not yet wrapped |
+| `list_issues(team_id, first=50)` | `str`, `int` | `list[Issue]` | Compatibility helper for a team's first issue page |
+| `list_issues_page(filter=None, first=50, after=None, order_by=None, include_archived=False)` | `IssueFilterInput \| None`, `int`, `str \| None`, `PaginationOrderBy \| None`, `bool` | `IssueConnection` | Root issue connection with cursor pagination |
 | `search_issues(term)` | `str` | `list[Issue]` | Backed by Linear's `searchIssues` GraphQL field |
-| `get_team(team_id)` | `str` | `Team \| None` | UUID, not team key (`ENG`). See "Team key → ID" below |
+| `get_team(team_id)` | `str` | `Team \| None` | UUID only; use `get_team_by_key` for `ENG`-style keys |
+| `get_team_by_key(key)` | `str` | `Team \| None` | Resolves a human team key such as `ENG` |
 | `get_user(user_id)` | `str` | `User \| None` | — |
 
-### Team key → ID
+### Team key → ID and filtered issue pages
 
-`get_team` expects a UUID. To go from a human team key like `ENG`:
+Use `get_team_by_key` to resolve a human-facing team key, then query a cursor-aware
+connection. The following finds open issues in that team, ordered by their latest update:
 
 ```python
-data = await client.execute_async(
-    "query($key: String!) { teams(filter: {key: {eq: $key}}) { nodes { id } } }",
-    {"key": "ENG"},
+from gtm_linear import (
+    IssueFilterInput,
+    PaginationOrderBy,
+    StringComparatorInput,
+    TeamFilterInput,
+    WorkflowStateFilterInput,
+    WorkflowStateType,
+    WorkflowStateTypeComparatorInput,
 )
-team_id = data["teams"]["nodes"][0]["id"]
-```
 
-`scripts/smoke.py:29` has a reusable implementation (`resolve_team_id`).
+team = await queries.get_team_by_key("ENG")
+assert team is not None
+issue_filter = IssueFilterInput(
+    team=TeamFilterInput(id=StringComparatorInput(eq=team.id)),
+    state=WorkflowStateFilterInput(
+        type=WorkflowStateTypeComparatorInput(
+            nin=[
+                WorkflowStateType.COMPLETED,
+                WorkflowStateType.CANCELED,
+            ],
+        ),
+    ),
+)
+page_size = 100
+order_by = PaginationOrderBy.UPDATED_AT
+issues = await queries.list_issues_page(
+    issue_filter,
+    first=page_size,
+    order_by=order_by,
+)
+for issue in issues.nodes:
+    print(issue.identifier)
+
+if issues.pageInfo.hasNextPage:
+    next_page = await queries.list_issues_page(
+        issue_filter,
+        first=page_size,
+        after=issues.pageInfo.endCursor,
+        order_by=order_by,
+    )
+```
 
 ### Issue shape returned by queries
 
@@ -270,7 +329,7 @@ LINEAR_API_KEY=lin_api_xxx uv run python scripts/smoke.py --team-key ENG
 # add --create to also create+delete a throwaway issue
 ```
 
-The script exercises: `viewer` query, `get_team` (with team-key → UUID resolution), `list_issues`, `search_issues`, and optionally `create_issue` + `delete_issue`. Source: `scripts/smoke.py`.
+The script exercises: `viewer` query, `get_team_by_key`, `get_team`, `list_issues_page`, `search_issues`, and optionally `create_issue` + `delete_issue`. Source: `scripts/smoke.py`.
 
 ---
 
@@ -323,9 +382,9 @@ Tests use `respx` to mock `httpx` — no network access required. `pytest-asynci
 
 ## Known gaps (read before extending)
 
-1. **Pagination**: `list_issues` returns one page. `PageInfo` is modeled but unused by wrappers. Use `execute_async` + cursors directly for multi-page traversal.
+1. **Filtering coverage**: `IssueFilterInput` mirrors the supported team and workflow-state portion of Linear's nested filter tree. Use `execute_async` for other Linear filters.
 2. **Schema coverage**: Only `Issue`, `Comment`, `Team`, `User`, and `Project` are typed. Attachments, cycles, projects-as-containers, workflows, and webhooks remain absent.
-3. **Filtering**: `list_issues` has no filter args. Pass a `filter:` directly via `execute_async`.
+3. **Search filtering**: `search_issues` accepts only a text term. Use `list_issues_page` for typed team/state filtering.
 4. **Subscriptions**: Not supported. Linear's `subscription` API requires WebSockets — the client is HTTP-only.
 5. **Status enum**: `status` is flattened to `state.name`. To filter by state ID, query `state { id }` via `execute_async`.
 
