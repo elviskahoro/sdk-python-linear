@@ -1,7 +1,8 @@
+from datetime import datetime
 from typing import Any
 
 from .client import LinearClient
-from .generated_types import Issue, IssueCreateInput, IssueUpdateInput, User
+from .generated_types import Comment, Issue, IssueCreateInput, IssueUpdateInput, User
 
 
 class LinearMutations:
@@ -148,6 +149,44 @@ class LinearMutations:
         data = await self._client.execute_async(query, {"id": issue_id})
         return bool(data.get("issueDelete", {}).get("success", False))
 
+    async def create_comment(self, issue_id: str, body: str) -> Comment:
+        """Create a comment on an issue in Linear.
+
+        Args:
+            issue_id: The ID of the issue to comment on.
+            body: The comment body.
+
+        Returns:
+            The newly created Comment.
+
+        Raises:
+            ValueError: If the API response does not contain a comment.
+            LinearAPIError: If the API request fails.
+        """
+        query = """
+        mutation CreateComment($input: CommentCreateInput!) {
+            commentCreate(input: $input) {
+                success
+                comment {
+                    id
+                    body
+                    url
+                    createdAt
+                }
+            }
+        }
+        """
+        data = await self._client.execute_async(
+            query,
+            {"input": {"issueId": issue_id, "body": body}},
+        )
+        comment_data = data.get("commentCreate", {}).get("comment")
+        if not comment_data:
+            error_msg = "Failed to create comment: API did not return a comment object"
+            raise ValueError(error_msg)
+
+        return self._parse_comment(comment_data)
+
     def _parse_user(self, data: dict[str, Any] | None) -> User | None:
         """Parse user data from API response.
 
@@ -184,4 +223,28 @@ class LinearMutations:
             priority=data.get("priority"),  # type: ignore[call-arg]
             status=data.get("status", {}).get("name") if data.get("status") else None,  # type: ignore[call-arg]
             assignee=self._parse_user(data.get("assignee")),  # type: ignore[call-arg]
+        )
+
+    def _parse_comment(self, data: dict[str, Any]) -> Comment:
+        """Parse comment data from an API response."""
+        try:
+            comment_id = data["id"]
+            body = data["body"]
+            url = data["url"]
+            created_at = data["createdAt"]
+        except (KeyError, TypeError) as exc:
+            raise ValueError("Failed to parse comment response") from exc
+
+        try:
+            created_at_value = datetime.fromisoformat(
+                created_at.replace("Z", "+00:00"),
+            )
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise ValueError("Failed to parse comment createdAt timestamp") from exc
+
+        return Comment(
+            id=comment_id,  # type: ignore[call-arg]
+            body=body,  # type: ignore[call-arg]
+            url=url,  # type: ignore[call-arg]
+            createdAt=created_at_value,  # type: ignore[call-arg]
         )

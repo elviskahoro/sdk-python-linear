@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import strawberry
 
 
@@ -32,6 +34,16 @@ class Issue:
     priority: int | None
     status: str | None
     assignee: User | None
+
+
+@strawberry.type  # type: ignore[misc]
+class Comment:
+    """Linear issue comment type."""
+
+    id: str
+    body: str
+    url: str
+    createdAt: datetime
 
 
 @strawberry.type  # type: ignore[misc]
