@@ -1,8 +1,47 @@
-from typing import Any
+from enum import Enum
+from typing import Any, TypeAlias, cast
+
+import strawberry
 
 from .client import LinearClient
-from .generated_types import Issue, Team, User
-from .models import IssueModel, TeamModel, UserModel
+from .generated_types import (
+    Issue,
+    IssueConnection,
+    IssueFilterInput,
+    PageInfo,
+    PaginationOrderBy,
+    StringComparatorInput,
+    Team,
+    TeamFilterInput,
+    User,
+)
+from .models import (
+    IssueConnectionModel,
+    IssueModel,
+    PageInfoModel,
+    TeamModel,
+    UserModel,
+)
+
+GraphQLInputValue: TypeAlias = (
+    str
+    | int
+    | float
+    | bool
+    | None
+    | Enum
+    | list["GraphQLInputValue"]
+    | dict[str, "GraphQLInputValue"]
+)
+GraphQLVariableValue: TypeAlias = (
+    str
+    | int
+    | float
+    | bool
+    | None
+    | list["GraphQLVariableValue"]
+    | dict[str, "GraphQLVariableValue"]
+)
 
 
 class LinearQueries:
@@ -62,37 +101,67 @@ class LinearQueries:
         Returns:
             A list of Issue instances.
         """
+        issue_filter = IssueFilterInput(  # type: ignore[call-arg]
+            team=TeamFilterInput(  # type: ignore[call-arg]
+                id=StringComparatorInput(eq=team_id),  # type: ignore[call-arg]
+            ),
+        )
+        connection = await self.list_issues_page(issue_filter, first=first)
+        return connection.nodes  # type: ignore[missing-attribute]
+
+    async def list_issues_page(
+        self,
+        filter: IssueFilterInput | None = None,  # noqa: A002
+        first: int = 50,
+        after: str | None = None,
+        order_by: PaginationOrderBy | None = None,
+        *,
+        include_archived: bool = False,
+    ) -> IssueConnection:
+        """List a filtered page of issues with cursor metadata."""
         query = """
-        query ListIssues($teamId: String!, $first: Int!) {
-            team(id: $teamId) {
-                issues(first: $first) {
-                    nodes {
-                        id
-                        title
-                        description
-                        identifier
-                        url
-                        priority
-                        status: state {
-                            name
-                        }
-                        assignee {
-                            id
-                            name
-                            email
-                            active
-                        }
-                    }
+        query ListIssues(
+            $filter: IssueFilter,
+            $first: Int!,
+            $after: String,
+            $orderBy: PaginationOrderBy,
+            $includeArchived: Boolean!
+        ) {
+            issues(filter: $filter, first: $first, after: $after, orderBy: $orderBy, includeArchived: $includeArchived) {
+                nodes {
+                    id title description identifier url priority
+                    status: state { name }
+                    assignee { id name email active }
                 }
+                pageInfo { hasNextPage hasPreviousPage startCursor endCursor }
             }
         }
         """
         data = await self._client.execute_async(
             query,
-            {"teamId": team_id, "first": first},
+            {
+                "filter": self._serialize_graphql_input(filter),
+                "first": first,
+                "after": after,
+                "orderBy": order_by.value if order_by else None,
+                "includeArchived": include_archived,
+            },
         )
-        nodes = data.get("team", {}).get("issues", {}).get("nodes", [])
-        return [self._parse_issue(node) for node in nodes]
+        connection_data = data.get("issues", {})
+        parsed_nodes = [
+            self._parse_issue(node) for node in connection_data.get("nodes", [])
+        ]
+        page_info = self._parse_page_info(connection_data.get("pageInfo", {}))
+        return IssueConnection.from_pydantic(  # type: ignore[missing-attribute]
+            IssueConnectionModel.model_validate(
+                {
+                    "nodes": [  # type: ignore[missing-attribute]
+                        node.to_pydantic() for node in parsed_nodes
+                    ],
+                    "pageInfo": page_info.to_pydantic(),  # type: ignore[missing-attribute]
+                },
+            ),
+        )
 
     async def get_team(self, team_id: str) -> Team | None:
         """Fetch a single team by ID.
@@ -117,6 +186,21 @@ class LinearQueries:
         if not team_data:
             return None
         return Team.from_pydantic(TeamModel.model_validate(team_data))
+
+    async def get_team_by_key(self, key: str) -> Team | None:
+        """Fetch a single team by its human-readable key."""
+        query = """
+        query GetTeamByKey($key: String!) {
+            teams(filter: { key: { eq: $key } }, first: 1) {
+                nodes { id name key }
+            }
+        }
+        """
+        data = await self._client.execute_async(query, {"key": key})
+        nodes = data.get("teams", {}).get("nodes", [])
+        if not nodes:
+            return None
+        return Team.from_pydantic(TeamModel.model_validate(nodes[0]))
 
     async def search_issues(self, term: str) -> list[Issue]:
         """Search for issues by keyword term.
@@ -189,6 +273,41 @@ class LinearQueries:
             User instance.
         """
         return User.from_pydantic(UserModel.model_validate(data))
+
+    def _parse_page_info(self, data: dict[str, Any]) -> PageInfo:
+        """Parse pagination metadata from a Linear connection response."""
+        return PageInfo.from_pydantic(PageInfoModel.model_validate(data))
+
+    def _serialize_graphql_input(
+        self,
+        value: IssueFilterInput | None,
+    ) -> dict[str, Any] | None:
+        """Serialize a Strawberry input into a sparse Linear GraphQL variable."""
+        if value is None:
+            return None
+        raw_value = cast(
+            "dict[str, GraphQLInputValue]",
+            strawberry.asdict(value),
+        )
+        serialized = self._normalize_graphql_value(raw_value)
+        return serialized if isinstance(serialized, dict) else None
+
+    def _normalize_graphql_value(
+        self,
+        value: GraphQLInputValue,
+    ) -> GraphQLVariableValue:
+        """Omit null fields, preserve GraphQL names, and unwrap enum values."""
+        if isinstance(value, Enum):
+            return value.value
+        if isinstance(value, list):
+            return [self._normalize_graphql_value(item) for item in value]
+        if isinstance(value, dict):
+            return {
+                "in" if key == "in_" else key: self._normalize_graphql_value(item)
+                for key, item in value.items()
+                if item is not None
+            }
+        return value
 
     def _parse_issue(self, data: dict[str, Any]) -> Issue:
         """Parse issue data from API response.

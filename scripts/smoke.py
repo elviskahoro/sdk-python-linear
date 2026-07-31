@@ -3,7 +3,7 @@
 Usage:
     LINEAR_API_KEY=lin_api_xxx uv run python scripts/smoke.py [--team-key ENG]
 
-Exercises: viewer query, get_team (by key lookup), list_issues, search_issues.
+Exercises: viewer query, get_team_by_key, list_issues, search_issues.
 Read-only by default. Pass --create to also create+delete a throwaway issue.
 """
 
@@ -20,22 +20,13 @@ sys.path.insert(0, str(SCRIPT_DIR.parent))
 
 from gtm_linear import (  # noqa: E402
     IssueCreateInput,
+    IssueFilterInput,
     LinearClient,
     LinearMutations,
     LinearQueries,
+    StringComparatorInput,
+    TeamFilterInput,
 )
-
-
-async def resolve_team_id(client: LinearClient, team_key: str) -> tuple[str, str]:
-    data = await client.execute_async(
-        "query($key: String!) { teams(filter: {key: {eq: $key}}) { nodes { id key name } } }",
-        {"key": team_key},
-    )
-    nodes = data.get("teams", {}).get("nodes", [])
-    if not nodes:
-        msg = f"No team found with key {team_key!r}"
-        raise SystemExit(msg)
-    return nodes[0]["id"], nodes[0]["name"]
 
 
 async def main() -> None:
@@ -64,7 +55,11 @@ async def main() -> None:
         print(f"viewer: {viewer['viewer']}")
 
         if args.team_key:
-            team_id, team_name = await resolve_team_id(client, args.team_key)
+            team = await queries.get_team_by_key(args.team_key)
+            if team is None:
+                msg = f"No team found with key {args.team_key!r}"
+                raise SystemExit(msg)
+            team_id, team_name = team.id, team.name
         else:
             data = await client.execute_async(
                 "query { teams(first: 1) { nodes { id name key } } }",
@@ -76,9 +71,16 @@ async def main() -> None:
         team = await queries.get_team(team_id)
         print(f"get_team: {team}")
 
-        issues = await queries.list_issues(team_id, first=5)
-        print(f"list_issues: {len(issues)} returned")
-        for issue in issues[:3]:
+        issues = await queries.list_issues_page(
+            IssueFilterInput(  # type: ignore[call-arg]
+                team=TeamFilterInput(  # type: ignore[call-arg]
+                    id=StringComparatorInput(eq=team_id),  # type: ignore[call-arg]
+                ),
+            ),
+            first=5,
+        )
+        print(f"list_issues: {len(issues.nodes)} returned")
+        for issue in issues.nodes[:3]:
             print(f"  - {issue.identifier}: {issue.title}")
 
         results = await queries.search_issues(args.search)

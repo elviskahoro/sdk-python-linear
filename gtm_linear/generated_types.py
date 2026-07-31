@@ -1,5 +1,8 @@
 """Strawberry public types backed by Pydantic validation models."""
 
+from enum import StrEnum
+
+import strawberry
 from strawberry.experimental import pydantic
 
 from .models import (
@@ -56,6 +59,68 @@ class IssueCreateInput:
 @pydantic.input(model=IssueUpdateInputModel, all_fields=True)
 class IssueUpdateInput:
     """Input type for updating an issue."""
+
+
+@strawberry.enum  # type: ignore[misc]
+class WorkflowStateType(StrEnum):
+    """Linear workflow state categories usable in issue filters."""
+
+    TRIAGE = "triage"
+    BACKLOG = "backlog"
+    UNSTARTED = "unstarted"
+    STARTED = "started"
+    COMPLETED = "completed"
+    CANCELED = "canceled"
+
+
+@strawberry.enum  # type: ignore[misc]
+class PaginationOrderBy(StrEnum):
+    """Supported Linear ordering for paginated issue queries."""
+
+    CREATED_AT = "createdAt"
+    UPDATED_AT = "updatedAt"
+
+
+@strawberry.input  # type: ignore[misc]
+class StringComparatorInput:
+    """Linear string comparators used by the supported nested filters."""
+
+    eq: str | None = None
+    neq: str | None = None
+    in_: list[str] | None = strawberry.field(default=None, name="in")
+    nin: list[str] | None = None
+
+
+@strawberry.input  # type: ignore[misc]
+class WorkflowStateTypeComparatorInput:
+    """Linear workflow-state-type comparators."""
+
+    eq: WorkflowStateType | None = None
+    neq: WorkflowStateType | None = None
+    in_: list[WorkflowStateType] | None = strawberry.field(default=None, name="in")
+    nin: list[WorkflowStateType] | None = None
+
+
+@strawberry.input  # type: ignore[misc]
+class TeamFilterInput:
+    """Nested Linear team filter used by issue filtering."""
+
+    id: StringComparatorInput | None = None
+
+
+@strawberry.input  # type: ignore[misc]
+class WorkflowStateFilterInput:
+    """Nested Linear workflow-state filter used by issue filtering."""
+
+    type: WorkflowStateTypeComparatorInput | None = None
+
+
+@strawberry.input  # type: ignore[misc]
+class IssueFilterInput:
+    """Linear-shaped issue filter accepted by :meth:`LinearQueries.list_issues_page`."""
+
+    team: TeamFilterInput | None = None
+    state: WorkflowStateFilterInput | None = None
 
 
 @pydantic.type(model=IssueConnectionModel, all_fields=True)
