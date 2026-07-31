@@ -1,112 +1,78 @@
-import strawberry
+"""Strawberry public types backed by Pydantic validation models."""
+
+from strawberry.experimental import pydantic
+
+from .models import (
+    CommentModel,
+    IssueCreateInputModel,
+    IssueConnectionModel,
+    IssueModel,
+    IssueUpdateInputModel,
+    PageInfoModel,
+    ProjectModel,
+    ProjectConnectionModel,
+    TeamModel,
+    TeamConnectionModel,
+    UserModel,
+    UserConnectionModel,
+)
 
 
-@strawberry.type  # type: ignore[misc]
+@pydantic.type(model=UserModel, all_fields=True)
 class User:
     """Linear user type."""
 
-    id: strawberry.ID
-    name: str
-    email: str
-    active: bool
 
-
-@strawberry.type  # type: ignore[misc]
+@pydantic.type(model=TeamModel, all_fields=True)
 class Team:
     """Linear team type."""
 
-    id: strawberry.ID
-    name: str
-    key: str
 
-
-@strawberry.type  # type: ignore[misc]
+@pydantic.type(model=IssueModel, all_fields=True)
 class Issue:
     """Linear issue type."""
 
-    id: strawberry.ID
-    title: str
-    description: str | None
-    identifier: str
-    url: str
-    priority: int | None
-    status: str | None
-    assignee: User | None
+
+@pydantic.type(model=CommentModel, all_fields=True)
+class Comment:
+    """Linear issue comment type."""
 
 
-@strawberry.type  # type: ignore[misc]
+@pydantic.type(model=ProjectModel, all_fields=True)
 class Project:
     """Linear project type."""
 
-    id: strawberry.ID
-    name: str
-    slug: str
 
-
-@strawberry.type  # type: ignore[misc]
+@pydantic.type(model=PageInfoModel, all_fields=True)
 class PageInfo:
     """Pagination info type."""
 
-    hasNextPage: bool
-    hasPreviousPage: bool
-    startCursor: str | None
-    endCursor: str | None
 
-
-@strawberry.type  # type: ignore[misc]
-class IssueConnection:
-    """Connection of issues with pagination."""
-
-    nodes: list[Issue]
-    pageInfo: PageInfo
-
-
-@strawberry.type  # type: ignore[misc]
-class UserConnection:
-    """Connection of users with pagination."""
-
-    nodes: list[User]
-    pageInfo: PageInfo
-
-
-@strawberry.type  # type: ignore[misc]
-class TeamConnection:
-    """Connection of teams with pagination."""
-
-    nodes: list[Team]
-    pageInfo: PageInfo
-
-
-@strawberry.type  # type: ignore[misc]
-class ProjectConnection:
-    """Connection of projects with pagination."""
-
-    nodes: list[Project]
-    pageInfo: PageInfo
-
-
-@strawberry.input  # type: ignore[misc]
+@pydantic.input(model=IssueCreateInputModel, all_fields=True)
 class IssueCreateInput:
     """Input type for creating an issue."""
 
-    title: str
-    teamId: strawberry.ID
-    description: strawberry.Maybe[str | None] = None
-    labelIds: strawberry.Maybe[list[strawberry.ID] | None] = None
-    priority: strawberry.Maybe[int | None] = None
-    assigneeId: strawberry.Maybe[strawberry.ID | None] = None
-    projectId: strawberry.Maybe[strawberry.ID | None] = None
-    stateId: strawberry.Maybe[strawberry.ID | None] = None
 
-
-@strawberry.input  # type: ignore[misc]
+@pydantic.input(model=IssueUpdateInputModel, all_fields=True)
 class IssueUpdateInput:
     """Input type for updating an issue."""
 
-    title: strawberry.Maybe[str | None] = None
-    description: strawberry.Maybe[str | None] = None
-    labelIds: strawberry.Maybe[list[strawberry.ID] | None] = None
-    priority: strawberry.Maybe[int | None] = None
-    assigneeId: strawberry.Maybe[strawberry.ID | None] = None
-    projectId: strawberry.Maybe[strawberry.ID | None] = None
-    stateId: strawberry.Maybe[strawberry.ID | None] = None
+
+@pydantic.type(model=IssueConnectionModel, all_fields=True)
+class IssueConnection:
+    """Connection of issues with pagination."""
+
+
+@pydantic.type(model=UserConnectionModel, all_fields=True)
+class UserConnection:
+    """Connection of users with pagination."""
+
+
+@pydantic.type(model=TeamConnectionModel, all_fields=True)
+class TeamConnection:
+    """Connection of teams with pagination."""
+
+
+@pydantic.type(model=ProjectConnectionModel, all_fields=True)
+class ProjectConnection:
+    """Connection of projects with pagination."""

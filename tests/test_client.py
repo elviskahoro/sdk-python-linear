@@ -1,3 +1,5 @@
+from unittest.mock import AsyncMock, Mock
+
 import httpx
 import pytest
 import respx
@@ -67,3 +69,75 @@ async def test_execute_async_returns_data() -> None:
     async with LinearClient(api_key="key") as client:
         data = await client.execute_async("query { viewer { id } }")
     assert data == {"viewer": {"id": "u1"}}  # noqa: S101
+
+
+async def test_aclose_closes_async_client_and_is_idempotent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = LinearClient(api_key="key")
+    async_client = AsyncMock(spec=httpx.AsyncClient)
+    async_client.post.return_value = httpx.Response(200, json={"data": {}})
+    async_client_factory = Mock(return_value=async_client)
+    monkeypatch.setattr("gtm_linear.client.httpx.AsyncClient", async_client_factory)
+
+    await client.execute_async("query { __typename }")
+
+    await client.aclose()
+    await client.aclose()
+
+    async_client_factory.assert_called_once()
+    async_client.aclose.assert_awaited_once()
+
+
+async def test_close_raises_when_async_client_is_open(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = LinearClient(api_key="key")
+    sync_client = Mock(spec=httpx.Client)
+    async_client = AsyncMock(spec=httpx.AsyncClient)
+    sync_client.post.return_value = httpx.Response(200, json={"data": {}})
+    async_client.post.return_value = httpx.Response(200, json={"data": {}})
+    monkeypatch.setattr(
+        "gtm_linear.client.httpx.Client",
+        Mock(return_value=sync_client),
+    )
+    monkeypatch.setattr(
+        "gtm_linear.client.httpx.AsyncClient",
+        Mock(return_value=async_client),
+    )
+
+    client.execute("query { __typename }")
+    await client.execute_async("query { __typename }")
+
+    with pytest.raises(RuntimeError, match="call await aclose\\(\\) first"):
+        client.close()
+
+    sync_client.close.assert_called_once()
+    async_client.aclose.assert_not_awaited()
+    await client.aclose()
+    async_client.aclose.assert_awaited_once()
+
+
+async def test_async_context_manager_closes_both_clients(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = LinearClient(api_key="key")
+    sync_client = Mock(spec=httpx.Client)
+    async_client = AsyncMock(spec=httpx.AsyncClient)
+    sync_client.post.return_value = httpx.Response(200, json={"data": {}})
+    async_client.post.return_value = httpx.Response(200, json={"data": {}})
+    monkeypatch.setattr(
+        "gtm_linear.client.httpx.Client",
+        Mock(return_value=sync_client),
+    )
+    monkeypatch.setattr(
+        "gtm_linear.client.httpx.AsyncClient",
+        Mock(return_value=async_client),
+    )
+
+    async with client:
+        client.execute("query { __typename }")
+        await client.execute_async("query { __typename }")
+
+    sync_client.close.assert_called_once()
+    async_client.aclose.assert_awaited_once()

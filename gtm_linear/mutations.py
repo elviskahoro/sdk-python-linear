@@ -1,11 +1,13 @@
-from dataclasses import fields
 from typing import Any
 
-import strawberry
-from strawberry.types.maybe import Some
-
 from .client import LinearClient
-from .generated_types import Issue, IssueCreateInput, IssueUpdateInput, User
+from .generated_types import Comment, Issue, IssueCreateInput, IssueUpdateInput, User
+from .models import (
+    CommentCreateInputModel,
+    CommentModel,
+    IssueModel,
+    UserModel,
+)
 
 
 class LinearMutations:
@@ -23,7 +25,7 @@ class LinearMutations:
         """Create a new issue in Linear.
 
         Args:
-            input_: Strawberry IssueCreateInput containing the issue fields to set.
+            input_: Strawberry/Pydantic IssueCreateInput containing the issue fields to set.
 
         Returns:
             The newly created Issue.
@@ -56,7 +58,10 @@ class LinearMutations:
             }
         }
         """
-        variables: dict[str, Any] = {"input": self._serialize_input(input_)}
+        input_model = input_.to_pydantic()
+        variables: dict[str, Any] = {
+            "input": input_model.model_dump(exclude_none=True),
+        }
 
         data = await self._client.execute_async(query, variables)
         issue_data = data.get("issueCreate", {}).get("issue")
@@ -71,7 +76,7 @@ class LinearMutations:
 
         Args:
             issue_id: The ID of the issue to update.
-            update: Strawberry IssueUpdateInput containing the fields to change.
+            update: Strawberry/Pydantic IssueUpdateInput containing the fields to change.
 
         Returns:
             The updated Issue.
@@ -104,9 +109,11 @@ class LinearMutations:
             }
         }
         """
+        update_input = update.to_pydantic().model_dump(exclude_none=True)
+
         data = await self._client.execute_async(
             query,
-            {"id": issue_id, "input": self._serialize_input(update)},
+            {"id": issue_id, "input": update_input},
         )
         issue_data = data.get("issueUpdate", {}).get("issue")
         if not issue_data:
@@ -116,22 +123,6 @@ class LinearMutations:
             raise ValueError(error_msg)
 
         return self._parse_issue(issue_data)
-
-    @staticmethod
-    def _serialize_input(input_: IssueCreateInput | IssueUpdateInput) -> dict[str, Any]:
-        """Convert a Strawberry input instance to GraphQL variables.
-
-        Strawberry input types are dataclasses, so their declared fields remain the
-        single source of truth for the payload. Strawberry's Maybe type allows an
-        omitted field to differ from an explicit Some(None), which is preserved for
-        callers that need to clear a nullable Linear field.
-        """
-        payload = strawberry.asdict(input_)
-        for field in fields(input_):
-            value = getattr(input_, field.name)
-            if isinstance(value, Some):
-                payload[field.name] = value.value
-        return payload
 
     async def delete_issue(self, issue_id: str) -> bool:
         """Delete an issue in Linear.
@@ -155,6 +146,47 @@ class LinearMutations:
         data = await self._client.execute_async(query, {"id": issue_id})
         return bool(data.get("issueDelete", {}).get("success", False))
 
+    async def create_comment(self, issue_id: str, body: str) -> Comment:
+        """Create a comment on an issue in Linear.
+
+        Args:
+            issue_id: The ID of the issue to comment on.
+            body: The comment body.
+
+        Returns:
+            The newly created Comment.
+
+        Raises:
+            ValueError: If the API response does not contain a comment.
+            LinearAPIError: If the API request fails.
+        """
+        query = """
+        mutation CreateComment($input: CommentCreateInput!) {
+            commentCreate(input: $input) {
+                success
+                comment {
+                    id
+                    body
+                    url
+                    createdAt
+                }
+            }
+        }
+        """
+        comment_input = CommentCreateInputModel.model_validate(
+            {"issueId": issue_id, "body": body},
+        )
+        data = await self._client.execute_async(
+            query,
+            {"input": comment_input.model_dump()},
+        )
+        comment_data = data.get("commentCreate", {}).get("comment")
+        if not comment_data:
+            error_msg = "Failed to create comment: API did not return a comment object"
+            raise ValueError(error_msg)
+
+        return self._parse_comment(comment_data)
+
     def _parse_user(self, data: dict[str, Any] | None) -> User | None:
         """Parse user data from API response.
 
@@ -166,12 +198,7 @@ class LinearMutations:
         """
         if not data:
             return None
-        return User(
-            id=data["id"],  # type: ignore[call-arg]
-            name=data["name"],  # type: ignore[call-arg]
-            email=data.get("email", ""),  # type: ignore[call-arg]
-            active=data.get("active", False),  # type: ignore[call-arg]
-        )
+        return User.from_pydantic(UserModel.model_validate(data))
 
     def _parse_issue(self, data: dict[str, Any]) -> Issue:
         """Parse issue data from API response.
@@ -182,13 +209,20 @@ class LinearMutations:
         Returns:
             Issue instance.
         """
-        return Issue(
-            id=data["id"],  # type: ignore[call-arg]
-            title=data["title"],  # type: ignore[call-arg]
-            description=data.get("description"),  # type: ignore[call-arg]
-            identifier=data["identifier"],  # type: ignore[call-arg]
-            url=data["url"],  # type: ignore[call-arg]
-            priority=data.get("priority"),  # type: ignore[call-arg]
-            status=data.get("status", {}).get("name") if data.get("status") else None,  # type: ignore[call-arg]
-            assignee=self._parse_user(data.get("assignee")),  # type: ignore[call-arg]
-        )
+        normalized_data = dict(data)
+        status = normalized_data.get("status")
+        normalized_data["status"] = status.get("name") if status else None
+        if normalized_data.get("assignee"):
+            normalized_data["assignee"] = UserModel.model_validate(
+                normalized_data["assignee"],
+            )
+        issue_model = IssueModel.model_validate(normalized_data)
+        return Issue.from_pydantic(issue_model)
+
+    def _parse_comment(self, data: dict[str, Any]) -> Comment:
+        """Parse comment data from an API response."""
+        try:
+            comment_model = CommentModel.model_validate(data)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Failed to parse comment response") from exc
+        return Comment.from_pydantic(comment_model)

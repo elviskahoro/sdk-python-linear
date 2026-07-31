@@ -135,11 +135,23 @@ class LinearClient:
         return data["data"]
 
     def close(self) -> None:
-        """Close the client connections."""
+        """Close the synchronous client connection.
+
+        Raises:
+            RuntimeError: If an asynchronous client is still open. Use
+                :meth:`aclose` to close it from an async context.
+        """
         if self._client is not None:
             self._client.close()
             self._client = None
         if self._async_client is not None:
+            error_msg = "Async client is still open; call await aclose() first"
+            raise RuntimeError(error_msg)
+
+    async def aclose(self) -> None:
+        """Close the asynchronous client connection."""
+        if self._async_client is not None:
+            await self._async_client.aclose()
             self._async_client = None
 
     def __enter__(self) -> Self:
@@ -186,4 +198,5 @@ class LinearClient:
             exc_val: Exception value if raised.
             exc_tb: Exception traceback if raised.
         """
+        await self.aclose()
         self.close()

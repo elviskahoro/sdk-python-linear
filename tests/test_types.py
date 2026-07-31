@@ -25,10 +25,10 @@ def test_issue_input_schema_uses_linear_compatible_types() -> None:
     schema = strawberry.Schema(query=_Query, mutation=_Mutation)
     sdl = str(schema)
 
-    assert "teamId: ID!" in sdl  # noqa: S101
-    assert "labelIds: [ID!]" in sdl  # noqa: S101
-    assert "assigneeId: ID" in sdl  # noqa: S101
-    assert "projectId: ID" in sdl  # noqa: S101
-    assert "stateId: ID" in sdl  # noqa: S101
+    assert "teamId: String!" in sdl  # noqa: S101
+    assert "labelIds: [String!]" in sdl  # noqa: S101
+    assert "assigneeId: String" in sdl  # noqa: S101
+    assert "projectId: String" in sdl  # noqa: S101
+    assert "stateId: String" in sdl  # noqa: S101
     assert "priority: Int" in sdl  # noqa: S101
     assert "description: String" in sdl  # noqa: S101
