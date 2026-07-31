@@ -1,8 +1,13 @@
-from datetime import datetime
 from typing import Any
 
 from .client import LinearClient
 from .generated_types import Comment, Issue, IssueCreateInput, IssueUpdateInput, User
+from .models import (
+    CommentCreateInputModel,
+    CommentModel,
+    IssueModel,
+    UserModel,
+)
 
 
 class LinearMutations:
@@ -53,14 +58,10 @@ class LinearMutations:
             }
         }
         """
+        input_model = input_.to_pydantic()
         variables: dict[str, Any] = {
-            "input": {
-                "title": input_.title,
-                "teamId": input_.teamId,
-            },
+            "input": input_model.model_dump(exclude_none=True),
         }
-        if input_.description is not None:
-            variables["input"]["description"] = input_.description
 
         data = await self._client.execute_async(query, variables)
         issue_data = data.get("issueCreate", {}).get("issue")
@@ -108,11 +109,7 @@ class LinearMutations:
             }
         }
         """
-        update_input: dict[str, Any] = {}
-        if update.title is not None:
-            update_input["title"] = update.title
-        if update.description is not None:
-            update_input["description"] = update.description
+        update_input = update.to_pydantic().model_dump(exclude_none=True)
 
         data = await self._client.execute_async(
             query,
@@ -176,9 +173,12 @@ class LinearMutations:
             }
         }
         """
+        comment_input = CommentCreateInputModel.model_validate(
+            {"issueId": issue_id, "body": body},
+        )
         data = await self._client.execute_async(
             query,
-            {"input": {"issueId": issue_id, "body": body}},
+            {"input": comment_input.model_dump()},
         )
         comment_data = data.get("commentCreate", {}).get("comment")
         if not comment_data:
@@ -198,12 +198,7 @@ class LinearMutations:
         """
         if not data:
             return None
-        return User(
-            id=data["id"],  # type: ignore[call-arg]
-            name=data["name"],  # type: ignore[call-arg]
-            email=data.get("email", ""),  # type: ignore[call-arg]
-            active=data.get("active", False),  # type: ignore[call-arg]
-        )
+        return User.from_pydantic(UserModel.model_validate(data))
 
     def _parse_issue(self, data: dict[str, Any]) -> Issue:
         """Parse issue data from API response.
@@ -214,37 +209,20 @@ class LinearMutations:
         Returns:
             Issue instance.
         """
-        return Issue(
-            id=data["id"],  # type: ignore[call-arg]
-            title=data["title"],  # type: ignore[call-arg]
-            description=data.get("description"),  # type: ignore[call-arg]
-            identifier=data["identifier"],  # type: ignore[call-arg]
-            url=data["url"],  # type: ignore[call-arg]
-            priority=data.get("priority"),  # type: ignore[call-arg]
-            status=data.get("status", {}).get("name") if data.get("status") else None,  # type: ignore[call-arg]
-            assignee=self._parse_user(data.get("assignee")),  # type: ignore[call-arg]
-        )
+        normalized_data = dict(data)
+        status = normalized_data.get("status")
+        normalized_data["status"] = status.get("name") if status else None
+        if normalized_data.get("assignee"):
+            normalized_data["assignee"] = UserModel.model_validate(
+                normalized_data["assignee"],
+            )
+        issue_model = IssueModel.model_validate(normalized_data)
+        return Issue.from_pydantic(issue_model)
 
     def _parse_comment(self, data: dict[str, Any]) -> Comment:
         """Parse comment data from an API response."""
         try:
-            comment_id = data["id"]
-            body = data["body"]
-            url = data["url"]
-            created_at = data["createdAt"]
-        except (KeyError, TypeError) as exc:
+            comment_model = CommentModel.model_validate(data)
+        except (TypeError, ValueError) as exc:
             raise ValueError("Failed to parse comment response") from exc
-
-        try:
-            created_at_value = datetime.fromisoformat(
-                created_at.replace("Z", "+00:00"),
-            )
-        except (AttributeError, TypeError, ValueError) as exc:
-            raise ValueError("Failed to parse comment createdAt timestamp") from exc
-
-        return Comment(
-            id=comment_id,  # type: ignore[call-arg]
-            body=body,  # type: ignore[call-arg]
-            url=url,  # type: ignore[call-arg]
-            createdAt=created_at_value,  # type: ignore[call-arg]
-        )
+        return Comment.from_pydantic(comment_model)

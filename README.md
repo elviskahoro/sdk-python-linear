@@ -29,7 +29,7 @@ uv pip install gtm-linear        # once published
 uv sync
 ```
 
-Requires Python `>=3.11`. Runtime deps: `httpx>=0.27`, `strawberry-graphql>=0.240`.
+Requires Python `>=3.11`. Runtime deps: `httpx>=0.27`, `pydantic>=2.0`, `strawberry-graphql>=0.240`.
 
 ---
 
@@ -56,6 +56,8 @@ LinearClient        # transport + auth + GraphQL execution
 ```
 
 `LinearQueries` and `LinearMutations` are **stateless facades** over a `LinearClient`. They do not own the client; they borrow it. Construct one client and pass it to both.
+
+Pydantic models validate Linear response payloads and mutation inputs internally. Strawberry's Pydantic integration exposes those validated models as the public GraphQL types and inputs.
 
 ```python
 import asyncio
@@ -100,7 +102,9 @@ Importable from `gtm_linear`:
 | `ProjectConnection` | model | Paginated projects |
 | `PageInfo` | model | `hasNextPage`, `hasPreviousPage`, `startCursor`, `endCursor` |
 
-`IssueCreateInput` and `IssueUpdateInput` are Strawberry `@strawberry.input` decorated. Construct positionally or with kwargs; some static type checkers may flag the call signature — the `scripts/smoke.py` file demonstrates the working ignore pattern.
+The public Strawberry types are backed by Pydantic models, so malformed API payloads and invalid mutation inputs fail validation before they are exposed to callers or sent to Linear.
+
+`IssueCreateInput` and `IssueUpdateInput` are Strawberry input types backed by Pydantic models. Construct positionally or with kwargs; some static type checkers may flag the call signature — the `scripts/smoke.py` file demonstrates the working ignore pattern.
 
 ---
 

@@ -192,5 +192,5 @@ async def test_create_comment_raises_for_invalid_created_at() -> None:
         ),
     )
     async with LinearClient(api_key="key") as client:
-        with pytest.raises(ValueError, match="createdAt timestamp"):  # noqa: PT011
+        with pytest.raises(ValueError, match="comment response"):  # noqa: PT011
             await LinearMutations(client).create_comment("iss-1", "body")
