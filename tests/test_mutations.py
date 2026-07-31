@@ -75,6 +75,40 @@ async def test_create_issue_omits_none_description() -> None:
 
 
 @respx.mock  # type: ignore[misc]
+async def test_create_issue_sends_extended_input_fields() -> None:
+    route = respx.post(API_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "data": {"issueCreate": {"success": True, "issue": _issue_payload()}},
+            },
+        ),
+    )
+    async with LinearClient(api_key="key") as client:
+        await LinearMutations(client).create_issue(
+            IssueCreateInput(
+                title="Hello",
+                teamId="team-1",
+                labelIds=[],
+                priority=0,
+                assigneeId="user-1",
+                projectId="project-1",
+                stateId="state-1",
+            ),
+        )
+    body = json.loads(route.calls.last.request.read())
+    assert body["variables"]["input"] == {  # noqa: S101
+        "title": "Hello",
+        "teamId": "team-1",
+        "labelIds": [],
+        "priority": 0,
+        "assigneeId": "user-1",
+        "projectId": "project-1",
+        "stateId": "state-1",
+    }
+
+
+@respx.mock  # type: ignore[misc]
 async def test_create_issue_raises_when_no_issue_returned() -> None:
     respx.post(API_URL).mock(
         return_value=httpx.Response(
@@ -107,6 +141,40 @@ async def test_update_issue() -> None:
     body = json.loads(route.calls.last.request.read())
     assert body["variables"] == {"id": "iss-1", "input": {"title": "New title"}}  # noqa: S101
     assert issue.id == "iss-1"  # noqa: S101
+
+
+@respx.mock  # type: ignore[misc]
+async def test_update_issue_sends_extended_input_fields_and_omits_none() -> None:
+    route = respx.post(API_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "data": {"issueUpdate": {"success": True, "issue": _issue_payload()}},
+            },
+        ),
+    )
+    async with LinearClient(api_key="key") as client:
+        await LinearMutations(client).update_issue(
+            "iss-1",
+            IssueUpdateInput(
+                labelIds=[],
+                priority=0,
+                assigneeId="user-1",
+                projectId="project-1",
+                stateId="state-1",
+            ),
+        )
+    body = json.loads(route.calls.last.request.read())
+    assert body["variables"] == {  # noqa: S101
+        "id": "iss-1",
+        "input": {
+            "labelIds": [],
+            "priority": 0,
+            "assigneeId": "user-1",
+            "projectId": "project-1",
+            "stateId": "state-1",
+        },
+    }
 
 
 @respx.mock  # type: ignore[misc]

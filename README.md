@@ -92,8 +92,8 @@ Importable from `gtm_linear`:
 | `Issue` | model | Linear issue |
 | `Comment` | model | Linear issue comment |
 | `IssueConnection` | model | Paginated issue list (`nodes`, `pageInfo`) |
-| `IssueCreateInput` | input | `title`, `teamId`, optional `description` |
-| `IssueUpdateInput` | input | Optional `title`, optional `description` |
+| `IssueCreateInput` | input | `title`, `teamId`, optional `description`, `labelIds`, `priority`, `assigneeId`, `projectId`, `stateId` |
+| `IssueUpdateInput` | input | Optional `title`, `description`, `labelIds`, `priority`, `assigneeId`, `projectId`, `stateId` |
 | `Team` | model | `id`, `name`, `key` |
 | `TeamConnection` | model | Paginated teams |
 | `User` | model | `id`, `name`, `email`, `active` |
@@ -104,7 +104,7 @@ Importable from `gtm_linear`:
 
 The public Strawberry types are backed by Pydantic models, so malformed API payloads and invalid mutation inputs fail validation before they are exposed to callers or sent to Linear.
 
-`IssueCreateInput` and `IssueUpdateInput` are Strawberry input types backed by Pydantic models. Construct positionally or with kwargs; some static type checkers may flag the call signature — the `scripts/smoke.py` file demonstrates the working ignore pattern.
+`IssueCreateInput` and `IssueUpdateInput` are Strawberry input types backed by Pydantic models. Construct positionally or with kwargs; some static type checkers may flag the call signature — the `scripts/smoke.py` file demonstrates the working ignore pattern. Optional fields set to `None` are omitted from mutation variables.
 
 ---
 
@@ -209,7 +209,7 @@ Issue(
 
 ### Mutation pitfalls
 
-- `IssueUpdateInput` currently exposes only `title` and `description`. To change priority, assignee, or status, use `execute_async` against `issueUpdate` directly.
+- `IssueCreateInput` and `IssueUpdateInput` omit fields set to `None`; values such as `priority=0` and `labelIds=[]` are forwarded to Linear.
 - `delete_issue` returns Linear's `success` bool. A `False` return is *not* an exception — check it explicitly if you care.
 - `create_issue` and `update_issue` raise `ValueError`, not `LinearAPIError`, when the API responds 200 but with an empty `issue`. Catch both if you're wrapping.
 - `create_comment` returns a typed `Comment` with `createdAt` parsed as a timezone-aware `datetime` when Linear returns an ISO-8601 timestamp.

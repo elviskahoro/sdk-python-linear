@@ -25,7 +25,7 @@ class LinearMutations:
         """Create a new issue in Linear.
 
         Args:
-            input_: IssueCreateInput with title, teamId, and optional description.
+            input_: Strawberry/Pydantic IssueCreateInput containing the issue fields to set.
 
         Returns:
             The newly created Issue.
@@ -76,7 +76,7 @@ class LinearMutations:
 
         Args:
             issue_id: The ID of the issue to update.
-            update: IssueUpdateInput with optional title and description.
+            update: Strawberry/Pydantic IssueUpdateInput containing the fields to change.
 
         Returns:
             The updated Issue.

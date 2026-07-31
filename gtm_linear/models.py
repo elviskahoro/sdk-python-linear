@@ -84,11 +84,21 @@ class IssueCreateInputModel(LinearModel):
     title: str
     teamId: str
     description: str | None = None
+    labelIds: list[str] | None = None
+    priority: int | None = None
+    assigneeId: str | None = None
+    projectId: str | None = None
+    stateId: str | None = None
 
 
 class IssueUpdateInputModel(LinearModel):
     title: str | None = None
     description: str | None = None
+    labelIds: list[str] | None = None
+    priority: int | None = None
+    assigneeId: str | None = None
+    projectId: str | None = None
+    stateId: str | None = None
 
 
 class CommentCreateInputModel(LinearModel):
