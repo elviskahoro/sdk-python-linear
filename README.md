@@ -89,8 +89,8 @@ Importable from `gtm_linear`:
 | `LinearAPIError` | exception | Raised on HTTP non-200 OR GraphQL `errors` field present |
 | `Issue` | model | Linear issue |
 | `IssueConnection` | model | Paginated issue list (`nodes`, `pageInfo`) |
-| `IssueCreateInput` | input | `title`, `teamId`, optional `description` |
-| `IssueUpdateInput` | input | Optional `title`, optional `description` |
+| `IssueCreateInput` | input | `title`, `teamId`, optional `description`, `labelIds`, `priority`, `assigneeId`, `projectId`, `stateId` |
+| `IssueUpdateInput` | input | Optional `title`, `description`, `labelIds`, `priority`, `assigneeId`, `projectId`, `stateId`; nullable fields support `strawberry.Some(None)` |
 | `Team` | model | `id`, `name`, `key` |
 | `TeamConnection` | model | Paginated teams |
 | `User` | model | `id`, `name`, `email`, `active` |
@@ -99,7 +99,7 @@ Importable from `gtm_linear`:
 | `ProjectConnection` | model | Paginated projects |
 | `PageInfo` | model | `hasNextPage`, `hasPreviousPage`, `startCursor`, `endCursor` |
 
-`IssueCreateInput` and `IssueUpdateInput` are Strawberry `@strawberry.input` decorated. Construct positionally or with kwargs; some static type checkers may flag the call signature — the `scripts/smoke.py` file demonstrates the working ignore pattern.
+`IssueCreateInput` and `IssueUpdateInput` are Strawberry `@strawberry.input` decorated. Construct positionally or with kwargs; some static type checkers may flag the call signature — the `scripts/smoke.py` file demonstrates the working ignore pattern. Optional mutation fields use Strawberry `Maybe`: leave a field at its default to omit it, pass a value to set it, or pass `strawberry.Some(None)` to explicitly clear a nullable field.
 
 ---
 
@@ -202,7 +202,7 @@ Issue(
 
 ### Mutation pitfalls
 
-- `IssueUpdateInput` currently exposes only `title` and `description`. To change priority, assignee, or status, use `execute_async` against `issueUpdate` directly.
+- `IssueCreateInput` and `IssueUpdateInput` omit fields left unset; values such as `priority=0` and `labelIds=[]` are forwarded to Linear. Use `strawberry.Some(None)` when Linear should receive an explicit null.
 - `delete_issue` returns Linear's `success` bool. A `False` return is *not* an exception — check it explicitly if you care.
 - `create_issue` and `update_issue` raise `ValueError`, not `LinearAPIError`, when the API responds 200 but with an empty `issue`. Catch both if you're wrapping.
 

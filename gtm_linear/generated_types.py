@@ -5,7 +5,7 @@ import strawberry
 class User:
     """Linear user type."""
 
-    id: str
+    id: strawberry.ID
     name: str
     email: str
     active: bool
@@ -15,7 +15,7 @@ class User:
 class Team:
     """Linear team type."""
 
-    id: str
+    id: strawberry.ID
     name: str
     key: str
 
@@ -24,7 +24,7 @@ class Team:
 class Issue:
     """Linear issue type."""
 
-    id: str
+    id: strawberry.ID
     title: str
     description: str | None
     identifier: str
@@ -38,7 +38,7 @@ class Issue:
 class Project:
     """Linear project type."""
 
-    id: str
+    id: strawberry.ID
     name: str
     slug: str
 
@@ -90,13 +90,23 @@ class IssueCreateInput:
     """Input type for creating an issue."""
 
     title: str
-    teamId: str
-    description: str | None = None
+    teamId: strawberry.ID
+    description: strawberry.Maybe[str | None] = None
+    labelIds: strawberry.Maybe[list[strawberry.ID] | None] = None
+    priority: strawberry.Maybe[int | None] = None
+    assigneeId: strawberry.Maybe[strawberry.ID | None] = None
+    projectId: strawberry.Maybe[strawberry.ID | None] = None
+    stateId: strawberry.Maybe[strawberry.ID | None] = None
 
 
 @strawberry.input  # type: ignore[misc]
 class IssueUpdateInput:
     """Input type for updating an issue."""
 
-    title: str | None = None
-    description: str | None = None
+    title: strawberry.Maybe[str | None] = None
+    description: strawberry.Maybe[str | None] = None
+    labelIds: strawberry.Maybe[list[strawberry.ID] | None] = None
+    priority: strawberry.Maybe[int | None] = None
+    assigneeId: strawberry.Maybe[strawberry.ID | None] = None
+    projectId: strawberry.Maybe[strawberry.ID | None] = None
+    stateId: strawberry.Maybe[strawberry.ID | None] = None

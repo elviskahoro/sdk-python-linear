@@ -1,4 +1,8 @@
+from dataclasses import fields
 from typing import Any
+
+import strawberry
+from strawberry.types.maybe import Some
 
 from .client import LinearClient
 from .generated_types import Issue, IssueCreateInput, IssueUpdateInput, User
@@ -19,7 +23,7 @@ class LinearMutations:
         """Create a new issue in Linear.
 
         Args:
-            input_: IssueCreateInput with title, teamId, and optional description.
+            input_: Strawberry IssueCreateInput containing the issue fields to set.
 
         Returns:
             The newly created Issue.
@@ -52,14 +56,7 @@ class LinearMutations:
             }
         }
         """
-        variables: dict[str, Any] = {
-            "input": {
-                "title": input_.title,
-                "teamId": input_.teamId,
-            },
-        }
-        if input_.description is not None:
-            variables["input"]["description"] = input_.description
+        variables: dict[str, Any] = {"input": self._serialize_input(input_)}
 
         data = await self._client.execute_async(query, variables)
         issue_data = data.get("issueCreate", {}).get("issue")
@@ -74,7 +71,7 @@ class LinearMutations:
 
         Args:
             issue_id: The ID of the issue to update.
-            update: IssueUpdateInput with optional title and description.
+            update: Strawberry IssueUpdateInput containing the fields to change.
 
         Returns:
             The updated Issue.
@@ -107,15 +104,9 @@ class LinearMutations:
             }
         }
         """
-        update_input: dict[str, Any] = {}
-        if update.title is not None:
-            update_input["title"] = update.title
-        if update.description is not None:
-            update_input["description"] = update.description
-
         data = await self._client.execute_async(
             query,
-            {"id": issue_id, "input": update_input},
+            {"id": issue_id, "input": self._serialize_input(update)},
         )
         issue_data = data.get("issueUpdate", {}).get("issue")
         if not issue_data:
@@ -125,6 +116,22 @@ class LinearMutations:
             raise ValueError(error_msg)
 
         return self._parse_issue(issue_data)
+
+    @staticmethod
+    def _serialize_input(input_: IssueCreateInput | IssueUpdateInput) -> dict[str, Any]:
+        """Convert a Strawberry input instance to GraphQL variables.
+
+        Strawberry input types are dataclasses, so their declared fields remain the
+        single source of truth for the payload. Strawberry's Maybe type allows an
+        omitted field to differ from an explicit Some(None), which is preserved for
+        callers that need to clear a nullable Linear field.
+        """
+        payload = strawberry.asdict(input_)
+        for field in fields(input_):
+            value = getattr(input_, field.name)
+            if isinstance(value, Some):
+                payload[field.name] = value.value
+        return payload
 
     async def delete_issue(self, issue_id: str) -> bool:
         """Delete an issue in Linear.
