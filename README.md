@@ -112,7 +112,7 @@ LinearClient(api_key: str)
 State:
 - `BASE_URL = "https://api.linear.app/graphql"` (class attribute, overrideable on subclasses or by monkeypatch in tests)
 - Lazily creates an `httpx.Client` (sync) and `httpx.AsyncClient` (async) on first use.
-- Connection reuse: both clients persist across calls until `close()` or context-manager exit.
+- Connection reuse: both clients persist across calls until their respective close method or context-manager exit.
 
 ### Methods
 
@@ -120,7 +120,8 @@ State:
 | --- | --- | --- | --- |
 | `execute(query, variables=None)` | sync | `dict[str, Any]` — the `data` payload | `LinearAPIError` |
 | `execute_async(query, variables=None)` | async | `dict[str, Any]` — the `data` payload | `LinearAPIError` |
-| `close()` | sync | `None` | — |
+| `close()` | sync | `None` | `RuntimeError` if an async client is still open |
+| `aclose()` | async | `None` | — |
 | `__enter__` / `__exit__` | sync ctx mgr | — | — |
 | `__aenter__` / `__aexit__` | async ctx mgr | — | — |
 
@@ -139,7 +140,7 @@ The methods **strip the outer `{"data": ...}` envelope** and return the inner di
 
 ### Client pitfalls
 
-- The sync `__exit__` calls `close()`, which closes the sync client. The async `__aexit__` *also* calls `close()` — but it only nulls the reference to the async client without awaiting `aclose()`. If you need clean async shutdown for connection-pool reasons, call `await client._async_client.aclose()` yourself before exiting.
+- Use `close()` for sync-only use and `await aclose()` for async-only use. `close()` raises `RuntimeError` if an async client remains open, so it cannot silently leak the async connection pool. `async with` closes both transports if they were created.
 - `BASE_URL` is the **production** Linear endpoint. There is no staging URL toggle.
 - The `Authorization` header is set to the raw API key string. Linear expects no `Bearer ` prefix; do not add one.
 
@@ -320,7 +321,6 @@ Tests use `respx` to mock `httpx` — no network access required. `pytest-asynci
 3. **Filtering**: `list_issues` has no filter args. Pass a `filter:` directly via `execute_async`.
 4. **Subscriptions**: Not supported. Linear's `subscription` API requires WebSockets — the client is HTTP-only.
 5. **Status enum**: `status` is flattened to `state.name`. To filter by state ID, query `state { id }` via `execute_async`.
-6. **Async close**: `__aexit__` does not `await aclose()` on the async client. See the `LinearClient` pitfall above.
 
 ---
 
