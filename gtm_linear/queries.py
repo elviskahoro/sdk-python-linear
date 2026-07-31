@@ -2,6 +2,7 @@ from typing import Any
 
 from .client import LinearClient
 from .generated_types import Issue, Team, User
+from .models import IssueModel, TeamModel, UserModel
 
 
 class LinearQueries:
@@ -115,11 +116,7 @@ class LinearQueries:
         team_data = data.get("team")
         if not team_data:
             return None
-        return Team(
-            id=team_data["id"],  # type: ignore[call-arg]
-            name=team_data["name"],  # type: ignore[call-arg]
-            key=team_data["key"],  # type: ignore[call-arg]
-        )
+        return Team.from_pydantic(TeamModel.model_validate(team_data))
 
     async def search_issues(self, term: str) -> list[Issue]:
         """Search for issues by keyword term.
@@ -191,12 +188,7 @@ class LinearQueries:
         Returns:
             User instance.
         """
-        return User(
-            id=data["id"],  # type: ignore[call-arg]
-            name=data["name"],  # type: ignore[call-arg]
-            email=data.get("email", ""),  # type: ignore[call-arg]
-            active=data.get("active", False),  # type: ignore[call-arg]
-        )
+        return User.from_pydantic(UserModel.model_validate(data))
 
     def _parse_issue(self, data: dict[str, Any]) -> Issue:
         """Parse issue data from API response.
@@ -207,17 +199,11 @@ class LinearQueries:
         Returns:
             Issue instance.
         """
-        return Issue(
-            id=data["id"],  # type: ignore[call-arg]
-            title=data["title"],  # type: ignore[call-arg]
-            description=data.get("description"),  # type: ignore[call-arg]
-            identifier=data["identifier"],  # type: ignore[call-arg]
-            url=data["url"],  # type: ignore[call-arg]
-            priority=data.get("priority"),  # type: ignore[call-arg]
-            status=data.get("status", {}).get("name")  # type: ignore[call-arg]
-            if data.get("status")
-            else None,
-            assignee=self._parse_user(data["assignee"])  # type: ignore[call-arg]
-            if data.get("assignee")
-            else None,
-        )
+        normalized_data = dict(data)
+        status = normalized_data.get("status")
+        normalized_data["status"] = status.get("name") if status else None
+        if normalized_data.get("assignee"):
+            normalized_data["assignee"] = UserModel.model_validate(
+                normalized_data["assignee"],
+            )
+        return Issue.from_pydantic(IssueModel.model_validate(normalized_data))

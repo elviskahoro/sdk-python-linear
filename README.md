@@ -13,7 +13,7 @@ Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, t
 | Read/write Linear issues from Python with typed responses | Yes |
 | Need ad-hoc GraphQL escape hatch alongside typed helpers | Yes — `LinearClient.execute_async(query, variables)` |
 | Building MCP-style tooling against Linear | Yes (low-level), or prefer the official Linear MCP server for higher-level intent |
-| Need full coverage of Linear's GraphQL schema | **No** — only `Issue`, `Team`, `User`, `Project` are wrapped today |
+| Need full coverage of Linear's GraphQL schema | **No** — only a focused subset of Linear types is wrapped today |
 | Need webhooks, OAuth flow, or attachments | **No** — not implemented |
 | Writing a one-off shell command | Prefer `cli-linear-guide` skill or `curl` against the GraphQL endpoint |
 
@@ -29,7 +29,7 @@ uv pip install gtm-linear        # once published
 uv sync
 ```
 
-Requires Python `>=3.11`. Runtime deps: `httpx>=0.27`, `strawberry-graphql>=0.240`.
+Requires Python `>=3.11`. Runtime deps: `httpx>=0.27`, `pydantic>=2.0`, `strawberry-graphql>=0.240`.
 
 ---
 
@@ -52,10 +52,12 @@ Three classes, all importable from the package root:
 ```text
 LinearClient        # transport + auth + GraphQL execution
   ├── LinearQueries # typed read wrappers (get_issue, list_issues, search_issues, get_team, get_user)
-  └── LinearMutations # typed write wrappers (create_issue, update_issue, delete_issue)
+  └── LinearMutations # typed write wrappers (issues and comments)
 ```
 
 `LinearQueries` and `LinearMutations` are **stateless facades** over a `LinearClient`. They do not own the client; they borrow it. Construct one client and pass it to both.
+
+Pydantic models validate Linear response payloads and mutation inputs internally. Strawberry's Pydantic integration exposes those validated models as the public GraphQL types and inputs.
 
 ```python
 import asyncio
@@ -88,6 +90,7 @@ Importable from `gtm_linear`:
 | `LinearMutations` | class | Typed write helpers |
 | `LinearAPIError` | exception | Raised on HTTP non-200 OR GraphQL `errors` field present |
 | `Issue` | model | Linear issue |
+| `Comment` | model | Linear issue comment |
 | `IssueConnection` | model | Paginated issue list (`nodes`, `pageInfo`) |
 | `IssueCreateInput` | input | `title`, `teamId`, optional `description` |
 | `IssueUpdateInput` | input | Optional `title`, optional `description` |
@@ -99,7 +102,9 @@ Importable from `gtm_linear`:
 | `ProjectConnection` | model | Paginated projects |
 | `PageInfo` | model | `hasNextPage`, `hasPreviousPage`, `startCursor`, `endCursor` |
 
-`IssueCreateInput` and `IssueUpdateInput` are Strawberry `@strawberry.input` decorated. Construct positionally or with kwargs; some static type checkers may flag the call signature — the `scripts/smoke.py` file demonstrates the working ignore pattern.
+The public Strawberry types are backed by Pydantic models, so malformed API payloads and invalid mutation inputs fail validation before they are exposed to callers or sent to Linear.
+
+`IssueCreateInput` and `IssueUpdateInput` are Strawberry input types backed by Pydantic models. Construct positionally or with kwargs; some static type checkers may flag the call signature — the `scripts/smoke.py` file demonstrates the working ignore pattern.
 
 ---
 
@@ -200,12 +205,14 @@ Issue(
 | `create_issue(input_)` | `IssueCreateInput` | `Issue` (full) | `ValueError` if API returns no issue; `LinearAPIError` on transport failure |
 | `update_issue(issue_id, update)` | `str`, `IssueUpdateInput` | `Issue` (full) | `ValueError` if API returns no issue; `LinearAPIError` on transport failure |
 | `delete_issue(issue_id)` | `str` | `bool` (success flag) | `LinearAPIError` on transport failure |
+| `create_comment(issue_id, body)` | `str`, `str` | `Comment` (full) | `ValueError` if API returns no comment; `LinearAPIError` on transport failure |
 
 ### Mutation pitfalls
 
 - `IssueUpdateInput` currently exposes only `title` and `description`. To change priority, assignee, or status, use `execute_async` against `issueUpdate` directly.
 - `delete_issue` returns Linear's `success` bool. A `False` return is *not* an exception — check it explicitly if you care.
 - `create_issue` and `update_issue` raise `ValueError`, not `LinearAPIError`, when the API responds 200 but with an empty `issue`. Catch both if you're wrapping.
+- `create_comment` returns a typed `Comment` with `createdAt` parsed as a timezone-aware `datetime` when Linear returns an ISO-8601 timestamp.
 
 ---
 
@@ -317,7 +324,7 @@ Tests use `respx` to mock `httpx` — no network access required. `pytest-asynci
 ## Known gaps (read before extending)
 
 1. **Pagination**: `list_issues` returns one page. `PageInfo` is modeled but unused by wrappers. Use `execute_async` + cursors directly for multi-page traversal.
-2. **Schema coverage**: Only `Issue`, `Team`, `User`, `Project` are typed. Comments, attachments, cycles, projects-as-containers, workflows, webhooks: all absent.
+2. **Schema coverage**: Only `Issue`, `Comment`, `Team`, `User`, and `Project` are typed. Attachments, cycles, projects-as-containers, workflows, and webhooks remain absent.
 3. **Filtering**: `list_issues` has no filter args. Pass a `filter:` directly via `execute_async`.
 4. **Subscriptions**: Not supported. Linear's `subscription` API requires WebSockets — the client is HTTP-only.
 5. **Status enum**: `status` is flattened to `state.name`. To filter by state ID, query `state { id }` via `execute_async`.
