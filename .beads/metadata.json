@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "sdk_python_linear",
+  "project_id": "1f64338b-da75-4b66-8e69-2ba7865d3c82"
+}
