@@ -95,9 +95,10 @@ class LinearQueries:
         """List a filtered page of issues, with cursor metadata.
 
         Args:
-            filter: A Linear ``IssueFilter`` as a plain dict, e.g.
-                ``{"team": {"id": {"eq": team_id}}}``. Passed through untouched and
-                validated server-side; see Linear's schema for the full grammar.
+            filter: A Linear ``IssueFilter`` as a plain ``dict[str, Any]``, e.g.
+                ``{"team": {"id": {"eq": team_id}}}``. Pass GraphQL wire keys
+                unchanged (for example, ``in`` and ``nin``); Linear validates the
+                full filter grammar server-side.
             first: Page size.
             after: Cursor from a previous page's ``page_info.end_cursor``.
             order_by: Sort field.
@@ -209,7 +210,7 @@ class LinearQueries:
         """Iterate every issue matching a filter, following cursors automatically.
 
         Args:
-            filter: A Linear ``IssueFilter`` as a plain dict.
+            filter: A Linear ``IssueFilter`` as a plain ``dict[str, Any]`` mapping.
             page_size: How many issues to request per round trip.
             limit: Stop after this many issues. None fetches everything.
             order_by: Sort field.
