@@ -84,6 +84,21 @@ async def test_execute_async_returns_data() -> None:
     assert data == {"viewer": {"id": "u1"}}  # noqa: S101
 
 
+async def test_async_context_manager_closes_real_httpx_client() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(200, json={"data": {}}),
+        )
+        client = LinearClient(api_key="key")
+        async_client = client._get_async_client()
+        assert not async_client.is_closed  # noqa: S101
+
+        async with client:
+            await client.execute_async("query { __typename }")
+
+        assert async_client.is_closed  # noqa: S101
+
+
 async def test_aclose_closes_async_client_and_is_idempotent(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
