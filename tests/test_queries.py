@@ -106,6 +106,28 @@ async def test_list_issues_page() -> None:
     }
 
 
+async def test_list_issues_page_omits_unset_order_by() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "issues": {
+                            "nodes": [],
+                            "pageInfo": page_info_payload(),
+                        },
+                    },
+                },
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            await LinearQueries(client).list_issues_page({"team": {"id": {"eq": "t1"}}})
+
+    body = json.loads(route.calls.last.request.content)
+    assert "orderBy" not in body["variables"]  # noqa: S101
+
+
 async def test_list_issues_builds_team_filter() -> None:
     with respx.mock:
         route = respx.post(API_URL).mock(

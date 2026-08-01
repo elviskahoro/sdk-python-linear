@@ -106,16 +106,19 @@ class LinearQueries:
         Returns:
             The page: ``.nodes`` and ``.page_info``.
         """
-        data = await self._client.execute_async(
-            LIST_ISSUES,
-            {
-                "filter": filter,
-                "first": first,
-                "after": after,
-                "orderBy": order_by.value if order_by else None,
-                "includeArchived": include_archived,
-            },
-        )
+        variables: dict[str, Any] = {
+            "filter": filter,
+            "first": first,
+            "after": after,
+            "includeArchived": include_archived,
+        }
+        # Linear currently returns an internal error when an optional enum is
+        # explicitly sent as null. Omitting the variable has the intended
+        # server-side default behavior.
+        if order_by is not None:
+            variables["orderBy"] = order_by.value
+
+        data = await self._client.execute_async(LIST_ISSUES, variables)
         return ListIssuesResult.model_validate(data).issues
 
     async def get_team(self, team_id: str) -> TeamFields | None:
