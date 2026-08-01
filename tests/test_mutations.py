@@ -217,3 +217,32 @@ async def test_create_comment() -> None:
     assert comment.created_at.year == 2026  # noqa: S101
     body = json.loads(route.calls.last.request.read())
     assert body["variables"]["input"] == {"issueId": "iss-1", "body": "hello"}  # noqa: S101
+    assert "commentCreate" in body["query"]  # noqa: S101
+    assert "createdAt" in body["query"]  # noqa: S101
+
+
+@pytest.mark.parametrize(
+    "comment_payload",
+    [None, {"id": "c-1", "body": "hello"}],
+    ids=["null-comment", "malformed-comment"],
+)
+async def test_create_comment_rejects_missing_or_malformed_response(
+    comment_payload: object,
+) -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "commentCreate": {
+                            "success": True,
+                            "comment": comment_payload,
+                        },
+                    },
+                },
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            with pytest.raises(ValueError):
+                await LinearMutations(client).create_comment("iss-1", "hello")
