@@ -39,7 +39,7 @@ gh repo view --json defaultBranchRef --jq .defaultBranchRef.name  # confirm base
 
 Stop and surface the problem to the user if any of these is true:
 
-- The working tree has uncommitted changes — inspect the diff first. If they belong in this PR, confirm the file list and commit message with the user, then commit them in Step 3. If they are unrelated, ask the user whether to stash or abandon them; do not continue with the PR while they remain.
+- The working tree has uncommitted changes — ask the user whether to commit, stash, or abandon.
 - The branch has no upstream / is not pushed — confirm with the user before pushing.
 - The branch has zero commits beyond the base — there's nothing to PR.
 - A PR already exists for this branch — use `gh pr edit` to update it, not `gh pr create`.
@@ -79,11 +79,11 @@ If none of these sources establishes a clear Why, **stop and ask the user**. Don
 
 ### Step 3: Commit local changes
 
-If the pre-flight check identified uncommitted changes that the user confirmed belong in this PR, commit them **before** running roborev — roborev reviews committed history, not the working tree, so uncommitted edits would be invisible to it.
+If the pre-flight check surfaced uncommitted changes that belong in this PR, commit them **before** running roborev — roborev reviews committed history, not the working tree, so uncommitted edits would be invisible to it.
 
 - Stage only the files that belong to this PR. Skip tool-local cruft (e.g., `.agents/`, `.claude/`, Conductor-local files) unless the user explicitly opts in.
 - Confirm the file list and commit message with the user before running `git commit`. The commit message should mirror the PR title's intent (sentence-cased, why-focused) — not a Conventional Commits subject.
-- Do **not** push yet. Push happens in Step 10, after squash, roborev, the push-and-create confirmation gate, and the rebase.
+- Do **not** push yet. Push happens in Step 10, after squash, roborev, the user-confirmation gate, and the rebase.
 
 If the working tree is already clean, skip this step.
 
@@ -175,9 +175,9 @@ Section guidance:
 | Test plan | When testing required judgment calls | Small changes with full unit coverage |
 | Links | If any upstream artifact exists | True greenfield work with no ticket, spec, or predecessor PR |
 
-### Step 8: Show the draft. Wait for confirmation. (Approval gate before push.)
+### Step 8: Show the draft. Wait for confirmation. (Single approval gate before push.)
 
-**This approval gate sits immediately before `git push`.** Steps 3–5 (commit, squash, roborev) must already be complete by the time you reach it — by construction the agent cannot honor a "yes" without having walked the roborev gate first. It authorizes rebasing, pushing, and creating the PR only; submitting to the Trunk merge queue requires separate explicit approval after the PR exists.
+**This is the only user-approval gate in the workflow, and it sits immediately before `git push`.** Steps 3–5 (commit, squash, roborev) must already be complete by the time you reach it — by construction the agent cannot honor a "yes" without having walked the roborev gate first.
 
 Show the draft title, the draft body, **and the roborev outcome** so the user can see the gate was walked. Even if the user said "create a PR", they agreed to the action, not blind-trusted your draft.
 
@@ -193,12 +193,12 @@ Body:
 
 Roborev: <clean | N findings acknowledged | unavailable (reason)>
 
-Push and create this PR? (or edit before I submit)
+Push, create, and submit this PR to the merge queue? (or edit before I submit)
 ```
 
 The roborev line is mandatory — never omit it. If it shows "unavailable", the user is implicitly being asked to proceed without review.
 
-If the user requests edits, revise and re-show. Don't auto-submit. A "yes" here authorizes the rebase (Step 9), the push (Step 10), and PR creation (Step 11); proceed through those steps without re-prompting, pausing only if the rebase hits conflicts. After the PR is created, present its URL and ask for explicit approval before Step 12, because the queue can auto-merge once predictive CI passes.
+If the user requests edits, revise and re-show. Don't auto-submit. A "yes" here authorizes the rebase (Step 9), the push (Step 10), the PR creation (Step 11), **and** submitting the PR to the Trunk merge queue (Step 12) — proceed through all of them without re-prompting (pausing only if the rebase hits conflicts). Because the queue auto-merges once its predictive CI passes, the "yes" is also the explicit human authorization to merge; there is no second gate before the merge lands.
 
 ### Step 9: Rebase onto the latest base (last step before opening the PR)
 
@@ -249,7 +249,7 @@ trunk merge <pr-number>
 ```
 
 - `<pr-number>` is the GitHub PR number from Step 11's output — not a URL or branch name.
-- Before running this command, show the PR URL and ask for explicit approval to submit it to the queue. The approval in Step 8 does not authorize this auto-merging action.
+- This step is already authorized by the single "yes" at Step 8. Don't re-prompt.
 - Optionally confirm acceptance with a **single** status check (never a tight loop): `trunk merge status <pr-number>`. Report the state (`Queued` / `Testing` / `Tests Passed` / `Merged`) and stop — the queue lands it asynchronously.
 
 Guardrails (see [trunk-cli-guide](../trunk-cli-guide/SKILL.md) for the full state table, priority levels, and troubleshooting):
@@ -448,3 +448,5 @@ What's wrong: the Summary paraphrases the diff, the Test plan has no reasoning, 
 - A title that uses a Conventional Commits prefix (`feat:`, `fix:`, `refactor:`, `chore:`, `docs:`). PR titles in this repo are formal sentences, not commit subjects.
 - A title that describes *what* the diff does (e.g., "Add X helper", "Refactor Y module") when a *why* framing was available.
 '''
+
+rename_branch = "make sure that the branch prefix is always \"conductor/\""
