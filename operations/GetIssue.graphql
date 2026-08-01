@@ -1,0 +1,5 @@
+query GetIssue($id: String!) {
+  issue(id: $id) {
+    ...IssueFields
+  }
+}

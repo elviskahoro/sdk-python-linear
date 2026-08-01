@@ -1,6 +1,6 @@
 [project]
 name = "gtm-linear"
-version = "0.0.2"
+version = "0.1.0"
 description = "GTM workflow adapter for Linear."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -16,18 +16,41 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
+# Runtime is deliberately small: nothing on the import path needs Strawberry or
+# graphql-core. Both are build-time tools (see scripts/codegen.py).
 dependencies = [
-  "strawberry-graphql>=0.240.0",
   "httpx>=0.27.0",
   "pydantic>=2.0.0",
+  "pydantic-settings>=2.14.2",
 ]
 
+[project.optional-dependencies]
+# Ships gtm_linear._schema, the generated Strawberry mirror of Linear's types, for
+# callers re-exposing Linear data through their own GraphQL server. Floor is 0.316
+# because the codegen behaviour this package depends on is version-sensitive, and
+# strawberry.codegen is explicitly experimental — a reason not to put it in
+# `dependencies`, where every consumer would inherit the pin.
+strawberry = ["strawberry-graphql>=0.316.0"]
+
 [dependency-groups]
-dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "respx>=0.21"]
+dev = [
+  "pytest>=8.0",
+  "pytest-asyncio>=0.23",
+  "respx>=0.21",
+  # Codegen toolchain. Build-time only: scripts/codegen.py turns Linear's SDL
+  # into the Pydantic models under gtm_linear/_generated/.
+  "graphql-core>=3.2",
+  "strawberry-graphql[cli]>=0.316.0",
+  # Depend on our own extra so it is exercised by the default test run instead of
+  # silently rotting. A separate CI job installs without it.
+  "gtm-linear[strawberry]",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = ["network: hits the public internet; deselected by default"]
+addopts = "-m 'not network'"
 
 [project.urls]
 Homepage = "https://github.com/elviskahoro/sdk-python-linear"
@@ -42,4 +65,14 @@ build-backend = "hatchling.build"
 packages = ["gtm_linear"]
 
 [tool.hatch.build.targets.sdist]
-include = ["gtm_linear", "README.md", "LICENSE"]
+# schema/ and operations/ are the codegen inputs; shipping them makes the sdist
+# self-contained enough to regenerate.
+include = [
+  "gtm_linear",
+  "scripts",
+  "operations",
+  "schema",
+  "tests",
+  "README.md",
+  "LICENSE",
+]

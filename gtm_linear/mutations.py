@@ -1,13 +1,49 @@
-from typing import Any
+"""Typed write operations against the Linear GraphQL API.
 
-from .client import LinearClient
-from .generated_types import Comment, Issue, IssueCreateInput, IssueUpdateInput, User
-from .models import (
-    CommentCreateInputModel,
-    CommentModel,
-    IssueModel,
-    UserModel,
+Input models are generated from Linear's schema, so they carry every field the API
+accepts rather than a hand-picked subset. Variables are serialized with
+``model_dump(mode="json", by_alias=True, exclude_unset=True)``:
+
+* ``by_alias`` writes camelCase, which is what Linear expects.
+* ``mode="json"`` converts dates, datetimes, and enums to JSON-compatible values.
+* ``exclude_unset`` distinguishes "leave this alone" from "set this to null". A field
+  you never touched is omitted; a field you explicitly set to None is sent as null.
+  ``exclude_none`` — the previous behaviour — could not express the second case, so
+  clearing a field was impossible.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+from ._generated.CreateComment import (
+    DOCUMENT as CREATE_COMMENT,
+    CommentCreateInput,
+    CreateCommentResult,
 )
+from ._generated.CreateIssue import (
+    DOCUMENT as CREATE_ISSUE,
+    CreateIssueResult,
+    IssueCreateInput,
+)
+from ._generated.DeleteIssue import (
+    DOCUMENT as DELETE_ISSUE,
+    DeleteIssueResult,
+)
+from ._generated.UpdateIssue import (
+    DOCUMENT as UPDATE_ISSUE,
+    IssueUpdateInput,
+    UpdateIssueResult,
+)
+
+if TYPE_CHECKING:
+    from ._generated.fragments import CommentFields, IssueFields
+    from .client import LinearClient
+
+
+def _variables(model: Any) -> dict[str, Any]:  # noqa: ANN401
+    """Serialize an input model the way Linear expects it."""
+    return model.model_dump(mode="json", by_alias=True, exclude_unset=True)
 
 
 class LinearMutations:
@@ -21,208 +57,102 @@ class LinearMutations:
         """
         self._client = client
 
-    async def create_issue(self, input_: IssueCreateInput) -> Issue:
-        """Create a new issue in Linear.
+    async def create_issue(self, input_: IssueCreateInput) -> IssueFields:
+        """Create a new issue.
 
         Args:
-            input_: Strawberry/Pydantic IssueCreateInput containing the issue fields to set.
+            input_: The issue to create. ``team_id`` is the only field Linear
+                requires.
 
         Returns:
-            The newly created Issue.
+            The newly created issue.
 
         Raises:
-            ValueError: If the API response does not contain an issue.
-            LinearAPIError: If the API request fails.
+            ValueError: If the API reports success but returns no issue.
         """
-        query = """
-        mutation CreateIssue($input: IssueCreateInput!) {
-            issueCreate(input: $input) {
-                success
-                issue {
-                    id
-                    title
-                    description
-                    identifier
-                    url
-                    priority
-                    status: state {
-                        name
-                    }
-                    assignee {
-                        id
-                        name
-                        email
-                        active
-                    }
-                }
-            }
-        }
-        """
-        input_model = input_.to_pydantic()
-        variables: dict[str, Any] = {
-            "input": input_model.model_dump(exclude_none=True),
-        }
-
-        data = await self._client.execute_async(query, variables)
-        issue_data = data.get("issueCreate", {}).get("issue")
-        if not issue_data:
+        data = await self._client.execute_async(
+            CREATE_ISSUE,
+            {"input": _variables(input_)},
+        )
+        issue = CreateIssueResult.model_validate(data).issue_create.issue
+        if issue is None:
             error_msg = "Failed to create issue: API did not return an issue object"
             raise ValueError(error_msg)
+        return issue
 
-        return self._parse_issue(issue_data)
+    async def update_issue(
+        self,
+        issue_id: str,
+        update: IssueUpdateInput,
+    ) -> IssueFields:
+        """Update an existing issue.
 
-    async def update_issue(self, issue_id: str, update: IssueUpdateInput) -> Issue:
-        """Update an existing issue in Linear.
+        Only fields you actually set are sent, so a partially-populated input will
+        not blank out the rest of the issue. Setting a field to None explicitly
+        clears it.
 
         Args:
             issue_id: The ID of the issue to update.
-            update: Strawberry/Pydantic IssueUpdateInput containing the fields to change.
+            update: The fields to change.
 
         Returns:
-            The updated Issue.
+            The updated issue.
 
         Raises:
-            ValueError: If the API response does not contain an issue.
-            LinearAPIError: If the API request fails.
+            ValueError: If the API reports success but returns no issue.
         """
-        query = """
-        mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) {
-            issueUpdate(id: $id, input: $input) {
-                success
-                issue {
-                    id
-                    title
-                    description
-                    identifier
-                    url
-                    priority
-                    status: state {
-                        name
-                    }
-                    assignee {
-                        id
-                        name
-                        email
-                        active
-                    }
-                }
-            }
-        }
-        """
-        update_input = update.to_pydantic().model_dump(exclude_none=True)
-
         data = await self._client.execute_async(
-            query,
-            {"id": issue_id, "input": update_input},
+            UPDATE_ISSUE,
+            {"id": issue_id, "input": _variables(update)},
         )
-        issue_data = data.get("issueUpdate", {}).get("issue")
-        if not issue_data:
+        issue = UpdateIssueResult.model_validate(data).issue_update.issue
+        if issue is None:
             error_msg = (
                 f"Failed to update issue {issue_id}: API did not return an issue object"
             )
             raise ValueError(error_msg)
-
-        return self._parse_issue(issue_data)
+        return issue
 
     async def delete_issue(self, issue_id: str) -> bool:
-        """Delete an issue in Linear.
+        """Archive an issue.
 
         Args:
             issue_id: The ID of the issue to delete.
 
         Returns:
-            True if the deletion was successful, False otherwise.
-
-        Raises:
-            LinearAPIError: If the API request fails.
+            True if Linear reported success.
         """
-        query = """
-        mutation DeleteIssue($id: String!) {
-            issueDelete(id: $id) {
-                success
-            }
-        }
-        """
-        data = await self._client.execute_async(query, {"id": issue_id})
-        return bool(data.get("issueDelete", {}).get("success", False))
+        data = await self._client.execute_async(DELETE_ISSUE, {"id": issue_id})
+        return DeleteIssueResult.model_validate(data).issue_delete.success
 
-    async def create_comment(self, issue_id: str, body: str) -> Comment:
-        """Create a comment on an issue in Linear.
+    async def create_comment(self, issue_id: str, body: str) -> CommentFields:
+        """Comment on an issue.
 
         Args:
             issue_id: The ID of the issue to comment on.
-            body: The comment body.
+            body: The comment body, as markdown.
 
         Returns:
-            The newly created Comment.
+            The newly created comment.
 
         Raises:
-            ValueError: If the API response does not contain a comment.
-            LinearAPIError: If the API request fails.
+            ValueError: If the API reports success but returns no comment.
         """
-        query = """
-        mutation CreateComment($input: CommentCreateInput!) {
-            commentCreate(input: $input) {
-                success
-                comment {
-                    id
-                    body
-                    url
-                    createdAt
-                }
-            }
-        }
-        """
-        comment_input = CommentCreateInputModel.model_validate(
-            {"issueId": issue_id, "body": body},
-        )
+        comment_input = CommentCreateInput(issue_id=issue_id, body=body)
         data = await self._client.execute_async(
-            query,
-            {"input": comment_input.model_dump()},
+            CREATE_COMMENT,
+            {"input": _variables(comment_input)},
         )
-        comment_data = data.get("commentCreate", {}).get("comment")
-        if not comment_data:
+        comment = CreateCommentResult.model_validate(data).comment_create.comment
+        if comment is None:
             error_msg = "Failed to create comment: API did not return a comment object"
             raise ValueError(error_msg)
+        return comment
 
-        return self._parse_comment(comment_data)
 
-    def _parse_user(self, data: dict[str, Any] | None) -> User | None:
-        """Parse user data from API response.
-
-        Args:
-            data: User data dictionary from API.
-
-        Returns:
-            User instance or None if data is None.
-        """
-        if not data:
-            return None
-        return User.from_pydantic(UserModel.model_validate(data))
-
-    def _parse_issue(self, data: dict[str, Any]) -> Issue:
-        """Parse issue data from API response.
-
-        Args:
-            data: Issue data dictionary from API.
-
-        Returns:
-            Issue instance.
-        """
-        normalized_data = dict(data)
-        status = normalized_data.get("status")
-        normalized_data["status"] = status.get("name") if status else None
-        if normalized_data.get("assignee"):
-            normalized_data["assignee"] = UserModel.model_validate(
-                normalized_data["assignee"],
-            )
-        issue_model = IssueModel.model_validate(normalized_data)
-        return Issue.from_pydantic(issue_model)
-
-    def _parse_comment(self, data: dict[str, Any]) -> Comment:
-        """Parse comment data from an API response."""
-        try:
-            comment_model = CommentModel.model_validate(data)
-        except (TypeError, ValueError) as exc:
-            raise ValueError("Failed to parse comment response") from exc
-        return Comment.from_pydantic(comment_model)
+__all__ = [
+    "CommentCreateInput",
+    "IssueCreateInput",
+    "IssueUpdateInput",
+    "LinearMutations",
+]

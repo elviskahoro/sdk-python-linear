@@ -1,106 +1,28 @@
-"""Pydantic models used to validate Linear API data."""
+"""The base model every generated Linear type inherits.
 
-from datetime import datetime
+This is the only hand-written model in the SDK. Everything else under
+``gtm_linear/_generated/`` is produced from Linear's schema by scripts/codegen.py.
+"""
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 
 class LinearModel(BaseModel):
-    """Base model for API payloads, ignoring fields outside the SDK projection."""
+    """Base model for API payloads, and the base every generated model inherits.
 
-    model_config = ConfigDict(extra="ignore")
+    ``extra="ignore"`` means a field Linear adds to a response is dropped rather
+    than raising, so the SDK keeps working across additive API changes.
 
+    ``alias_generator`` bridges the naming gap in both directions: Linear speaks
+    camelCase on the wire, generated models expose snake_case attributes. Parsing
+    works on the alias, and ``model_dump(by_alias=True)`` writes camelCase back out.
+    ``populate_by_name`` additionally allows constructing models with the Python
+    field names, which is what callers actually type.
+    """
 
-class UserModel(LinearModel):
-    id: str
-    name: str
-    email: str = ""
-    active: bool = False
-
-    @field_validator("email", mode="before")
-    @classmethod
-    def normalize_missing_email(cls, value: object) -> object:
-        return "" if value is None else value
-
-
-class TeamModel(LinearModel):
-    id: str
-    name: str
-    key: str
-
-
-class IssueModel(LinearModel):
-    id: str
-    title: str
-    description: str | None = None
-    identifier: str
-    url: str
-    priority: int | None = None
-    status: str | None = None
-    assignee: UserModel | None = None
-
-
-class CommentModel(LinearModel):
-    id: str
-    body: str
-    url: str
-    createdAt: datetime
-
-
-class ProjectModel(LinearModel):
-    id: str
-    name: str
-    slug: str
-
-
-class PageInfoModel(LinearModel):
-    hasNextPage: bool
-    hasPreviousPage: bool
-    startCursor: str | None = None
-    endCursor: str | None = None
-
-
-class IssueConnectionModel(LinearModel):
-    nodes: list[IssueModel]
-    pageInfo: PageInfoModel
-
-
-class UserConnectionModel(LinearModel):
-    nodes: list[UserModel]
-    pageInfo: PageInfoModel
-
-
-class TeamConnectionModel(LinearModel):
-    nodes: list[TeamModel]
-    pageInfo: PageInfoModel
-
-
-class ProjectConnectionModel(LinearModel):
-    nodes: list[ProjectModel]
-    pageInfo: PageInfoModel
-
-
-class IssueCreateInputModel(LinearModel):
-    title: str
-    teamId: str
-    description: str | None = None
-    labelIds: list[str] | None = None
-    priority: int | None = None
-    assigneeId: str | None = None
-    projectId: str | None = None
-    stateId: str | None = None
-
-
-class IssueUpdateInputModel(LinearModel):
-    title: str | None = None
-    description: str | None = None
-    labelIds: list[str] | None = None
-    priority: int | None = None
-    assigneeId: str | None = None
-    projectId: str | None = None
-    stateId: str | None = None
-
-
-class CommentCreateInputModel(LinearModel):
-    issueId: str
-    body: str
+    model_config = ConfigDict(
+        extra="ignore",
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )

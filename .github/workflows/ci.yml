@@ -1,0 +1,61 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Weekly: catch Linear changing its schema out from under the pinned copy.
+    - cron: "17 6 * * 1"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: "3.13"
+      - run: uv sync
+      - name: Tests
+        run: uv run pytest -q
+      - name: Operations are current
+        # Fails if operations/*.graphql drifted from operations/_spec.toml.
+        run: uv run python scripts/gen_operations.py --check
+      - name: Generated code is current
+        # Fails if a generated model was hand-edited or the schema pin moved
+        # without regenerating.
+        run: uv run python scripts/codegen.py --check
+
+  lean-install:
+    # The package must work without the [strawberry] extra: nothing on the runtime
+    # import path may depend on it.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: "3.13"
+      - name: Build
+        run: uv build
+      - name: Import with runtime deps only
+        run: |
+          uv venv -p 3.13 /tmp/lean
+          VIRTUAL_ENV=/tmp/lean uv pip install dist/*.whl
+          if VIRTUAL_ENV=/tmp/lean uv pip list | grep -qi strawberry; then
+            echo "strawberry leaked into the runtime dependency tree"; exit 1
+          fi
+          /tmp/lean/bin/python -c "import gtm_linear; print(gtm_linear.__version__)"
+
+  schema-drift:
+    # Network-marked tests are deselected by default; run them on a schedule so
+    # upstream drift surfaces here rather than in a user's traceback.
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: "3.13"
+      - run: uv sync
+      - run: uv run pytest -q -m network
