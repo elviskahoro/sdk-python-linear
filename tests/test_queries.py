@@ -7,10 +7,12 @@ untyped, so every use needed a ``# type: ignore[misc]``.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import httpx
 import respx
 
+import gtm_linear
 from gtm_linear import LinearClient, LinearQueries, PaginationOrderBy
 from tests.conftest import API_URL, issue_payload, page_info_payload, user_payload
 
@@ -19,6 +21,22 @@ def test_queries_wildcard_exports_search_result_type() -> None:
     namespace: dict[str, object] = {}
     exec("from gtm_linear.queries import *", namespace)  # noqa: S102
     assert "IssueSearchResultFields" in namespace  # noqa: S101
+
+
+def test_filter_inputs_are_not_public_exports_or_documented_api() -> None:
+    obsolete_names = (
+        "IssueFilterInput",
+        "StringComparatorInput",
+        "TeamFilterInput",
+        "WorkflowStateFilterInput",
+        "WorkflowStateTypeComparatorInput",
+        "WorkflowStateType",
+    )
+
+    assert not any(hasattr(gtm_linear, name) for name in obsolete_names)  # noqa: S101
+    assert not any(name in gtm_linear.__all__ for name in obsolete_names)  # noqa: S101
+    readme = (Path(__file__).parent.parent / "README.md").read_text()
+    assert not any(name in readme for name in obsolete_names)  # noqa: S101
 
 
 async def test_get_issue_returns_parsed_issue() -> None:
@@ -104,6 +122,29 @@ async def test_list_issues_page() -> None:
         "orderBy": "updatedAt",
         "includeArchived": False,
     }
+
+
+async def test_list_issues_page_accepts_documented_mapping_filter() -> None:
+    documented_filter = {
+        "team": {"id": {"eq": "team-1"}},
+        "state": {"type": {"nin": ["completed", "canceled"]}},
+    }
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "issues": {"nodes": [], "pageInfo": page_info_payload()},
+                    },
+                },
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            await LinearQueries(client).list_issues_page(documented_filter)
+
+    body = json.loads(route.calls.last.request.content)
+    assert body["variables"]["filter"] == documented_filter  # noqa: S101
 
 
 async def test_list_issues_page_omits_unset_order_by() -> None:
