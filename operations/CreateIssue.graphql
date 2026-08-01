@@ -1,0 +1,8 @@
+mutation CreateIssue($input: IssueCreateInput!) {
+  issueCreate(input: $input) {
+    success
+    issue {
+      ...IssueFields
+    }
+  }
+}

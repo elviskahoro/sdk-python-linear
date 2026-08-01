@@ -1,0 +1,124 @@
+# Declarative operation spec. `uv run python scripts/gen_operations.py` turns this
+# into operations/*.graphql by reading schema/linear.graphql.
+#
+# What is derived from the schema (never written here):
+#   - every field's existence, type, and nullability
+#   - the nesting path from a root field down to the entity (payload wrappers,
+#     connection `nodes`, etc.)
+#   - `pageInfo` selections on anything that paginates
+#   - variable types for the root field's arguments
+#
+# What you choose here: which entities to project, and how much of each.
+#
+# `fields = "all"` takes every non-deprecated leaf field the schema defines. That is
+# the most drift-proof option — new Linear fields appear automatically — but it makes
+# responses larger. An explicit list is still schema-checked: a typo or a field Linear
+# removes fails generation rather than surfacing at runtime.
+
+[fragments.UserFields]
+on = "User"
+fields = ["id", "name", "email", "active"]
+
+[fragments.TeamFields]
+on = "Team"
+fields = ["id", "name", "key"]
+
+[fragments.PageInfoFields]
+on = "PageInfo"
+fields = "all"
+
+[fragments.CommentFields]
+on = "Comment"
+fields = ["id", "body", "url", "createdAt"]
+
+[fragments.IssueFields]
+on = "Issue"
+fields = ["id", "identifier", "title", "description", "url", "priority"]
+# Nested objects are inlined rather than spread: strawberry codegen raises on a
+# fragment that contains a fragment spread.
+[fragments.IssueFields.expand]
+state = ["id", "name", "type"]
+assignee = ["id", "name", "email", "active"]
+
+[fragments.IssueSearchResultFields]
+on = "IssueSearchResult"
+fields = ["id", "identifier", "title", "description", "url", "priority"]
+[fragments.IssueSearchResultFields.expand]
+state = ["id", "name", "type"]
+assignee = ["id", "name", "email", "active"]
+
+
+[operations.GetIssue]
+kind = "query"
+root = "issue"
+fragment = "IssueFields"
+variables = { id = "String!" }
+arguments = { id = "$id" }
+
+[operations.GetTeam]
+kind = "query"
+root = "team"
+fragment = "TeamFields"
+variables = { id = "String!" }
+arguments = { id = "$id" }
+
+[operations.GetTeamByKey]
+kind = "query"
+root = "teams"
+fragment = "TeamFields"
+variables = { key = "String!" }
+arguments = { filter = "{ key: { eq: $key } }", first = "1" }
+paginated = false
+
+[operations.GetUser]
+kind = "query"
+root = "user"
+fragment = "UserFields"
+variables = { id = "String!" }
+arguments = { id = "$id" }
+
+[operations.GetViewer]
+kind = "query"
+root = "viewer"
+fragment = "UserFields"
+
+[operations.ListIssues]
+kind = "query"
+root = "issues"
+fragment = "IssueFields"
+variables = { filter = "IssueFilter", first = "Int!", after = "String", orderBy = "PaginationOrderBy", includeArchived = "Boolean!" }
+arguments = { filter = "$filter", first = "$first", after = "$after", orderBy = "$orderBy", includeArchived = "$includeArchived" }
+
+[operations.SearchIssues]
+kind = "query"
+root = "searchIssues"
+fragment = "IssueSearchResultFields"
+variables = { term = "String!", first = "Int!", after = "String" }
+arguments = { term = "$term", first = "$first", after = "$after" }
+
+[operations.CreateIssue]
+kind = "mutation"
+root = "issueCreate"
+fragment = "IssueFields"
+variables = { input = "IssueCreateInput!" }
+arguments = { input = "$input" }
+
+[operations.UpdateIssue]
+kind = "mutation"
+root = "issueUpdate"
+fragment = "IssueFields"
+variables = { id = "String!", input = "IssueUpdateInput!" }
+arguments = { id = "$id", input = "$input" }
+
+[operations.DeleteIssue]
+kind = "mutation"
+root = "issueDelete"
+variables = { id = "String!" }
+arguments = { id = "$id" }
+
+[operations.CreateComment]
+kind = "mutation"
+root = "commentCreate"
+fragment = "CommentFields"
+variables = { input = "CommentCreateInput!" }
+arguments = { input = "$input" }

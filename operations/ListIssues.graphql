@@ -1,0 +1,10 @@
+query ListIssues($filter: IssueFilter, $first: Int!, $after: String, $orderBy: PaginationOrderBy, $includeArchived: Boolean!) {
+  issues(filter: $filter, first: $first, after: $after, orderBy: $orderBy, includeArchived: $includeArchived) {
+    nodes {
+      ...IssueFields
+    }
+    pageInfo {
+      ...PageInfoFields
+    }
+  }
+}

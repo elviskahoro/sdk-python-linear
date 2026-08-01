@@ -1,0 +1,10 @@
+query SearchIssues($term: String!, $first: Int!, $after: String) {
+  searchIssues(term: $term, first: $first, after: $after) {
+    nodes {
+      ...IssueSearchResultFields
+    }
+    pageInfo {
+      ...PageInfoFields
+    }
+  }
+}

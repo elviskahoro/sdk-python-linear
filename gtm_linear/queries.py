@@ -1,47 +1,45 @@
-from enum import Enum
-from typing import Any, TypeAlias, cast
+"""Typed read operations against the Linear GraphQL API.
 
-import strawberry
+Every document and every model here is generated from Linear's schema by
+scripts/codegen.py — see operations/*.graphql for the selection sets. Nothing in
+this module parses a response by hand; `model_validate` does the work, which is why
+the hand-rolled `_parse_issue`/`_parse_user` helpers are gone.
+"""
 
-from .client import LinearClient
-from .generated_types import (
-    Issue,
-    IssueConnection,
-    IssueFilterInput,
-    PageInfo,
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+from ._generated.GetIssue import DOCUMENT as GET_ISSUE
+from ._generated.GetIssue import GetIssueResult
+from ._generated.GetTeam import DOCUMENT as GET_TEAM
+from ._generated.GetTeam import GetTeamResult
+from ._generated.GetTeamByKey import DOCUMENT as GET_TEAM_BY_KEY
+from ._generated.GetTeamByKey import GetTeamByKeyResult
+from ._generated.GetUser import DOCUMENT as GET_USER
+from ._generated.GetUser import GetUserResult
+from ._generated.GetViewer import DOCUMENT as GET_VIEWER
+from ._generated.GetViewer import GetViewerResult
+from ._generated.ListIssues import DOCUMENT as LIST_ISSUES
+from ._generated.ListIssues import (
+    ListIssuesResult,
+    ListIssuesResultIssues,
     PaginationOrderBy,
-    StringComparatorInput,
-    Team,
-    TeamFilterInput,
-    User,
 )
-from .models import (
-    IssueConnectionModel,
-    IssueModel,
-    PageInfoModel,
-    TeamModel,
-    UserModel,
-)
+from ._generated.SearchIssues import DOCUMENT as SEARCH_ISSUES
+from ._generated.SearchIssues import SearchIssuesResult, SearchIssuesResultSearchIssues
+from ._generated.fragments import IssueSearchResultFields
+from .pagination import paginate
 
-GraphQLInputValue: TypeAlias = (
-    str
-    | int
-    | float
-    | bool
-    | None
-    | Enum
-    | list["GraphQLInputValue"]
-    | dict[str, "GraphQLInputValue"]
-)
-GraphQLVariableValue: TypeAlias = (
-    str
-    | int
-    | float
-    | bool
-    | None
-    | list["GraphQLVariableValue"]
-    | dict[str, "GraphQLVariableValue"]
-)
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from ._generated.fragments import (
+        IssueFields,
+        TeamFields,
+        UserFields,
+    )
+    from .client import LinearClient
 
 
 class LinearQueries:
@@ -55,43 +53,21 @@ class LinearQueries:
         """
         self._client = client
 
-    async def get_issue(self, issue_id: str) -> Issue | None:
+    async def get_issue(self, issue_id: str) -> IssueFields | None:
         """Fetch a single issue by ID.
 
         Args:
-            issue_id: The Linear issue ID.
+            issue_id: The Linear issue ID or identifier (for example ``ENG-123``).
 
         Returns:
-            An Issue instance, or None if not found.
+            The issue, or None if it does not exist.
         """
-        query = """
-        query GetIssue($id: String!) {
-            issue(id: $id) {
-                id
-                title
-                description
-                identifier
-                url
-                priority
-                status: state {
-                    name
-                }
-                assignee {
-                    id
-                    name
-                    email
-                    active
-                }
-            }
-        }
-        """
-        data = await self._client.execute_async(query, {"id": issue_id})
-        issue_data = data.get("issue")
-        if not issue_data:
+        data = await self._client.execute_async(GET_ISSUE, {"id": issue_id})
+        if not data.get("issue"):
             return None
-        return self._parse_issue(issue_data)
+        return GetIssueResult.model_validate(data).issue
 
-    async def list_issues(self, team_id: str, first: int = 50) -> list[Issue]:
+    async def list_issues(self, team_id: str, first: int = 50) -> list[IssueFields]:
         """List issues for a team.
 
         Args:
@@ -99,230 +75,207 @@ class LinearQueries:
             first: Maximum number of issues to return (default 50).
 
         Returns:
-            A list of Issue instances.
+            A list of issues. Use :meth:`list_issues_page` when you need the cursor.
         """
-        issue_filter = IssueFilterInput(  # type: ignore[call-arg]
-            team=TeamFilterInput(  # type: ignore[call-arg]
-                id=StringComparatorInput(eq=team_id),  # type: ignore[call-arg]
-            ),
+        page = await self.list_issues_page(
+            {"team": {"id": {"eq": team_id}}},
+            first=first,
         )
-        connection = await self.list_issues_page(issue_filter, first=first)
-        return connection.nodes  # type: ignore[missing-attribute]
+        return page.nodes
 
     async def list_issues_page(
         self,
-        filter: IssueFilterInput | None = None,  # noqa: A002
+        filter: dict[str, Any] | None = None,  # noqa: A002
         first: int = 50,
         after: str | None = None,
         order_by: PaginationOrderBy | None = None,
         *,
         include_archived: bool = False,
-    ) -> IssueConnection:
-        """List a filtered page of issues with cursor metadata."""
-        query = """
-        query ListIssues(
-            $filter: IssueFilter,
-            $first: Int!,
-            $after: String,
-            $orderBy: PaginationOrderBy,
-            $includeArchived: Boolean!
-        ) {
-            issues(filter: $filter, first: $first, after: $after, orderBy: $orderBy, includeArchived: $includeArchived) {
-                nodes {
-                    id title description identifier url priority
-                    status: state { name }
-                    assignee { id name email active }
-                }
-                pageInfo { hasNextPage hasPreviousPage startCursor endCursor }
-            }
-        }
+    ) -> ListIssuesResultIssues:
+        """List a filtered page of issues, with cursor metadata.
+
+        Args:
+            filter: A Linear ``IssueFilter`` as a plain dict, e.g.
+                ``{"team": {"id": {"eq": team_id}}}``. Passed through untouched and
+                validated server-side; see Linear's schema for the full grammar.
+            first: Page size.
+            after: Cursor from a previous page's ``page_info.end_cursor``.
+            order_by: Sort field.
+            include_archived: Whether to include archived issues.
+
+        Returns:
+            The page: ``.nodes`` and ``.page_info``.
         """
         data = await self._client.execute_async(
-            query,
+            LIST_ISSUES,
             {
-                "filter": self._serialize_graphql_input(filter),
+                "filter": filter,
                 "first": first,
                 "after": after,
                 "orderBy": order_by.value if order_by else None,
                 "includeArchived": include_archived,
             },
         )
-        connection_data = data.get("issues", {})
-        parsed_nodes = [
-            self._parse_issue(node) for node in connection_data.get("nodes", [])
-        ]
-        page_info = self._parse_page_info(connection_data.get("pageInfo", {}))
-        return IssueConnection.from_pydantic(  # type: ignore[missing-attribute]
-            IssueConnectionModel.model_validate(
-                {
-                    "nodes": [  # type: ignore[missing-attribute]
-                        node.to_pydantic() for node in parsed_nodes
-                    ],
-                    "pageInfo": page_info.to_pydantic(),  # type: ignore[missing-attribute]
-                },
-            ),
-        )
+        return ListIssuesResult.model_validate(data).issues
 
-    async def get_team(self, team_id: str) -> Team | None:
+    async def get_team(self, team_id: str) -> TeamFields | None:
         """Fetch a single team by ID.
 
         Args:
             team_id: The Linear team ID.
 
         Returns:
-            A Team instance, or None if not found.
+            The team, or None if it does not exist.
         """
-        query = """
-        query GetTeam($id: String!) {
-            team(id: $id) {
-                id
-                name
-                key
-            }
-        }
-        """
-        data = await self._client.execute_async(query, {"id": team_id})
-        team_data = data.get("team")
-        if not team_data:
+        data = await self._client.execute_async(GET_TEAM, {"id": team_id})
+        if not data.get("team"):
             return None
-        return Team.from_pydantic(TeamModel.model_validate(team_data))
+        return GetTeamResult.model_validate(data).team
 
-    async def get_team_by_key(self, key: str) -> Team | None:
-        """Fetch a single team by its human-readable key."""
-        query = """
-        query GetTeamByKey($key: String!) {
-            teams(filter: { key: { eq: $key } }, first: 1) {
-                nodes { id name key }
-            }
-        }
+    async def get_team_by_key(self, key: str) -> TeamFields | None:
+        """Fetch a single team by its human-readable key, such as ``ENG``.
+
+        Args:
+            key: The team key.
+
+        Returns:
+            The team, or None if no team has that key.
         """
-        data = await self._client.execute_async(query, {"key": key})
-        nodes = data.get("teams", {}).get("nodes", [])
-        if not nodes:
-            return None
-        return Team.from_pydantic(TeamModel.model_validate(nodes[0]))
+        data = await self._client.execute_async(GET_TEAM_BY_KEY, {"key": key})
+        nodes = GetTeamByKeyResult.model_validate(data).teams.nodes
+        return nodes[0] if nodes else None
 
-    async def search_issues(self, term: str) -> list[Issue]:
-        """Search for issues by keyword term.
+    async def search_issues(
+        self,
+        term: str,
+        first: int = 50,
+        after: str | None = None,
+    ) -> SearchIssuesResultSearchIssues:
+        """Full-text search for issues.
 
         Args:
             term: The search term.
+            first: Page size.
+            after: Cursor from a previous page's ``page_info.end_cursor``.
 
         Returns:
-            A list of matching Issue instances.
-        """
-        query = """
-        query SearchIssues($term: String!) {
-            searchIssues(term: $term) {
-                nodes {
-                    id
-                    title
-                    description
-                    identifier
-                    url
-                    priority
-                    status: state {
-                        name
-                    }
-                    assignee {
-                        id
-                        name
-                        email
-                        active
-                    }
-                }
-            }
-        }
-        """
-        data = await self._client.execute_async(query, {"term": term})
-        nodes = data.get("searchIssues", {}).get("nodes", [])
-        return [self._parse_issue(node) for node in nodes]
+            The page: ``.nodes`` and ``.page_info``.
 
-    async def get_user(self, user_id: str) -> User | None:
+        Note:
+            Linear returns ``IssueSearchResult``, a distinct type from ``Issue``,
+            so nodes are :class:`IssueSearchResultFields`.
+        """
+        data = await self._client.execute_async(
+            SEARCH_ISSUES,
+            {"term": term, "first": first, "after": after},
+        )
+        return SearchIssuesResult.model_validate(data).search_issues
+
+    async def get_user(self, user_id: str) -> UserFields | None:
         """Fetch a single user by ID.
 
         Args:
             user_id: The Linear user ID.
 
         Returns:
-            A User instance, or None if not found.
+            The user, or None if they do not exist.
         """
-        query = """
-        query GetUser($id: String!) {
-            user(id: $id) {
-                id
-                name
-                email
-                active
-            }
-        }
-        """
-        data = await self._client.execute_async(query, {"id": user_id})
-        user_data = data.get("user")
-        if not user_data:
+        data = await self._client.execute_async(GET_USER, {"id": user_id})
+        if not data.get("user"):
             return None
-        return self._parse_user(user_data)
+        return GetUserResult.model_validate(data).user
 
-    def _parse_user(self, data: dict[str, Any]) -> User:
-        """Parse user data from API response.
-
-        Args:
-            data: User data dictionary from API.
+    async def get_viewer(self) -> UserFields:
+        """Fetch the user the API key authenticates as.
 
         Returns:
-            User instance.
+            The authenticated user. Useful as a credential check.
         """
-        return User.from_pydantic(UserModel.model_validate(data))
+        data = await self._client.execute_async(GET_VIEWER)
+        return GetViewerResult.model_validate(data).viewer
 
-    def _parse_page_info(self, data: dict[str, Any]) -> PageInfo:
-        """Parse pagination metadata from a Linear connection response."""
-        return PageInfo.from_pydantic(PageInfoModel.model_validate(data))
-
-    def _serialize_graphql_input(
+    def iter_issues(
         self,
-        value: IssueFilterInput | None,
-    ) -> dict[str, Any] | None:
-        """Serialize a Strawberry input into a sparse Linear GraphQL variable."""
-        if value is None:
-            return None
-        raw_value = cast(
-            "dict[str, GraphQLInputValue]",
-            strawberry.asdict(value),
-        )
-        serialized = self._normalize_graphql_value(raw_value)
-        return serialized if isinstance(serialized, dict) else None
-
-    def _normalize_graphql_value(
-        self,
-        value: GraphQLInputValue,
-    ) -> GraphQLVariableValue:
-        """Omit null fields, preserve GraphQL names, and unwrap enum values."""
-        if isinstance(value, Enum):
-            return value.value
-        if isinstance(value, list):
-            return [self._normalize_graphql_value(item) for item in value]
-        if isinstance(value, dict):
-            return {
-                "in" if key == "in_" else key: self._normalize_graphql_value(item)
-                for key, item in value.items()
-                if item is not None
-            }
-        return value
-
-    def _parse_issue(self, data: dict[str, Any]) -> Issue:
-        """Parse issue data from API response.
+        filter: dict[str, Any] | None = None,  # noqa: A002
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        order_by: PaginationOrderBy | None = None,
+        include_archived: bool = False,
+    ) -> AsyncIterator[IssueFields]:
+        """Iterate every issue matching a filter, following cursors automatically.
 
         Args:
-            data: Issue data dictionary from API.
+            filter: A Linear ``IssueFilter`` as a plain dict.
+            page_size: How many issues to request per round trip.
+            limit: Stop after this many issues. None fetches everything.
+            order_by: Sort field.
+            include_archived: Whether to include archived issues.
 
         Returns:
-            Issue instance.
+            An async iterator over issues.
+
+        Example:
+            >>> async for issue in queries.iter_issues({"team": {"id": {"eq": tid}}}):
+            ...     print(issue.identifier)
         """
-        normalized_data = dict(data)
-        status = normalized_data.get("status")
-        normalized_data["status"] = status.get("name") if status else None
-        if normalized_data.get("assignee"):
-            normalized_data["assignee"] = UserModel.model_validate(
-                normalized_data["assignee"],
+
+        async def fetch(cursor: str | None) -> ListIssuesResultIssues:
+            return await self.list_issues_page(
+                filter,
+                first=page_size,
+                after=cursor,
+                order_by=order_by,
+                include_archived=include_archived,
             )
-        return Issue.from_pydantic(IssueModel.model_validate(normalized_data))
+
+        return paginate(fetch, limit=limit)
+
+    def iter_team_issues(
+        self,
+        team_id: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+    ) -> AsyncIterator[IssueFields]:
+        """Iterate every issue on a team.
+
+        Args:
+            team_id: The Linear team ID.
+            page_size: How many issues to request per round trip.
+            limit: Stop after this many issues.
+
+        Returns:
+            An async iterator over the team's issues.
+        """
+        return self.iter_issues(
+            {"team": {"id": {"eq": team_id}}},
+            page_size=page_size,
+            limit=limit,
+        )
+
+    def iter_search_issues(
+        self,
+        term: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+    ) -> AsyncIterator[IssueSearchResultFields]:
+        """Iterate every search hit, following cursors automatically.
+
+        Args:
+            term: The search term.
+            page_size: How many results to request per round trip.
+            limit: Stop after this many results.
+
+        Returns:
+            An async iterator over search results.
+        """
+
+        async def fetch(cursor: str | None) -> SearchIssuesResultSearchIssues:
+            return await self.search_issues(term, first=page_size, after=cursor)
+
+        return paginate(fetch, limit=limit)
+
+
+__all__ = ["LinearQueries", "PaginationOrderBy", "IssueSearchResultFields"]
