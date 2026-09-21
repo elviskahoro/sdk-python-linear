@@ -49,6 +49,11 @@ class LinearWorkflow:
     The ``*_async`` methods are for async applications and should normally be used
     under ``async with``. Synchronous methods use :func:`asyncio.run`, so Python
     raises its usual ``RuntimeError`` if they are called from an active event loop.
+
+    Note: Chaining multiple synchronous calls inside a single ``with`` block does not
+    pool HTTP connections because each call spins up its own temporary event loop and
+    ``httpx.AsyncClient``. For performance-sensitive workflows making many calls, use
+    the ``*_async`` methods.
     """
 
     def __init__(
