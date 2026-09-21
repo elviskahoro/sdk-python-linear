@@ -26,9 +26,14 @@ from ._generated.ListIssues import (
     ListIssuesResultIssues,
     PaginationOrderBy,
 )
+from ._generated.ListWorkflowStates import (
+    DOCUMENT as LIST_WORKFLOW_STATES,
+    ListWorkflowStatesResult,
+    ListWorkflowStatesResultWorkflowStates,
+)
 from ._generated.SearchIssues import DOCUMENT as SEARCH_ISSUES
 from ._generated.SearchIssues import SearchIssuesResult, SearchIssuesResultSearchIssues
-from ._generated.fragments import IssueSearchResultFields
+from ._generated.fragments import IssueSearchResultFields, WorkflowStateFields
 from .pagination import paginate
 
 if TYPE_CHECKING:
@@ -121,6 +126,47 @@ class LinearQueries:
 
         data = await self._client.execute_async(LIST_ISSUES, variables)
         return ListIssuesResult.model_validate(data).issues
+
+    async def list_workflow_states_page(
+        self,
+        team_id: str,
+        first: int = 50,
+        after: str | None = None,
+        *,
+        include_archived: bool = False,
+        order_by: PaginationOrderBy | None = None,
+    ) -> ListWorkflowStatesResultWorkflowStates:
+        """List a page of workflow states belonging to a team.
+
+        Args:
+            team_id: The Linear team ID.
+            first: Page size.
+            after: Cursor from a previous page's ``page_info.end_cursor``.
+            include_archived: Whether to include archived workflow states.
+            order_by: Sort field.
+
+        Returns:
+            The page: ``.nodes`` and ``.page_info``.
+        """
+        variables: dict[str, Any] = {
+            "filter": {"team": {"id": {"eq": team_id}}},
+            "first": first,
+            "after": after,
+            "includeArchived": include_archived,
+        }
+        if order_by is not None:
+            variables["orderBy"] = order_by.value
+
+        data = await self._client.execute_async(LIST_WORKFLOW_STATES, variables)
+        return ListWorkflowStatesResult.model_validate(data).workflow_states
+
+    async def list_workflow_states(
+        self,
+        team_id: str,
+        first: int = 50,
+    ) -> list[WorkflowStateFields]:
+        """List the first page of workflow states belonging to a team."""
+        return (await self.list_workflow_states_page(team_id, first=first)).nodes
 
     async def get_team(self, team_id: str) -> TeamFields | None:
         """Fetch a single team by ID.
@@ -282,4 +328,9 @@ class LinearQueries:
         return paginate(fetch, limit=limit)
 
 
-__all__ = ["LinearQueries", "PaginationOrderBy", "IssueSearchResultFields"]
+__all__ = [
+    "LinearQueries",
+    "PaginationOrderBy",
+    "IssueSearchResultFields",
+    "WorkflowStateFields",
+]
