@@ -7,15 +7,11 @@ from enum import Enum
 from typing import NewType
 
 IssueFilter = strawberry.scalar(
-    NewType("IssueFilter", object),
-    serialize=lambda v: v,
-    parse_value=lambda v: v,
+    NewType("IssueFilter", object), serialize=lambda v: v, parse_value=lambda v: v
 )
 
 TeamFilter = strawberry.scalar(
-    NewType("TeamFilter", object),
-    serialize=lambda v: v,
-    parse_value=lambda v: v,
+    NewType("TeamFilter", object), serialize=lambda v: v, parse_value=lambda v: v
 )
 
 WorkflowStateFilter = strawberry.scalar(
@@ -25,9 +21,7 @@ WorkflowStateFilter = strawberry.scalar(
 )
 
 TimelessDate = strawberry.scalar(
-    NewType("TimelessDate", object),
-    serialize=lambda v: v,
-    parse_value=lambda v: v,
+    NewType("TimelessDate", object), serialize=lambda v: v, parse_value=lambda v: v
 )
 
 
