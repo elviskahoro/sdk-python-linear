@@ -4,20 +4,16 @@ from typing import Any, Optional
 from gtm_linear.models import LinearModel
 from .fragments import PageInfoFields, WorkflowStateFields
 
-
 class ListWorkflowStatesResultWorkflowStates(LinearModel):
     nodes: list[WorkflowStateFields]
     page_info: PageInfoFields
 
-
 class ListWorkflowStatesResult(LinearModel):
     workflow_states: ListWorkflowStatesResultWorkflowStates
-
 
 class PaginationOrderBy(Enum):
     createdAt = "createdAt"
     updatedAt = "updatedAt"
-
 
 class ListWorkflowStatesVariables(LinearModel):
     filter: Optional[dict[str, Any]]

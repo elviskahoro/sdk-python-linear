@@ -721,6 +721,18 @@ def main() -> None:
                 GENERATED_DIR / name,
                 shallow=False,
             ):
+                import difflib
+
+                with open(tmp_generated / name) as f1, open(GENERATED_DIR / name) as f2:
+                    diff = "".join(
+                        difflib.unified_diff(
+                            f1.readlines(),
+                            f2.readlines(),
+                            fromfile="tmp",
+                            tofile="committed",
+                        ),
+                    )
+                print(f"Diff for {name}:\n{diff}")
                 stale.append(f"gtm_linear/_generated/{name}")
 
         if stale:

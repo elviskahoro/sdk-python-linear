@@ -6,60 +6,38 @@ from datetime import datetime
 from enum import Enum
 from typing import NewType
 
-IssueFilter = strawberry.scalar(
-    NewType("IssueFilter", object),
-    serialize=lambda v: v,
-    parse_value=lambda v: v,
-)
+IssueFilter = strawberry.scalar(NewType("IssueFilter", object), serialize=lambda v: v, parse_value=lambda v: v)
 
-TeamFilter = strawberry.scalar(
-    NewType("TeamFilter", object),
-    serialize=lambda v: v,
-    parse_value=lambda v: v,
-)
+TeamFilter = strawberry.scalar(NewType("TeamFilter", object), serialize=lambda v: v, parse_value=lambda v: v)
 
-WorkflowStateFilter = strawberry.scalar(
-    NewType("WorkflowStateFilter", object),
-    serialize=lambda v: v,
-    parse_value=lambda v: v,
-)
+WorkflowStateFilter = strawberry.scalar(NewType("WorkflowStateFilter", object), serialize=lambda v: v, parse_value=lambda v: v)
 
-TimelessDate = strawberry.scalar(
-    NewType("TimelessDate", object),
-    serialize=lambda v: v,
-    parse_value=lambda v: v,
-)
-
+TimelessDate = strawberry.scalar(NewType("TimelessDate", object), serialize=lambda v: v, parse_value=lambda v: v)
 
 @strawberry.enum
 class PaginationNulls(Enum):
     first = "first"
     last = "last"
 
-
 @strawberry.enum
 class PaginationOrderBy(Enum):
     createdAt = "createdAt"
     updatedAt = "updatedAt"
-
 
 @strawberry.enum
 class PaginationSortOrder(Enum):
     Ascending = "Ascending"
     Descending = "Descending"
 
-
 @strawberry.enum
 class SLADayCountType(Enum):
     all = "all"
     onlyBusinessDays = "onlyBusinessDays"
 
-
 @strawberry.input
 class AssigneeSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
-
 
 @strawberry.input
 class CommentCreateInput:
@@ -82,42 +60,35 @@ class CommentCreateInput:
     quoted_text: strawberry.Maybe[str | None]
     subscriber_ids: strawberry.Maybe[list[str] | None]
 
-
 @strawberry.input
 class CompletedAtSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
-
 
 @strawberry.input
 class CreatedAtSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
 
-
 @strawberry.input
 class CustomerCountSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
-
 
 @strawberry.input
 class CustomerImportantCountSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
 
-
 @strawberry.input
 class CustomerRevenueSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
 
-
 @strawberry.input
 class CustomerSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
-
 
 @strawberry.input
 class CycleSort:
@@ -125,24 +96,20 @@ class CycleSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
 
-
 @strawberry.input
 class DelegateSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
-
 
 @strawberry.input
 class DueDateSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
 
-
 @strawberry.input
 class EstimateSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
-
 
 @strawberry.input
 class IssueCreateInput:
@@ -183,7 +150,6 @@ class IssueCreateInput:
     title: strawberry.Maybe[str | None]
     use_default_template: strawberry.Maybe[bool | None]
 
-
 @strawberry.input
 class IssueSortInput:
     accumulated_state_updated_at: strawberry.Maybe[TimeInStatusSort | None]
@@ -212,7 +178,6 @@ class IssueSortInput:
     title: strawberry.Maybe[TitleSort | None]
     updated_at: strawberry.Maybe[UpdatedAtSort | None]
     workflow_state: strawberry.Maybe[WorkflowStateSort | None]
-
 
 @strawberry.input
 class IssueUpdateInput:
@@ -251,37 +216,31 @@ class IssueUpdateInput:
     trashed: strawberry.Maybe[bool | None]
     trusted: strawberry.Maybe[bool | None]
 
-
 @strawberry.input
 class LabelGroupSort:
     label_group_id: str
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
 
-
 @strawberry.input
 class LabelSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
-
 
 @strawberry.input
 class LinkCountSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
 
-
 @strawberry.input
 class ManualSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
 
-
 @strawberry.input
 class MilestoneSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
-
 
 @strawberry.input
 class PrioritySort:
@@ -290,18 +249,15 @@ class PrioritySort:
     order: strawberry.Maybe[PaginationSortOrder | None]
     use_priority_sort_order_tiebreaker: strawberry.Maybe[bool | None] = True
 
-
 @strawberry.input
 class ProjectSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
 
-
 @strawberry.input
 class ReleaseSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
-
 
 @strawberry.input
 class RootIssueSort:
@@ -309,43 +265,36 @@ class RootIssueSort:
     order: strawberry.Maybe[PaginationSortOrder | None]
     sort: IssueSortInput
 
-
 @strawberry.input
 class SlaStatusSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
-
 
 @strawberry.input
 class TeamSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
 
-
 @strawberry.input
 class TimeInStatusSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
-
 
 @strawberry.input
 class TitleSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
 
-
 @strawberry.input
 class UpdatedAtSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
-
 
 @strawberry.input
 class WorkflowStateSort:
     closed_issues_ordered_by_recency: strawberry.Maybe[bool | None] = False
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
-
 
 @strawberry.type
 class Comment:
@@ -354,12 +303,10 @@ class Comment:
     id: strawberry.ID
     url: str
 
-
 @strawberry.type
 class CommentPayload:
     comment: Comment
     success: bool
-
 
 @strawberry.type
 class Issue:
@@ -372,29 +319,24 @@ class Issue:
     title: str
     url: str
 
-
 @strawberry.type
 class IssueArchivePayload:
     success: bool
-
 
 @strawberry.type
 class IssueConnection:
     nodes: list[Issue]
     page_info: PageInfo
 
-
 @strawberry.type
 class IssuePayload:
     issue: Issue | None
     success: bool
 
-
 @strawberry.type
 class IssueSearchPayload:
     nodes: list[IssueSearchResult]
     page_info: PageInfo
-
 
 @strawberry.type
 class IssueSearchResult:
@@ -407,39 +349,30 @@ class IssueSearchResult:
     title: str
     url: str
 
-
 @strawberry.type
 class Mutation:
     @strawberry.field
-    def comment_create(
-        self,
+    def comment_create(self,
         input: CommentCreateInput,
     ) -> CommentPayload:
         raise NotImplementedError
-
     @strawberry.field
-    def issue_create(
-        self,
+    def issue_create(self,
         input: IssueCreateInput,
     ) -> IssuePayload:
         raise NotImplementedError
-
     @strawberry.field
-    def issue_delete(
-        self,
+    def issue_delete(self,
         id: str,
         permanently_delete: bool | None = None,
     ) -> IssueArchivePayload:
         raise NotImplementedError
-
     @strawberry.field
-    def issue_update(
-        self,
+    def issue_update(self,
         id: str,
         input: IssueUpdateInput,
     ) -> IssuePayload:
         raise NotImplementedError
-
 
 @strawberry.type
 class PageInfo:
@@ -448,19 +381,15 @@ class PageInfo:
     has_previous_page: bool
     start_cursor: str | None
 
-
 @strawberry.type
 class Query:
     @strawberry.field
-    def issue(
-        self,
+    def issue(self,
         id: str,
     ) -> Issue:
         raise NotImplementedError
-
     @strawberry.field
-    def issues(
-        self,
+    def issues(self,
         after: str | None = None,
         before: str | None = None,
         filter: IssueFilter | None = None,
@@ -471,10 +400,8 @@ class Query:
         sort: list[IssueSortInput] | None = None,
     ) -> IssueConnection:
         raise NotImplementedError
-
     @strawberry.field
-    def search_issues(
-        self,
+    def search_issues(self,
         term: str,
         after: str | None = None,
         before: str | None = None,
@@ -487,17 +414,13 @@ class Query:
         team_id: str | None = None,
     ) -> IssueSearchPayload:
         raise NotImplementedError
-
     @strawberry.field
-    def team(
-        self,
+    def team(self,
         id: str,
     ) -> Team:
         raise NotImplementedError
-
     @strawberry.field
-    def teams(
-        self,
+    def teams(self,
         after: str | None = None,
         before: str | None = None,
         filter: TeamFilter | None = None,
@@ -507,19 +430,14 @@ class Query:
         order_by: PaginationOrderBy | None = None,
     ) -> TeamConnection:
         raise NotImplementedError
-
     @strawberry.field
-    def user(
-        self,
+    def user(self,
         id: str,
     ) -> User:
         raise NotImplementedError
-
     viewer: User
-
     @strawberry.field
-    def workflow_states(
-        self,
+    def workflow_states(self,
         after: str | None = None,
         before: str | None = None,
         filter: WorkflowStateFilter | None = None,
@@ -530,18 +448,15 @@ class Query:
     ) -> WorkflowStateConnection:
         raise NotImplementedError
 
-
 @strawberry.type
 class Team:
     id: strawberry.ID
     key: str
     name: str
 
-
 @strawberry.type
 class TeamConnection:
     nodes: list[Team]
-
 
 @strawberry.type
 class User:
@@ -549,7 +464,6 @@ class User:
     email: str
     id: strawberry.ID
     name: str
-
 
 @strawberry.type
 class WorkflowState:
@@ -559,54 +473,9 @@ class WorkflowState:
     position: float
     type: str
 
-
 @strawberry.type
 class WorkflowStateConnection:
     nodes: list[WorkflowState]
     page_info: PageInfo
 
-
-schema = strawberry.Schema(
-    query=Query,
-    mutation=Mutation,
-    types=[
-        AssigneeSort,
-        CommentCreateInput,
-        CompletedAtSort,
-        CreatedAtSort,
-        CustomerCountSort,
-        CustomerImportantCountSort,
-        CustomerRevenueSort,
-        CustomerSort,
-        CycleSort,
-        DelegateSort,
-        DueDateSort,
-        EstimateSort,
-        IssueCreateInput,
-        IssueFilter,
-        IssueSortInput,
-        IssueUpdateInput,
-        LabelGroupSort,
-        LabelSort,
-        LinkCountSort,
-        ManualSort,
-        MilestoneSort,
-        PaginationNulls,
-        PaginationOrderBy,
-        PaginationSortOrder,
-        PrioritySort,
-        ProjectSort,
-        ReleaseSort,
-        RootIssueSort,
-        SLADayCountType,
-        SlaStatusSort,
-        TeamFilter,
-        TeamSort,
-        TimeInStatusSort,
-        TimelessDate,
-        TitleSort,
-        UpdatedAtSort,
-        WorkflowStateFilter,
-        WorkflowStateSort,
-    ],
-)
+schema = strawberry.Schema(query=Query, mutation=Mutation, types=[AssigneeSort, CommentCreateInput, CompletedAtSort, CreatedAtSort, CustomerCountSort, CustomerImportantCountSort, CustomerRevenueSort, CustomerSort, CycleSort, DelegateSort, DueDateSort, EstimateSort, IssueCreateInput, IssueFilter, IssueSortInput, IssueUpdateInput, LabelGroupSort, LabelSort, LinkCountSort, ManualSort, MilestoneSort, PaginationNulls, PaginationOrderBy, PaginationSortOrder, PrioritySort, ProjectSort, ReleaseSort, RootIssueSort, SLADayCountType, SlaStatusSort, TeamFilter, TeamSort, TimeInStatusSort, TimelessDate, TitleSort, UpdatedAtSort, WorkflowStateFilter, WorkflowStateSort])
