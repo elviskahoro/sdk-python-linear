@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from collections.abc import AsyncIterator
 from typing import Any, cast
 
@@ -201,3 +202,37 @@ def test_sync_iterator_materializes_in_one_event_loop(monkeypatch: Any) -> None:
 
     monkeypatch.setattr(LinearQueries, "iter_issues", issues)
     assert list(LinearWorkflow("key").iter_issues()) == ["one", "two"]
+
+
+async def test_sync_method_in_running_loop_emits_no_coroutine_warning(
+    monkeypatch: Any,
+) -> None:
+    """``_run`` closes its unstarted coroutine before raising RuntimeError.
+
+    Without the defensive ``coroutine.close()`` call inside the running-loop
+    branch, Python leaks a ``coroutine '...' was never awaited`` RuntimeWarning
+    alongside the RuntimeError. Users who misuse a sync wrapper inside an
+    async workflow should see one actionable error, not error-plus-warning
+    noise.
+    """
+
+    async def fake(_self: object, *_args: object, **_kwargs: object) -> str:
+        return "issue"
+
+    monkeypatch.setattr(LinearQueries, "get_issue", fake)
+
+    async with LinearWorkflow("key") as linear:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            with pytest.raises(RuntimeError, match="asyncio.run"):
+                linear.get_issue("i")
+
+    coroutine_warnings = [
+        w
+        for w in caught
+        if issubclass(w.category, RuntimeWarning) and "never awaited" in str(w.message)
+    ]
+    assert coroutine_warnings == [], (
+        "Expected no 'coroutine was never awaited' warning; got: "
+        f"{[str(w.message) for w in coroutine_warnings]}"
+    )

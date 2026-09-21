@@ -269,6 +269,13 @@ class LinearWorkflow:
         order_by: PaginationOrderBy | None = None,
         include_archived: bool = False,
     ) -> Iterator[IssueFields]:
+        """Sync wrapper that materializes every page before yielding.
+
+        Unlike :meth:`iter_issues_async`, ``next(...)`` blocks until
+        :func:`asyncio.run` has followed every cursor through ``paginate`` and
+        held the full result set in memory. Prefer the async iterator for large
+        teams.
+        """
         async_iterator = self.iter_issues_async(
             filter,
             page_size=page_size,
@@ -294,6 +301,7 @@ class LinearWorkflow:
         page_size: int = 50,
         limit: int | None = None,
     ) -> Iterator[IssueFields]:
+        """Sync team-issue iterator. See :meth:`iter_issues` for the materialization caveat."""
         return self.iter_issues(
             {"team": {"id": {"eq": team_id}}},
             page_size=page_size,
@@ -316,6 +324,13 @@ class LinearWorkflow:
         page_size: int = 50,
         limit: int | None = None,
     ) -> Iterator[IssueSearchResultFields]:
+        """Sync search wrapper that materializes every page before yielding.
+
+        Unlike :meth:`iter_search_issues_async`, ``next(...)`` blocks until
+        :func:`asyncio.run` has followed every cursor through ``paginate`` and
+        held the full result set in memory. Prefer the async iterator for large
+        result sets.
+        """
         async_iterator = self.iter_search_issues_async(
             term,
             page_size=page_size,
@@ -359,6 +374,9 @@ class LinearWorkflow:
         except RuntimeError:
             pass
         else:
+            # Close the unstarted coroutine so Python does not also emit a
+            # "coroutine was never awaited" RuntimeWarning alongside our
+            # RuntimeError. Duck-typed: Awaitable has no close().
             close = getattr(awaitable, "close", None)
             if close is not None:
                 close()
