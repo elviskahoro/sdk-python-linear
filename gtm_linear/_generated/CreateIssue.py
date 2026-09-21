@@ -5,16 +5,20 @@ from typing import Any, Optional
 from gtm_linear.models import LinearModel
 from .fragments import IssueFields, IssueFieldsAssignee, IssueFieldsState
 
+
 class SLADayCountType(Enum):
     all = "all"
     onlyBusinessDays = "onlyBusinessDays"
+
 
 class CreateIssueResultIssueCreate(LinearModel):
     success: bool
     issue: Optional[IssueFields]
 
+
 class CreateIssueResult(LinearModel):
     issue_create: CreateIssueResultIssueCreate
+
 
 class IssueCreateInput(LinearModel):
     assignee_id: Optional[str] = None
@@ -53,6 +57,7 @@ class IssueCreateInput(LinearModel):
     template_id: Optional[str] = None
     title: Optional[str] = None
     use_default_template: Optional[bool] = None
+
 
 class CreateIssueVariables(LinearModel):
     input: IssueCreateInput

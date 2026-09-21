@@ -2,6 +2,7 @@
 from gtm_linear.models import LinearModel
 from .fragments import UserFields
 
+
 class GetViewerResult(LinearModel):
     viewer: UserFields
 

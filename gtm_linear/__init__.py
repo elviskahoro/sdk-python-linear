@@ -16,6 +16,9 @@ from ._generated.ListIssues import (
     ListIssuesResultIssues as IssueConnection,
     PaginationOrderBy,
 )
+from ._generated.ListWorkflowStates import (
+    ListWorkflowStatesResultWorkflowStates as WorkflowStateConnection,
+)
 from ._generated.SearchIssues import (
     SearchIssuesResultSearchIssues as IssueSearchConnection,
 )
@@ -27,12 +30,14 @@ from ._generated.fragments import (
     PageInfoFields as PageInfo,
     TeamFields as Team,
     UserFields as User,
+    WorkflowStateFields as WorkflowState,
 )
 from .client import LinearClient
 from .exceptions import LinearAPIError
 from .models import LinearModel
 from .mutations import LinearMutations
 from .queries import LinearQueries
+from .workflow import LinearWorkflow
 
 try:
     __version__ = version("gtm-linear")
@@ -53,8 +58,11 @@ __all__ = [
     "LinearModel",
     "LinearMutations",
     "LinearQueries",
+    "LinearWorkflow",
     "PageInfo",
     "PaginationOrderBy",
     "Team",
     "User",
+    "WorkflowState",
+    "WorkflowStateConnection",
 ]

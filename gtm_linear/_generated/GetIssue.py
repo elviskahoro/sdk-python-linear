@@ -2,8 +2,10 @@
 from gtm_linear.models import LinearModel
 from .fragments import IssueFields, IssueFieldsAssignee, IssueFieldsState
 
+
 class GetIssueResult(LinearModel):
     issue: IssueFields
+
 
 class GetIssueVariables(LinearModel):
     id: str

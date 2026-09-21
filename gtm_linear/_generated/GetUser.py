@@ -2,8 +2,10 @@
 from gtm_linear.models import LinearModel
 from .fragments import UserFields
 
+
 class GetUserResult(LinearModel):
     user: UserFields
+
 
 class GetUserVariables(LinearModel):
     id: str

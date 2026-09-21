@@ -5,16 +5,20 @@ from typing import Any, Optional
 from gtm_linear.models import LinearModel
 from .fragments import IssueFields, IssueFieldsAssignee, IssueFieldsState
 
+
 class SLADayCountType(Enum):
     all = "all"
     onlyBusinessDays = "onlyBusinessDays"
+
 
 class UpdateIssueResultIssueUpdate(LinearModel):
     success: bool
     issue: Optional[IssueFields]
 
+
 class UpdateIssueResult(LinearModel):
     issue_update: UpdateIssueResultIssueUpdate
+
 
 class IssueUpdateInput(LinearModel):
     added_label_ids: Optional[list[str]] = None
@@ -51,6 +55,7 @@ class IssueUpdateInput(LinearModel):
     title: Optional[str] = None
     trashed: Optional[bool] = None
     trusted: Optional[bool] = None
+
 
 class UpdateIssueVariables(LinearModel):
     id: str

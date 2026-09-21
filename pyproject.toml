@@ -41,6 +41,10 @@ dev = [
   # into the Pydantic models under gtm_linear/_generated/.
   "graphql-core>=3.2",
   "strawberry-graphql[cli]>=0.316.0",
+  # codegen.py runs `ruff format` over its output so regeneration is byte-stable
+  # and `trunk check` has nothing left to reformat. Pinned to the version
+  # .trunk/trunk.yaml enables, so both formatters agree on the result.
+  "ruff==0.15.14",
   # Depend on our own extra so it is exercised by the default test run instead of
   # silently rotting. A separate CI job installs without it.
   "gtm-linear[strawberry]",

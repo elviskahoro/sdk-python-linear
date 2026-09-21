@@ -23,6 +23,10 @@ fields = ["id", "name", "email", "active"]
 on = "Team"
 fields = ["id", "name", "key"]
 
+[fragments.WorkflowStateFields]
+on = "WorkflowState"
+fields = ["id", "name", "type", "color", "position"]
+
 [fragments.PageInfoFields]
 on = "PageInfo"
 fields = "all"
@@ -87,6 +91,13 @@ kind = "query"
 root = "issues"
 fragment = "IssueFields"
 variables = { filter = "IssueFilter", first = "Int!", after = "String", orderBy = "PaginationOrderBy", includeArchived = "Boolean!" }
+arguments = { filter = "$filter", first = "$first", after = "$after", orderBy = "$orderBy", includeArchived = "$includeArchived" }
+
+[operations.ListWorkflowStates]
+kind = "query"
+root = "workflowStates"
+fragment = "WorkflowStateFields"
+variables = { filter = "WorkflowStateFilter", first = "Int!", after = "String", orderBy = "PaginationOrderBy", includeArchived = "Boolean!" }
 arguments = { filter = "$filter", first = "$first", after = "$after", orderBy = "$orderBy", includeArchived = "$includeArchived" }
 
 [operations.SearchIssues]

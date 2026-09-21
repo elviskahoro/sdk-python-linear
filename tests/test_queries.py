@@ -169,6 +169,84 @@ async def test_list_issues_page_omits_unset_order_by() -> None:
     assert "orderBy" not in body["variables"]  # noqa: S101
 
 
+async def test_list_workflow_states_page_builds_team_filter() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "workflowStates": {
+                            "nodes": [
+                                {
+                                    "id": "state-1",
+                                    "name": "In Progress",
+                                    "type": "started",
+                                    "color": "#f2c94c",
+                                    "position": 2.0,
+                                },
+                            ],
+                            "pageInfo": page_info_payload(
+                                has_next=True,
+                                end="state-cursor",
+                            ),
+                        },
+                    },
+                },
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            page = await LinearQueries(client).list_workflow_states_page(
+                "team-1",
+                first=25,
+                after="previous-state-page",
+                include_archived=True,
+                order_by=PaginationOrderBy.updatedAt,
+            )
+
+    assert page.nodes[0].id == "state-1"  # noqa: S101
+    assert page.nodes[0].name == "In Progress"  # noqa: S101
+    assert page.nodes[0].position == 2.0  # noqa: S101
+    assert page.page_info.has_next_page is True  # noqa: S101
+    body = json.loads(route.calls.last.request.content)
+    assert body["variables"] == {  # noqa: S101
+        "filter": {"team": {"id": {"eq": "team-1"}}},
+        "first": 25,
+        "after": "previous-state-page",
+        "includeArchived": True,
+        "orderBy": "updatedAt",
+    }
+
+
+async def test_list_workflow_states_returns_nodes() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "workflowStates": {
+                            "nodes": [
+                                {
+                                    "id": "state-1",
+                                    "name": "Todo",
+                                    "type": "unstarted",
+                                    "color": "#ffffff",
+                                    "position": 1.0,
+                                },
+                            ],
+                            "pageInfo": page_info_payload(),
+                        },
+                    },
+                },
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            states = await LinearQueries(client).list_workflow_states("team-1")
+
+    assert [state.name for state in states] == ["Todo"]  # noqa: S101
+
+
 async def test_list_issues_builds_team_filter() -> None:
     with respx.mock:
         route = respx.post(API_URL).mock(
@@ -213,7 +291,7 @@ async def test_get_team_by_key() -> None:
                 200,
                 json={
                     "data": {
-                        "teams": {"nodes": [{"id": "t1", "name": "Eng", "key": "ENG"}]}
+                        "teams": {"nodes": [{"id": "t1", "name": "Eng", "key": "ENG"}]},
                     },
                 },
             ),

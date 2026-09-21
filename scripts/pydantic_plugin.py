@@ -65,6 +65,10 @@ class PydanticPlugin(PythonPlugin):
         # too deeply nested to expand. Callers pass plain dicts; Linear validates.
         "IssueFilter": PythonType("dict[str, Any]", imports=[("typing", "Any")]),
         "TeamFilter": PythonType("dict[str, Any]", imports=[("typing", "Any")]),
+        "WorkflowStateFilter": PythonType(
+            "dict[str, Any]",
+            imports=[("typing", "Any")],
+        ),
     }
 
     def _print_scalar_type(self, type_: GraphQLScalar) -> str:
@@ -96,7 +100,8 @@ class PydanticPlugin(PythonPlugin):
         # `strawberry.Maybe[str | None]` round-trips into a doubly-wrapped optional.
         # Collapse it: Optional[Optional[X]] and Optional[X] mean the same thing here.
         if isinstance(type_, GraphQLOptional) and isinstance(
-            type_.of_type, GraphQLOptional
+            type_.of_type,
+            GraphQLOptional,
         ):
             return self._get_type_name(type_.of_type)
 
@@ -140,8 +145,9 @@ class PydanticPlugin(PythonPlugin):
         if type_.graphql_typename:
             lines.append(
                 textwrap.indent(
-                    f'"""GraphQL type: {type_.graphql_typename}."""', indent
-                )
+                    f'"""GraphQL type: {type_.graphql_typename}."""',
+                    indent,
+                ),
             )
         lines.append(textwrap.indent(fields, indent))
         return "\n".join(lines)

@@ -1,0 +1,10 @@
+query ListWorkflowStates($filter: WorkflowStateFilter, $first: Int!, $after: String, $orderBy: PaginationOrderBy, $includeArchived: Boolean!) {
+  workflowStates(filter: $filter, first: $first, after: $after, orderBy: $orderBy, includeArchived: $includeArchived) {
+    nodes {
+      ...WorkflowStateFields
+    }
+    pageInfo {
+      ...PageInfoFields
+    }
+  }
+}

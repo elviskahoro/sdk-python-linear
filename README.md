@@ -53,6 +53,7 @@ Three classes, all importable from the package root:
 LinearClient        # transport + auth + GraphQL execution
   ├── LinearQueries # typed read wrappers (get_issue, list_issues, search_issues, get_team, get_user)
   └── LinearMutations # typed write wrappers (issues and comments)
+LinearWorkflow      # injected-key CLI facade over every typed read/write helper
 ```
 
 `LinearQueries` and `LinearMutations` are **stateless facades** over a `LinearClient`. They do not own the client; they borrow it. Construct one client and pass it to both.
@@ -89,6 +90,29 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
+### CLI and automation facade
+
+For a command-line tool or automation that receives an API key from its own
+configuration or secret manager, use `LinearWorkflow`. It owns the client and
+provides matching synchronous and async methods; synchronous methods are for
+normal CLI entrypoints, while `*_async` methods are for an existing event loop.
+
+```python
+from gtm_linear import IssueCreateInput, LinearWorkflow
+
+with LinearWorkflow(injected_api_key) as linear:
+    team = linear.get_team_by_key("ENG")
+    assert team is not None
+    open_issues = linear.list_open_team_issues(team.id)
+    issue = linear.create_issue(
+        IssueCreateInput(title="Investigate alert", team_id=team.id)
+    )
+```
+
+`list_open_team_issues` excludes completed and canceled states and orders by most
+recent update. For ad-hoc GraphQL not yet represented by the typed API, access
+`linear.client.execute(...)` or use `LinearClient` directly.
+
 ---
 
 ## Public API surface
@@ -100,6 +124,7 @@ Importable from `gtm_linear`:
 | `LinearClient` | class | Transport + auth + raw GraphQL execution |
 | `LinearQueries` | class | Typed read helpers |
 | `LinearMutations` | class | Typed write helpers |
+| `LinearWorkflow` | class | Injected-key sync/async facade for CLI workflows |
 | `LinearAPIError` | exception | Raised on HTTP non-200 OR GraphQL `errors` field present |
 | `Issue` | model | Linear issue |
 | `Comment` | model | Linear issue comment |
@@ -114,6 +139,8 @@ Importable from `gtm_linear`:
 | `UserConnection` | model | Paginated users |
 | `Project` | model | `id`, `name`, `slug` |
 | `ProjectConnection` | model | Paginated projects |
+| `WorkflowState` | model | Linear workflow state (`id`, `name`, `type`, `color`, `position`) |
+| `WorkflowStateConnection` | model | Paginated workflow states |
 | `PageInfo` | model | `hasNextPage`, `hasPreviousPage`, `startCursor`, `endCursor` |
 
 The public Strawberry types are backed by Pydantic models, so malformed API payloads and invalid mutation inputs fail validation before they are exposed to callers or sent to Linear.
@@ -178,6 +205,26 @@ All methods are `async`. All accept Linear UUIDs unless noted.
 | `get_team(team_id)` | `str` | `Team \| None` | UUID only; use `get_team_by_key` for `ENG`-style keys |
 | `get_team_by_key(key)` | `str` | `Team \| None` | Resolves a human team key such as `ENG` |
 | `get_user(user_id)` | `str` | `User \| None` | — |
+| `list_workflow_states(team_id, first=50)` | `str`, `int` | `list[WorkflowState]` | Convenience helper for a team's first workflow-state page |
+| `list_workflow_states_page(team_id, first=50, after=None, include_archived=False, order_by=None)` | `str`, `int`, `str \| None`, `bool`, `PaginationOrderBy \| None` | `WorkflowStateConnection` | Team-scoped workflow-state connection with cursor pagination |
+
+### Team workflow states
+
+Workflow states are queried directly from Linear's `workflowStates` connection and
+filtered by team ID. Use the page method when you need cursor metadata:
+
+```python
+states = await queries.list_workflow_states_page(team.id, first=50)
+for state in states.nodes:
+    print(state.id, state.name, state.type)
+
+if states.page_info.has_next_page:
+    next_page = await queries.list_workflow_states_page(
+        team.id,
+        first=50,
+        after=states.page_info.end_cursor,
+    )
+```
 
 ### Team key → ID and filtered issue pages
 
@@ -255,7 +302,12 @@ Issue(
 
 ## Sync vs async
 
-The transport supports both. The typed wrappers (`LinearQueries`, `LinearMutations`) are **async-only** today. To use them from sync code, wrap with `asyncio.run`:
+The low-level typed wrappers (`LinearQueries`, `LinearMutations`) are async-only.
+For synchronous CLI code, prefer `LinearWorkflow`, which owns the client and runs
+its async methods safely. Its synchronous methods must not be called from an active
+event loop; use their `*_async` counterpart there.
+
+To use the low-level wrappers from sync code, wrap them with `asyncio.run`:
 
 ```python
 import asyncio
@@ -361,10 +413,10 @@ Tests use `respx` to mock `httpx` — no network access required. `pytest-asynci
 ## Known gaps (read before extending)
 
 1. **Filtering coverage**: Issue filters are plain `dict[str, Any]` mappings that mirror Linear's nested filter tree. Use `execute_async` for other Linear filters.
-2. **Schema coverage**: Only `Issue`, `Comment`, `Team`, `User`, and `Project` are typed. Attachments, cycles, projects-as-containers, workflows, and webhooks remain absent.
+2. **Schema coverage**: Only a focused subset of Linear resources is typed. Attachments, cycles, projects-as-containers, workflow mutations, and webhooks remain absent.
 3. **Search filtering**: `search_issues` accepts only a text term. Use `list_issues_page` for mapped team/state filtering.
 4. **Subscriptions**: Not supported. Linear's `subscription` API requires WebSockets — the client is HTTP-only.
-5. **Status enum**: `status` is flattened to `state.name`. To filter by state ID, query `state { id }` via `execute_async`.
+5. **Status filtering**: Workflow-state query results include the state ID and type. More advanced filters still require `execute_async`.
 
 ---
 

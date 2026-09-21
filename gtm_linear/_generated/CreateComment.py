@@ -4,12 +4,15 @@ from typing import Any, Optional
 from gtm_linear.models import LinearModel
 from .fragments import CommentFields
 
+
 class CreateCommentResultCommentCreate(LinearModel):
     success: bool
     comment: CommentFields
 
+
 class CreateCommentResult(LinearModel):
     comment_create: CreateCommentResultCommentCreate
+
 
 class CommentCreateInput(LinearModel):
     body: Optional[str] = None
@@ -30,6 +33,7 @@ class CommentCreateInput(LinearModel):
     project_update_id: Optional[str] = None
     quoted_text: Optional[str] = None
     subscriber_ids: Optional[list[str]] = None
+
 
 class CreateCommentVariables(LinearModel):
     input: CommentCreateInput

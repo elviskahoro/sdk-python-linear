@@ -2,11 +2,14 @@
 from gtm_linear.models import LinearModel
 from .fragments import TeamFields
 
+
 class GetTeamByKeyResultTeams(LinearModel):
     nodes: list[TeamFields]
 
+
 class GetTeamByKeyResult(LinearModel):
     teams: GetTeamByKeyResultTeams
+
 
 class GetTeamByKeyVariables(LinearModel):
     key: str
