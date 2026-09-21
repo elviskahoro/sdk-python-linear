@@ -2,18 +2,27 @@
 from enum import Enum
 from typing import Any, Optional
 from gtm_linear.models import LinearModel
-from .fragments import IssueFields, IssueFieldsAssignee, IssueFieldsState, PageInfoFields
+from .fragments import (
+    IssueFields,
+    IssueFieldsAssignee,
+    IssueFieldsState,
+    PageInfoFields,
+)
+
 
 class PaginationOrderBy(Enum):
     createdAt = "createdAt"
     updatedAt = "updatedAt"
 
+
 class ListIssuesResultIssues(LinearModel):
     nodes: list[IssueFields]
     page_info: PageInfoFields
 
+
 class ListIssuesResult(LinearModel):
     issues: ListIssuesResultIssues
+
 
 class ListIssuesVariables(LinearModel):
     filter: Optional[dict[str, Any]]

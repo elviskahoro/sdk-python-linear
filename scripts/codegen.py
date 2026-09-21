@@ -14,6 +14,8 @@ The pipeline, and why it has this shape:
      ``strawberry.Schema``, which is the input format stage 4 requires.
   4. ``strawberry codegen`` walks each operation against that schema and emits result
      and variable models, via the PydanticPlugin.
+  5. ``ruff format`` (pinned in the dev group) normalises the emitted Python, so a
+     regeneration is byte-stable and `trunk check` has nothing left to reformat.
 
 ``strawberry schema-codegen`` is experimental and mis-handles several constructs that
 appear in a production schema. Each is worked around below and tagged BUG-n:
@@ -570,6 +572,19 @@ def _run(cmd: list[str], extra_path: Path | None = None) -> None:
         raise SystemExit(msg)
 
 
+def _ruff_format(paths: list[Path]) -> None:
+    """Run ``ruff format`` over generated files so codegen and trunk agree on bytes.
+
+    The formatter is the last pipeline stage on purpose: strawberry emits valid but
+    unformatted Python, and `trunk check` (which enables `ruff format`) would otherwise
+    rewrite the committed output on the next run, making ``--check`` fail for reasons
+    unrelated to the schema.
+    """
+    if not paths:
+        return
+    _run([sys.executable, "-m", "ruff", "format", *map(str, paths)])
+
+
 def generate(schema_out: Path, generated_out: Path) -> None:
     """Run the full pipeline, writing the schema module and generated models."""
     paths = _operation_paths()
@@ -684,6 +699,8 @@ def generate(schema_out: Path, generated_out: Path) -> None:
         + '"""Pydantic models generated from Linear\'s GraphQL schema."""\n',
     )
     print(f"  generated {len(modules)} operation module(s): {', '.join(modules)}")
+
+    _ruff_format([schema_out, *sorted(generated_out.glob("*.py"))])
 
 
 def main() -> None:

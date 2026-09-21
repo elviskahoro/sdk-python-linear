@@ -161,6 +161,9 @@ lint:
         - data/**
         - tmp/**
         - worktrees/**
+        # Codegen output. Generated from Linear's SDL by scripts/codegen.py;
+        # lint/format fixes belong in the generator, not the generated files.
+        - "**/_generated/**"
         - "**/*.openapi.json"
         - "**/*.openapi.yaml"
         - "**/*.openapi.yml"

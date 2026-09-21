@@ -2,8 +2,10 @@
 from gtm_linear.models import LinearModel
 from .fragments import TeamFields
 
+
 class GetTeamResult(LinearModel):
     team: TeamFields
+
 
 class GetTeamVariables(LinearModel):
     id: str
