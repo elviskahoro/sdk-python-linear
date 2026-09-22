@@ -84,7 +84,15 @@ class LinearHTTPError(LinearAPIError):
     depending on how the request failed.
     """
 
-    def __init__(self, message: str, status_code: int, body: str = "") -> None:
+    def __init__(self, message: str, status_code: int = 0, body: str = "") -> None:
+        # ``status_code`` defaults so that ``cls(message)`` — the form
+        # ``BaseException.__reduce__`` uses when rebuilding the instance for
+        # ``pickle``/``copy`` — succeeds; the real ``status_code``/``body`` are
+        # then restored from ``__dict__`` by the default reconstruction, the
+        # same way ``errors`` survives on the sibling classes. Without the
+        # default, unpickling raises ``TypeError: missing required positional
+        # argument: 'status_code'`` and a process pool surfaces
+        # ``BrokenProcessPool`` instead of the original error.
         self.status_code = status_code
         self.body = body
         super().__init__(message)
