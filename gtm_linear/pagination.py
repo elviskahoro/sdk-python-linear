@@ -65,4 +65,8 @@ async def paginate(
         # page but returns no cursor would otherwise refetch page one forever.
         if not page.page_info.has_next_page or not page.page_info.end_cursor:
             return
+        # A connection that returns the same cursor it was just fed is not making
+        # forward progress; continuing would refetch the same page forever.
+        if page.page_info.end_cursor == cursor:
+            return
         cursor = page.page_info.end_cursor
