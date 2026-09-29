@@ -61,6 +61,14 @@ async def paginate(
             if limit is not None and yielded >= limit:
                 return
 
+        # A genuine Relay page with ``hasNextPage=True`` must contain at least
+        # one edge; an empty page therefore cannot make forward progress. A
+        # connection that reports ``hasNextPage=True`` with a fresh cursor but
+        # zero nodes would otherwise loop forever because the ``limit`` guard
+        # above lives inside the (never-entered) node loop, and the cursor
+        # advance and ``hasNextPage`` checks below both pass.
+        if not page.nodes:
+            return
         # Guard on the cursor as well as the flag: a connection that claims another
         # page but returns no cursor would otherwise refetch page one forever.
         if not page.page_info.has_next_page or not page.page_info.end_cursor:

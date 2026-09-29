@@ -142,3 +142,116 @@ async def test_pagination_follows_advancing_cursors_across_multiple_pages() -> N
     assert len(route.calls) == 3  # noqa: S101
     afters = [json.loads(c.request.content)["variables"]["after"] for c in route.calls]
     assert afters == [None, "cur-1", "cur-2"]  # noqa: S101
+
+
+async def test_pagination_stops_on_empty_page_with_advancing_cursor() -> None:
+    """A page with no nodes but ``hasNextPage=True`` and a fresh cursor must not
+    loop forever. Regression coverage for the empty-page-with-advancing-cursor
+    case: the existing missing-cursor and sticky-cursor guards both pass, so
+    without the empty-nodes guard the generator would re-issue requests forever.
+    """
+    with respx.mock:
+        route = respx.post(API_URL)
+        route.side_effect = [
+            httpx.Response(200, json=_page(["a", "b"], has_next=True, end="cur-1")),
+            httpx.Response(200, json=_page([], has_next=True, end="cur-2")),
+            httpx.Response(
+                200,
+                json=_page([], has_next=True, end="cur-3"),
+            ),
+        ]
+        async with LinearClient(api_key="key") as client:
+            issues = [i async for i in LinearQueries(client).iter_team_issues("t")]
+
+    # Nodes yielded before the empty page are still emitted...
+    assert [i.id for i in issues] == ["a", "b"]  # noqa: S101
+    # ...and pagination stops at the first empty page rather than refetching.
+    assert len(route.calls) == 2  # noqa: S101
+    first, second = (json.loads(c.request.content) for c in route.calls)
+    assert first["variables"]["after"] is None  # noqa: S101
+    assert second["variables"]["after"] == "cur-1"  # noqa: S101
+
+
+async def test_pagination_never_loops_on_empty_advancing_cursor_pages() -> None:
+    """Direct generator regression: an always-empty page with a perpetually
+    advancing cursor and ``hasNextPage=True`` must terminate on the first round.
+    Before the fix this constructed an infinite request loop.
+    """
+    calls: int = 0
+
+    class PageInfo:
+        def __init__(self, *, has_next_page: bool, end_cursor: str | None) -> None:
+            self.has_next_page = has_next_page
+            self.end_cursor = end_cursor
+
+    class Conn:
+        def __init__(
+            self,
+            nodes: list[object],
+            *,
+            has_next_page: bool,
+            end_cursor: str | None,
+        ) -> None:
+            self.nodes = nodes
+            self.page_info = PageInfo(
+                has_next_page=has_next_page,
+                end_cursor=end_cursor,
+            )
+
+    async def fetch(_cursor: str | None) -> Conn:
+        nonlocal calls
+        calls += 1
+        if calls > 5:
+            raise AssertionError("would loop forever without the empty-page guard")
+        return Conn([], has_next_page=True, end_cursor=f"cur-{calls}")
+
+    from gtm_linear.pagination import paginate
+
+    issues = [issue async for issue in paginate(fetch)]
+
+    assert issues == []  # noqa: S101
+    assert calls == 1  # noqa: S101
+
+
+async def test_pagination_advancing_cursor_with_nodes_still_progresses() -> None:
+    """Regression: the empty-page guard must not fire for non-empty pages, even
+    when a later page is genuinely empty. Mixed node/empty sequences should
+    emit all real nodes and stop at the first empty page.
+    """
+    calls: list[str | None] = []
+
+    class PageInfo:
+        def __init__(self, *, has_next_page: bool, end_cursor: str | None) -> None:
+            self.has_next_page = has_next_page
+            self.end_cursor = end_cursor
+
+    class Conn:
+        def __init__(
+            self,
+            nodes: list[object],
+            *,
+            has_next_page: bool,
+            end_cursor: str | None,
+        ) -> None:
+            self.nodes = nodes
+            self.page_info = PageInfo(
+                has_next_page=has_next_page,
+                end_cursor=end_cursor,
+            )
+
+    async def fetch(cursor: str | None) -> Conn:
+        calls.append(cursor)
+        if cursor is None:
+            return Conn(["a", "b"], has_next_page=True, end_cursor="cur-1")
+        if cursor == "cur-1":
+            return Conn(["c"], has_next_page=True, end_cursor="cur-2")
+        if cursor == "cur-2":
+            return Conn([], has_next_page=True, end_cursor="cur-3")  # empty -> stop
+        raise AssertionError(f"unexpected cursor: {cursor!r}")
+
+    from gtm_linear.pagination import paginate
+
+    issues = [issue async for issue in paginate(fetch)]
+
+    assert issues == ["a", "b", "c"]  # noqa: S101
+    assert calls == [None, "cur-1", "cur-2"]  # noqa: S101
