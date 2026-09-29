@@ -18,11 +18,7 @@ classifiers = [
 ]
 # Runtime is deliberately small: nothing on the import path needs Strawberry or
 # graphql-core. Both are build-time tools (see scripts/codegen.py).
-dependencies = [
-  "httpx>=0.27.0",
-  "pydantic>=2.0.0",
-  "pydantic-settings>=2.14.2",
-]
+dependencies = ["httpx>=0.27.0", "pydantic>=2.0.0", "pydantic-settings>=2.14.2"]
 
 [project.optional-dependencies]
 # Ships gtm_linear._schema, the generated Strawberry mirror of Linear's types, for
@@ -39,7 +35,13 @@ dev = [
   "respx>=0.21",
   # Codegen toolchain. Build-time only: scripts/codegen.py turns Linear's SDL
   # into the Pydantic models under gtm_linear/_generated/.
-  "graphql-core>=3.2",
+  # graphql-core is capped below 3.3: 3.3 makes the AST nodes frozen
+  # dataclasses, and codegen.py's `document.definitions = ...` splice in
+  # _compose then raises FrozenInstanceError (first seen as 13 CI failures
+  # when a fresh resolution pulled 3.3.0 — see the uv.lock commit). Lift the
+  # cap only together with a codegen.py that builds new documents instead of
+  # mutating parsed ones.
+  "graphql-core>=3.2,<3.3",
   "strawberry-graphql[cli]>=0.316.0",
   # codegen.py runs `ruff format` over its output so regeneration is byte-stable
   # and `trunk check` has nothing left to reformat. Pinned to the version
