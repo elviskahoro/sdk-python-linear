@@ -317,6 +317,7 @@ async def test_malformed_errors_raise_linearapierror_async(
                 await client.execute_async("query { viewer { id } }")
     assert isinstance(exc.value, LinearGraphQLError)  # noqa: S101
     assert len(exc.value.errors) == 1  # noqa: S101
+    assert exc.value.errors[0].message == str(error_entry)  # noqa: S101
 
 
 def test_mixed_errors_preserve_structure_and_degrade_malformed() -> None:
