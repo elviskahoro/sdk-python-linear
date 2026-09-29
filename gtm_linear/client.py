@@ -6,7 +6,7 @@ from types import TracebackType
 from typing import TYPE_CHECKING, Any, Self
 
 import httpx
-from pydantic import SecretStr
+from pydantic import SecretStr, ValidationError
 
 from .exceptions import (
     GraphQLError,
@@ -112,6 +112,28 @@ class LinearClient:
             payload["variables"] = variables
         return payload
 
+    @staticmethod
+    def _coerce_error(entry: Any) -> GraphQLError:  # noqa: ANN401
+        """Coerce one ``errors[]`` entry into a :class:`GraphQLError`.
+
+        Spec-violating dict entries (``{}``, a non-string ``message``, a
+        non-list ``path``/``locations``, or ``"extensions": null``) degrade to
+        ``GraphQLError(message=str(entry))`` — the same fallback the non-dict
+        branch already uses — so :meth:`_handle_response` only ever raises
+        :class:`LinearAPIError` subclasses. Without this guard,
+        ``GraphQLError.model_validate`` raises ``pydantic.ValidationError`` for
+        such entries, which escapes ``execute`` / ``execute_async`` and
+        bypasses the documented ``except LinearAPIError`` contract.
+        """
+        try:
+            return (
+                GraphQLError.model_validate(entry)
+                if isinstance(entry, dict)
+                else GraphQLError(message=str(entry))
+            )
+        except ValidationError:
+            return GraphQLError(message=str(entry))
+
     def _handle_response(self, response: httpx.Response) -> dict[str, Any]:
         """Turn an HTTP response into the GraphQL ``data`` object, or raise.
 
@@ -132,12 +154,7 @@ class LinearClient:
             body = None
 
         if isinstance(body, dict) and body.get("errors"):
-            errors = [
-                GraphQLError.model_validate(e)
-                if isinstance(e, dict)
-                else GraphQLError(message=str(e))
-                for e in body["errors"]
-            ]
+            errors = [self._coerce_error(e) for e in body["errors"]]
             summary = "; ".join(e.message for e in errors)
             raise LinearGraphQLError(f"GraphQL error: {summary}", errors=errors)
 
