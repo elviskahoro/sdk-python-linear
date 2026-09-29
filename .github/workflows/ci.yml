@@ -9,15 +9,13 @@ on:
     - cron: "17 6 * * 1"
 
 env:
-  # CI must install the committed lockfile, not re-resolve it. setup-uv
-  # installs the latest uv, and newer uv re-resolves this repo's revision-3
-  # lock instead of using it — which pulled strawberry-graphql 0.327.7 and
-  # graphql-core 3.3.0 (frozen AST nodes) and broke 13 codegen tests whose
+  # CI installs the committed uv.lock, byte for byte, and fails loudly if the
+  # lock has drifted from pyproject.toml. uv.lock used to be gitignored, so
+  # every CI run resolved dependencies fresh off PyPI — which pulled
+  # graphql-core 3.3.0 the day it shipped and broke 13 codegen tests whose
   # code passes against the locked versions. Workflow-level env rather than
-  # per-call --frozen flags so the `uv run` steps are covered too. Lock
-  # refreshes should be deliberate commits, not a side effect of whichever
-  # uv the runner downloaded that morning.
-  UV_FROZEN: "1"
+  # per-call --locked flags so the `uv run` steps are covered too.
+  UV_LOCKED: "1"
 
 jobs:
   test:
