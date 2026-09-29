@@ -8,6 +8,17 @@ on:
     # Weekly: catch Linear changing its schema out from under the pinned copy.
     - cron: "17 6 * * 1"
 
+env:
+  # CI must install the committed lockfile, not re-resolve it. setup-uv
+  # installs the latest uv, and newer uv re-resolves this repo's revision-3
+  # lock instead of using it — which pulled strawberry-graphql 0.327.7 and
+  # graphql-core 3.3.0 (frozen AST nodes) and broke 13 codegen tests whose
+  # code passes against the locked versions. Workflow-level env rather than
+  # per-call --frozen flags so the `uv run` steps are covered too. Lock
+  # refreshes should be deliberate commits, not a side effect of whichever
+  # uv the runner downloaded that morning.
+  UV_FROZEN: "1"
+
 jobs:
   test:
     runs-on: ubuntu-latest
