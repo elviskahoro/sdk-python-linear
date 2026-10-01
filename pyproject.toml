@@ -35,12 +35,13 @@ dev = [
   "respx>=0.21",
   # Codegen toolchain. Build-time only: scripts/codegen.py turns Linear's SDL
   # into the Pydantic models under gtm_linear/_generated/.
-  # graphql-core is capped below 3.3: 3.3 makes the AST nodes frozen
-  # dataclasses, and codegen.py's `document.definitions = ...` splice in
-  # _compose then raises FrozenInstanceError (first seen as 13 CI failures
-  # when a fresh resolution pulled 3.3.0 — see the uv.lock commit). Lift the
-  # cap only together with a codegen.py that builds new documents instead of
-  # mutating parsed ones.
+  # graphql-core is capped below 3.3 because strawberry 0.316 — the codegen
+  # backend — cannot import graphql-core 3.3 at all: its schema module expects
+  # graphql.execution.ExecutionContext, which 3.3 removed. codegen.py itself is
+  # frozen-AST-safe (it builds replacement documents instead of mutating
+  # parsed nodes; the old in-place splice is what broke 13 CI tests when a
+  # fresh resolution pulled 3.3.0). Lift the cap only together with a
+  # strawberry release that supports 3.3 and a regeneration of the output.
   "graphql-core>=3.2,<3.3",
   "strawberry-graphql[cli]>=0.316.0",
   # codegen.py runs `ruff format` over its output so regeneration is byte-stable
