@@ -8,6 +8,15 @@ on:
     # Weekly: catch Linear changing its schema out from under the pinned copy.
     - cron: "17 6 * * 1"
 
+env:
+  # CI installs the committed uv.lock, byte for byte, and fails loudly if the
+  # lock has drifted from pyproject.toml. uv.lock used to be gitignored, so
+  # every CI run resolved dependencies fresh off PyPI — which pulled
+  # graphql-core 3.3.0 the day it shipped and broke 13 codegen tests whose
+  # code passes against the locked versions. Workflow-level env rather than
+  # per-call --locked flags so the `uv run` steps are covered too.
+  UV_LOCKED: "1"
+
 jobs:
   test:
     runs-on: ubuntu-latest
