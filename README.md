@@ -126,6 +126,7 @@ Importable from `gtm_linear`:
 | `LinearMutations` | class | Typed write helpers |
 | `LinearWorkflow` | class | Injected-key sync/async facade for CLI workflows |
 | `LinearAPIError` | exception | Raised on HTTP non-200 OR GraphQL `errors` field present |
+| `LinearPaginationError` | exception | Raised by `iter_*` when a connection stalls: several consecutive empty pages while `hasNextPage` stays true |
 | `Issue` | model | Linear issue |
 | `Comment` | model | Linear issue comment |
 | `IssueConnection` | model | Paginated issue list (`nodes`, `pageInfo`) |
@@ -370,7 +371,7 @@ sdk-python-linear/
 ├── src/
 │   ├── __init__.py           # public re-exports
 │   ├── client.py             # LinearClient (httpx transport)
-│   ├── exceptions.py         # LinearAPIError
+│   ├── exceptions.py         # LinearAPIError, LinearPaginationError
 │   ├── generated_types.py    # Strawberry-decorated models + input types
 │   ├── queries.py            # LinearQueries (async read helpers)
 │   └── mutations.py          # LinearMutations (async write helpers)
