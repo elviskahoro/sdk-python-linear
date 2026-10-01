@@ -104,3 +104,15 @@ class LinearResponseError(LinearAPIError):
     Covers unparseable JSON, a non-object body, and a 200 response with no ``data``
     key — the last of which previously escaped as a bare ``KeyError``.
     """
+
+
+class LinearPaginationError(LinearAPIError):
+    """A paginated connection stalled while claiming more data follows.
+
+    Raised by :func:`gtm_linear.pagination.paginate` when several consecutive
+    pages return no nodes while ``pageInfo.hasNextPage`` stays true: the
+    connection claims forward progress it cannot make, and continuing would
+    either hang on refetches or silently truncate results. Nodes yielded
+    before the error remain with the caller, so partial results survive by
+    catching this.
+    """
