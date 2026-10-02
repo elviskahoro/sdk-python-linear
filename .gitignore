@@ -8,6 +8,7 @@ build/
 .python-version
 .DS_Store
 tmp/
+.env
 .env.local
 
 # Flox local state. Keep .flox/env/manifest.toml and manifest.lock tracked so

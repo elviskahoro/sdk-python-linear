@@ -1,6 +1,6 @@
 # gtm-linear
 
-Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, typed wrapper around `httpx` with optional sync support, Strawberry-typed models, and explicit error semantics.
+Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, typed wrapper around `httpx` with optional sync support, Strawberry-typed models, explicit error semantics, and a bundled read-only CLI.
 
 > **Status:** Pre-alpha (`0.0.1`). PyPI name reserved. API surface is small and stable but incomplete — fall back to raw `LinearClient.execute_async` for anything not yet wrapped.
 
@@ -15,7 +15,7 @@ Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, t
 | Building MCP-style tooling against Linear | Yes (low-level), or prefer the official Linear MCP server for higher-level intent |
 | Need full coverage of Linear's GraphQL schema | **No** — only a focused subset of Linear types is wrapped today |
 | Need webhooks, OAuth flow, or attachments | **No** — not implemented |
-| Writing a one-off shell command | Prefer `cli-linear-guide` skill or `curl` against the GraphQL endpoint |
+| Writing a one-off shell command | Yes — the bundled CLI: `uvx gtm-linear issues --team ENG` |
 
 If you only need to *create or read a few issues* from an automation, this is the right tool. If you need broad schema coverage, drop down to `execute_async` with a hand-written query.
 
@@ -29,7 +29,9 @@ uv pip install gtm-linear        # once published
 uv sync
 ```
 
-Requires Python `>=3.11`. Runtime deps: `httpx>=0.27`, `pydantic>=2.0`, `pydantic-settings>=2.14.2`. The optional `[strawberry]` extra (ships the generated schema mirror) adds `strawberry-graphql>=0.328.0`, which pulls `graphql-core>=3.3,<3.4`.
+Installing the package also installs the `gtm-linear` console command — see [CLI](#cli).
+
+Requires Python `>=3.11`. Runtime deps: `httpx>=0.27`, `pydantic>=2.0`, `pydantic-settings>=2.14.2`, `typer>=0.27` (imported only by the CLI module — `import gtm_linear` never touches it). Typer is unconditional rather than a `[cli]` extra so `uvx gtm-linear` and `uv tool install gtm-linear` need no extra syntax — a deliberate install-footprint trade-off for library-only consumers. The optional `[strawberry]` extra (ships the generated schema mirror) adds `strawberry-graphql>=0.328.0`, which pulls `graphql-core>=3.3,<3.4`.
 
 ---
 
@@ -42,6 +44,36 @@ export LINEAR_API_KEY=lin_api_xxx
 ```
 
 The SDK does not read env vars on its own. Caller is responsible for passing `api_key=` to `LinearClient`. The key is stripped of surrounding whitespace at construction — a trailing newline from a secret store is harmless instead of an `Illegal header value` crash — and anything that is not a `str`/`SecretStr` (a `LinearClient` or `LinearSettings` object, say) raises `TypeError` immediately rather than failing later inside httpx. Blank or corrupted keys (embedded whitespace, control, or non-ASCII characters) raise `ValueError` at the same point.
+
+---
+
+## CLI
+
+The package ships a read-only CLI as the `gtm-linear` console command. It wraps `LinearWorkflow`, so the SDK's typed reads are available without writing any Python:
+
+```bash
+# from a checkout
+uv run gtm-linear viewer
+
+# one-off, no local install (once published to PyPI)
+uvx gtm-linear issues --team ENG --limit 10
+
+# or install it as a tool
+uv tool install gtm-linear
+gtm-linear search "onboarding"
+```
+
+Auth uses the SDK's `LinearSettings` resolution: `LINEAR_API_KEY` (`lin_api_...`) from the environment or a `.env` / `.env.local` file in the working directory. Endpoint overrides (`LINEAR_BASE_URL`, `LINEAR_TIMEOUT`) are honored from the real environment only — a dotenv file may supply the key, but never redirect where it is sent. Real environment variables also take precedence over dotenv for the key itself; note that a dotenv file in the current directory is trusted for auth, so run the CLI from directories you control.
+
+| Command | Purpose |
+| --- | --- |
+| `gtm-linear viewer` | Auth check: print the user the API key belongs to |
+| `gtm-linear teams` | List teams (key, name, id) |
+| `gtm-linear issues --team ENG [--state open\|all] [--limit N] [-v]` | List a team's issues, newest updated first (team key is case-insensitive; default state: open, limit: 25) |
+| `gtm-linear issue ENG-123` | Fetch one issue by identifier (any casing) or Linear UUID |
+| `gtm-linear search "term" [--limit N] [-v]` | Free-text issue search across the workspace (multi-word terms may be unquoted — words are joined; dash-prefixed values are searched as-is, so a mistyped flag becomes the term) |
+
+Every command accepts `--json` for machine-readable output. `--limit` is validated to 1–100 at parse time; a full page prints a stderr note that more results exist. Exit codes: `0` success, `1` runtime failure (auth, API, not-found, network, a malformed `LINEAR_BASE_URL`, or an unexpected response shape — each printed as a single red `error: …` line on stderr, never a traceback; a closed output pipe, as in `| head`, exits 1 without printing an error), `130` Ctrl-C, `2` usage error. The CLI is deliberately read-only; writes stay in the SDK (`LinearMutations`) so a shell typo can never mutate Linear.
 
 ---
 
@@ -368,20 +400,24 @@ The script exercises: `viewer` query, `get_team_by_key`, `get_team`, `list_issue
 
 ```text
 sdk-python-linear/
-├── src/
+├── gtm_linear/
 │   ├── __init__.py           # public re-exports
+│   ├── _generated/           # codegen output: Pydantic models + GraphQL documents
+│   ├── _schema.py            # generated Strawberry mirror ([strawberry] extra)
+│   ├── cli.py                # read-only CLI behind the gtm-linear command
 │   ├── client.py             # LinearClient (httpx transport)
-│   ├── exceptions.py         # LinearAPIError, LinearPaginationError
-│   ├── generated_types.py    # Strawberry-decorated models + input types
+│   ├── exceptions.py         # LinearAPIError and friends
+│   ├── models.py             # LinearModel base class
+│   ├── mutations.py          # LinearMutations (async write helpers)
+│   ├── pagination.py         # cursor-following paginate helpers
 │   ├── queries.py            # LinearQueries (async read helpers)
-│   └── mutations.py          # LinearMutations (async write helpers)
-├── tests/
-│   ├── test_client.py        # respx-mocked transport tests (sync + async)
-│   ├── test_queries.py       # respx-mocked query parsing tests
-│   └── test_mutations.py     # respx-mocked mutation tests
-├── scripts/
-│   └── smoke.py              # live API smoke test
-├── pyproject.toml            # uv + hatchling; deps + dev deps + pytest config
+│   ├── settings.py           # LinearSettings (opt-in env/dotenv config)
+│   └── workflow.py           # LinearWorkflow (sync/async facade)
+├── tests/                    # respx-mocked suite (incl. test_cli.py)
+├── scripts/                  # codegen toolchain + smoke.py (live API)
+├── operations/               # GraphQL selection sets (codegen inputs)
+├── schema/                   # Linear SDL pin (codegen input)
+├── pyproject.toml            # hatchling; deps, extras, console scripts
 ├── pyrefly.toml              # type-checker config
 └── .trunk/                   # lint config (trunk.io)
 ```

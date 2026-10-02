@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Elvis Kahoro", email = "elvis@dlthub.com" }]
-keywords = ["linear", "gtm", "sdk"]
+keywords = ["linear", "gtm", "sdk", "cli"]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Intended Audience :: Developers",
@@ -17,8 +17,18 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
 ]
 # Runtime is deliberately small: nothing on the import path needs Strawberry or
-# graphql-core. Both are build-time tools (see scripts/codegen.py).
-dependencies = ["httpx>=0.27.0", "pydantic>=2.0.0", "pydantic-settings>=2.14.2"]
+# graphql-core. Both are build-time tools (see scripts/codegen.py). Typer is the
+# one runtime addition for the shipped CLI (gtm_linear/cli.py + [project.scripts]):
+# it is small and pure-Python (rich, shellingham, annotated-doc — it vendors its
+# own CLI engine under typer._click rather than depending on click), was already
+# in the dev dependency tree via strawberry-graphql[cli], and only the CLI module
+# imports it — `import gtm_linear` never touches it.
+dependencies = [
+  "httpx>=0.27.0",
+  "pydantic>=2.0.0",
+  "pydantic-settings>=2.14.2",
+  "typer>=0.27",
+]
 
 [project.optional-dependencies]
 # Ships gtm_linear._schema, the generated Strawberry mirror of Linear's types, for
@@ -30,6 +40,14 @@ dependencies = ["httpx>=0.27.0", "pydantic>=2.0.0", "pydantic-settings>=2.14.2"]
 # version-sensitive — a reason not to put it in `dependencies`, where every consumer
 # would inherit the pin.
 strawberry = ["strawberry-graphql>=0.328.0"]
+
+[project.scripts]
+# Console script for gtm_linear/cli.py. The name matches the package, so
+# `uvx gtm-linear ...` runs it without any extra syntax. A shorter `linear`
+# alias was considered and rejected: that name collides with other Linear
+# CLIs on PyPI, and installing a library dependency should not silently
+# claim a generic executable.
+gtm-linear = "gtm_linear.cli:main"
 
 [dependency-groups]
 dev = [

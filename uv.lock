@@ -97,6 +97,7 @@ dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
+    { name = "typer" },
 ]
 
 [package.optional-dependencies]
@@ -121,6 +122,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pydantic-settings", specifier = ">=2.14.2" },
     { name = "strawberry-graphql", marker = "extra == 'strawberry'", specifier = ">=0.328.0" },
+    { name = "typer", specifier = ">=0.27" },
 ]
 provides-extras = ["strawberry"]
 
