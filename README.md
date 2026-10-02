@@ -41,7 +41,7 @@ Linear personal API key. Format: `lin_api_...`. Pass the raw key as the `Authori
 export LINEAR_API_KEY=lin_api_xxx
 ```
 
-The SDK does not read env vars on its own. Caller is responsible for passing `api_key=` to `LinearClient`.
+The SDK does not read env vars on its own. Caller is responsible for passing `api_key=` to `LinearClient`. The key is stripped of surrounding whitespace at construction — a trailing newline from a secret store is harmless instead of an `Illegal header value` crash — and anything that is not a `str`/`SecretStr` (a `LinearClient` or `LinearSettings` object, say) raises `TypeError` immediately rather than failing later inside httpx. Blank or corrupted keys (embedded whitespace, control, or non-ASCII characters) raise `ValueError` at the same point.
 
 ---
 

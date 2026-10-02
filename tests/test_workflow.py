@@ -10,7 +10,7 @@ import httpx
 import pytest
 import respx
 
-from gtm_linear import LinearWorkflow, PaginationOrderBy
+from gtm_linear import LinearClient, LinearWorkflow, PaginationOrderBy
 from gtm_linear.mutations import LinearMutations
 from gtm_linear.queries import LinearQueries
 from tests.conftest import API_URL, issue_payload, page_info_payload
@@ -277,3 +277,27 @@ async def test_sync_method_in_running_loop_emits_no_coroutine_warning(
         "Expected no 'coroutine was never awaited' warning; got: "
         f"{[str(w.message) for w in coroutine_warnings]}"
     )
+
+
+def test_workflow_rejects_a_client_instance_where_the_key_belongs() -> None:
+    """Regression from an automation run: ``LinearWorkflow(LinearClient(...))``.
+
+    The facade forwards its first argument to ``LinearClient(api_key=...)``.
+    Before the constructor guard, the client instance was silently stored as
+    the key and the failure surfaced only at the first request, as
+    ``TypeError: Header value must be str or bytes, not LinearClient`` deep
+    inside httpx. LinearQueries/LinearMutations take a client; LinearWorkflow
+    takes the key.
+    """
+    with pytest.raises(TypeError, match="not LinearClient"):
+        LinearWorkflow(cast("Any", LinearClient(api_key="key")))
+
+
+def test_workflow_strips_a_padded_key() -> None:
+    """The facade forwards its key argument through the same constructor guard.
+
+    ``LinearWorkflow`` only works by forwarding to ``LinearClient.__init__``;
+    this pins that forwarding so a later bypass is caught.
+    """
+    linear = LinearWorkflow("lin_api_x\n")
+    assert linear.client.api_key.get_secret_value() == "lin_api_x"

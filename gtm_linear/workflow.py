@@ -62,8 +62,12 @@ class LinearWorkflow:
     """A single injected-key facade for Linear CLI and automation workflows.
 
     The facade owns one :class:`LinearClient` and exposes the SDK's typed read and
-    write operations as paired asynchronous and synchronous methods. Use it as a
-    context manager when a workflow makes more than one call::
+    write operations as paired asynchronous and synchronous methods. The
+    constructor takes the API key itself — not a :class:`LinearClient`, unlike
+    :class:`LinearQueries` / :class:`LinearMutations`, which borrow one;
+    passing a client raises :class:`TypeError` at construction rather than
+    crashing the first request inside httpx. Use it as a context manager when
+    a workflow makes more than one call::
 
         with LinearWorkflow("lin_api_...") as linear:
             team = linear.get_team_by_key("ENG")

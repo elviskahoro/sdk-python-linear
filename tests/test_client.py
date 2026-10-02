@@ -1,9 +1,10 @@
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, Mock
 
 import httpx
 import pytest
 import respx
+from pydantic import SecretStr
 
 from gtm_linear import LinearAPIError, LinearClient
 from gtm_linear.client import _coerce_error
@@ -13,6 +14,7 @@ from gtm_linear.exceptions import (
     LinearHTTPError,
     LinearResponseError,
 )
+from gtm_linear.settings import LinearSettings
 
 API_URL = LinearClient.BASE_URL
 
@@ -502,3 +504,168 @@ def test_coerce_error_preserves_salvages_or_degrades() -> None:
         degraded = _coerce_error(entry)
         assert degraded.message == str(entry)
         assert isinstance(degraded, GraphQLError)
+
+
+# API key hygiene. Both regressions below came out of one automation run
+# against this SDK: LINEAR_API_KEY arrived with a trailing newline, and the
+# workaround attempt passed a LinearClient instance where the key belongs.
+# Neither failed at construction — the key argument was stored verbatim — so
+# both surfaced only at the first request, deep inside httpx, as errors
+# pointing at the transport instead of the caller's actual mistake.
+
+
+@pytest.fixture
+def isolated_linear_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Clear sibling ``LINEAR_*`` vars so ambient state cannot skew ``from_env``."""
+    monkeypatch.delenv("LINEAR_BASE_URL", raising=False)
+    monkeypatch.delenv("LINEAR_TIMEOUT", raising=False)
+
+
+def test_api_key_whitespace_is_stripped() -> None:
+    r"""A trailing newline used to become an illegal header value at request time.
+
+    Secret stores routinely attach ``\n`` to ``LINEAR_API_KEY``; stored
+    verbatim it produced ``httpx.LocalProtocolError: Illegal header value
+    b'lin_api_...\n'`` on the first request. Now it is stripped at
+    construction, so the header actually reaches Linear.
+    """
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            return_value=httpx.Response(200, json={"data": {}}),
+        )
+        with LinearClient(api_key="lin_api_secret\n") as client:
+            client.execute("query { __typename }")
+    assert route.calls.last.request.headers["Authorization"] == "lin_api_secret"
+    assert client.api_key.get_secret_value() == "lin_api_secret"
+
+
+def test_from_env_strips_whitespace_from_linear_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+    isolated_linear_env: None,
+) -> None:
+    """``from_env`` is the path the trailing newline actually arrived through."""
+    monkeypatch.setenv("LINEAR_API_KEY", "lin_api_from_env\n")
+    client = LinearClient.from_env()
+    assert client.api_key.get_secret_value() == "lin_api_from_env"
+
+
+def test_whitespace_only_api_key_is_rejected_at_construction() -> None:
+    """A blank key is a misconfiguration, not a request waiting to fail.
+
+    Whitespace-only is the degenerate form of the trailing-newline bug (an
+    empty ``$(cat missing-file)``): without this guard it either crashes on
+    the illegal header or wastes a round trip on Linear's auth error.
+    """
+    with pytest.raises(ValueError, match="empty after stripping"):
+        LinearClient(api_key=" \n")
+
+
+@pytest.mark.parametrize(
+    "bad_key",
+    [
+        "lin_api_a b",
+        "lin_api_a\nb",
+        "lin_api_a\x00b",
+        "lin_api_a\x7fb",
+        "lin_api_aéb",
+        "Bearer lin_api_x",
+    ],
+    ids=["space", "newline", "nul", "del", "non-ascii", "bearer-prefix"],
+)
+def test_embedded_illegal_header_characters_are_rejected(bad_key: str) -> None:
+    """Interior junk survives ``strip()`` and used to reach httpx untouched.
+
+    ``strip()`` only trims the ends, so a bad ``$(cat ...)`` concatenating
+    two secrets with a newline, a stray space, a control character, or a
+    mojibake byte all passed the strip-only guard and still died at request
+    time — as ``Illegal header value`` or an encoding error — instead of at
+    construction.
+    """
+    with pytest.raises(ValueError, match="embedded whitespace, control, or"):
+        LinearClient(api_key=bad_key)
+
+
+def test_unicode_whitespace_padding_is_stripped() -> None:
+    r"""``str.strip()`` also trims Unicode whitespace such as NBSP — intended.
+
+    Padding is not interior junk: ``\u00a0lin_api_x\u00a0`` is stripped and
+    the key is accepted.
+    """
+    client = LinearClient(api_key="\u00a0lin_api_x\u00a0")
+    assert client.api_key.get_secret_value() == "lin_api_x"
+
+
+@pytest.mark.parametrize(
+    ("offender_kind", "expected_type"),
+    [
+        ("client", "LinearClient"),
+        ("settings", "LinearSettings"),
+        ("bytes", "bytes"),
+    ],
+)
+def test_non_string_api_key_is_rejected_at_construction(
+    offender_kind: str,
+    expected_type: str,
+    isolated_linear_env: None,
+) -> None:
+    """A client, settings, or bytes key used to be stored verbatim as the key.
+
+    ``LinearWorkflow(client)`` forwarded the instance into
+    ``LinearClient(api_key=...)``, where direct ``SecretStr(x)`` construction
+    happily wrapped it; the first request then died as ``TypeError: Header
+    value must be str or bytes, not LinearClient`` deep inside httpx. The
+    constructor now names the mistake on the spot and points at the fix.
+    Offenders are built in the body rather than the parametrize decorator so
+    a hostile ambient environment cannot break module collection.
+    """
+    offender: object
+    if offender_kind == "client":
+        offender = LinearClient(api_key="key")
+    elif offender_kind == "settings":
+        offender = LinearSettings(api_key="lin_api_x")
+    else:
+        offender = b"lin_api_x"
+    with pytest.raises(TypeError, match=f"not {expected_type}") as exc:
+        LinearClient(api_key=cast("Any", offender))
+    assert "LinearClient.from_env" in str(exc.value)
+
+
+def test_secretstr_holding_a_non_string_is_rejected() -> None:
+    """``SecretStr(x)`` does not validate x, so one check covers both cases."""
+    smuggled: Any = 123  # what direct SecretStr(x) construction accepts at runtime
+    with pytest.raises(TypeError, match="holding a str, not int"):
+        LinearClient(api_key=SecretStr(smuggled))
+
+
+def test_secretstr_holding_a_padded_value_is_stripped() -> None:
+    """The SecretStr path is unwrapped, stripped, and re-wrapped, not trusted."""
+    client = LinearClient(api_key=SecretStr("lin_api_secret\n"))
+    assert client.api_key.get_secret_value() == "lin_api_secret"
+
+
+def test_from_settings_strips_a_padded_secretstr(
+    isolated_linear_env: None,
+) -> None:
+    """``from_settings`` funnels through the same constructor guard.
+
+    A later refactor that builds headers straight from the settings object
+    would bypass the strip; this pins the forwarding.
+    """
+    settings = LinearSettings(api_key=SecretStr("lin_api_from_settings\n"))
+    client = LinearClient.from_settings(settings)
+    assert client.api_key.get_secret_value() == "lin_api_from_settings"
+
+
+def test_from_env_rejects_a_blank_linear_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+    isolated_linear_env: None,
+) -> None:
+    """A blank ``LINEAR_API_KEY`` (empty ``$(cat missing-file)``) fails fast.
+
+    Env vars beat ``.env``/``.env.local`` files and ``SecretStr`` places no
+    constraint on the value, so the client's ``ValueError`` — not a settings
+    validation error — is what surfaces.
+    """
+    monkeypatch.setenv("LINEAR_API_KEY", " \n")
+    with pytest.raises(ValueError, match="empty after stripping"):
+        LinearClient.from_env()
