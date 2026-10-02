@@ -45,16 +45,18 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 import graphql.language.ast as gql_ast
 from graphql import (
     GraphQLEnumType,
     GraphQLInputObjectType,
     GraphQLList,
+    GraphQLNamedType,
     GraphQLNonNull,
     GraphQLObjectType,
     GraphQLScalarType,
+    GraphQLSchema,
     TypeInfo,
     TypeInfoVisitor,
     Visitor,
@@ -121,10 +123,18 @@ def _import_block(body: str) -> str:
     )
 
 
-def _unwrap(type_: object) -> object:
+def _unwrap(type_: object) -> GraphQLNamedType | None:
+    """Strip ``NonNull``/``List`` wrappers, returning the underlying named type.
+
+    ``None`` means the input was no named type at all (including ``None``
+    itself) — graphql-core never produces that for the values passed here. The
+    two callers disagree on purpose: ``_Collector.enter_field`` treats it as a
+    schema/operation disagreement and raises, while ``close_over_input``
+    silently skips it (nothing to close over either way).
+    """
     while isinstance(type_, (GraphQLNonNull, GraphQLList)):
         type_ = type_.of_type
-    return type_
+    return type_ if isinstance(type_, GraphQLNamedType) else None
 
 
 def _operation_paths() -> list[Path]:
@@ -181,7 +191,11 @@ def _rebuild(
             if rebuilt is not child:
                 changed = True
             fields.setdefault(key, rebuilt)
-        return type(node)(**fields) if changed else node
+        # graphql-core 3.3 gives Node a typed __init__ (loc: Location | None
+        # etc.) instead of the pre-3.3 generic **kwargs, so the unpacked
+        # values need to flow through as Any to satisfy it. The values are
+        # correct by construction: each came off a real node of this class.
+        return type(node)(**cast("dict[str, Any]", fields)) if changed else node
     if isinstance(node, (list, tuple)):
         items = [_rebuild(item, overrides) for item in node]
         if all(new is old for new, old in zip(items, node, strict=True)):
@@ -227,7 +241,7 @@ def _compose(path: Path, fragments: dict[str, gql_ast.FragmentDefinitionNode]) -
 
 
 def _collect(
-    schema: object,
+    schema: GraphQLSchema,
     operations: list[tuple[str, str]],
 ) -> tuple[dict[str, set[str]], set[str], set[str]]:
     """Return the object fields, whole types, and opaque inputs the operations touch."""
@@ -237,8 +251,10 @@ def _collect(
 
     def close_over_input(type_: object, seen: set[str]) -> None:
         type_ = _unwrap(type_)
-        name = getattr(type_, "name", None)
-        if name is None or name in seen:
+        if type_ is None:
+            return
+        name = type_.name
+        if name in seen:
             return
         seen.add(name)
         if name in OPAQUE_INPUTS:
@@ -261,10 +277,23 @@ def _collect(
 
         type_info = TypeInfo(schema)
 
+        # _Collector takes type_info via its constructor so the binding is
+        # explicit (ruff B023 also rejects closures over loop variables); it is
+        # created and consumed within a single iteration, so lifetime is not
+        # the concern. super().__init__() is required: graphql-core's Visitor
+        # builds its enter_leave_map there.
         class _Collector(Visitor):
+            def __init__(self, type_info: TypeInfo) -> None:
+                """Bind the per-document TypeInfo this collector walks with."""
+                super().__init__()  # Visitor.__init__ builds enter_leave_map
+                self._type_info = type_info
+
             def enter_field(self, node: gql_ast.FieldNode, *_: object) -> None:
-                parent = _unwrap(type_info.get_parent_type())
-                field_type = _unwrap(type_info.get_type())
+                parent = _unwrap(self._type_info.get_parent_type())
+                field_type = _unwrap(self._type_info.get_type())
+                if parent is None or field_type is None:
+                    msg = f"field {node.name.value} has no named type in the schema"
+                    raise SystemExit(msg)
                 touched.setdefault(parent.name, set()).add(node.name.value)
                 if isinstance(field_type, (GraphQLEnumType, GraphQLScalarType)):
                     whole.add(field_type.name)
@@ -277,7 +306,7 @@ def _collect(
                     for argument in field_def.args.values():
                         close_over_input(argument.type, set())
 
-        visit(document, TypeInfoVisitor(type_info, _Collector()))
+        visit(document, TypeInfoVisitor(type_info, _Collector(type_info)))
 
         for definition in document.definitions:
             for variable in getattr(definition, "variable_definitions", None) or []:
@@ -292,7 +321,7 @@ def _collect(
 
 
 def _prune(
-    schema: object,
+    schema: GraphQLSchema,
     touched: dict[str, set[str]],
     whole: set[str],
     opaque: set[str],
@@ -356,7 +385,11 @@ def _sanitize_sdl(sdl: str) -> str:
 
     # Sanitize by rebuilding: graphql-core 3.3 freezes the AST dataclasses, so
     # the scrub and the keyword rename cannot mutate the parsed nodes in place.
-    definitions = [_rebuild(d, overrides) for d in definitions]
+    # _rebuild returns the same node class it is given, so the list stays
+    # definition-shaped; the cast carries that knowledge into the annotation.
+    definitions = [
+        cast("gql_ast.DefinitionNode", _rebuild(d, overrides)) for d in definitions
+    ]
 
     if renamed:
         print(f"  sanitized python-keyword enum values: {renamed}")
@@ -366,7 +399,9 @@ def _sanitize_sdl(sdl: str) -> str:
     # values are evaluated at class-creation time, and Linear's sort inputs default
     # to enum members (`nulls: ... = PaginationNulls.last`). Emitting scalars and
     # enums first is therefore sufficient: nothing else can appear in a default.
-    order = {
+    # Annotated against the AST base class so the `type(d)` lookup below accepts
+    # every definition kind without pyright narrowing complaints.
+    order: dict[type[gql_ast.Node], int] = {
         gql_ast.ScalarTypeDefinitionNode: 0,
         gql_ast.EnumTypeDefinitionNode: 1,
         gql_ast.InputObjectTypeDefinitionNode: 2,
@@ -502,7 +537,12 @@ def _restore_root_arguments(source: str, sdl_path: Path) -> str:
         start = node.lineno - 1
         if start > 0 and source.splitlines()[start - 1].strip() == "@strawberry.type":
             start -= 1
+        # `end_lineno` is Optional on the AST node, but a node parsed from real
+        # source always carries it; refuse to splice a class we cannot delimit.
         end = node.end_lineno
+        if end is None:
+            msg = f"class {node.name} has no end_lineno; refusing to splice"
+            raise SystemExit(msg)
         replacements.append((start, end, "\n".join(lines) + "\n"))
 
     lines = source.splitlines(keepends=True)
@@ -545,7 +585,12 @@ def _hoist_fragments(generated_out: Path, fragment_names: set[str]) -> list[str]
             if not isinstance(node, ast.ClassDef) or not is_fragment_class(node.name):
                 continue
             start = node.lineno - 1
+            # As above: parsed ClassDef nodes always carry end_lineno; treat a
+            # missing one as a hard error rather than hoisting a bogus span.
             end = node.end_lineno
+            if end is None:
+                msg = f"class {node.name} has no end_lineno; refusing to hoist"
+                raise SystemExit(msg)
             block = "".join(lines[start:end]).rstrip() + "\n"
             if node.name in shared:
                 if shared[node.name] != block:
@@ -628,6 +673,37 @@ def _ruff_format(paths: list[Path]) -> None:
     if not paths:
         return
     _run([sys.executable, "-m", "ruff", "format", *map(str, paths)])
+
+
+def _embed_documents(
+    generated_out: Path,
+    composed: list[tuple[str, str]],
+) -> list[str]:
+    """Append each operation's composed GraphQL to its generated module.
+
+    Embedding the document keeps the SDK from parsing ``.graphql`` files at
+    runtime — graphql-core stays a build-time dependency. Also stamps the
+    generated header and re-validates that the result still parses.
+    """
+    documents = {Path(name).stem: text for name, text in composed}
+    modules = sorted(
+        p.stem
+        for p in generated_out.glob("*.py")
+        if p.stem not in {"__init__", "fragments"}
+    )
+    for module in modules:
+        path = generated_out / f"{module}.py"
+        text = path.read_text()
+        if not text.startswith(GENERATED_HEADER):
+            text = GENERATED_HEADER + text
+        document = documents[module]
+        if '"""' in document:
+            msg = f"{module}: document contains a triple quote and cannot be embedded"
+            raise SystemExit(msg)
+        text += f'\n\nDOCUMENT = """\\\n{document}"""\n'
+        path.write_text(text)
+        ast.parse(text)
+    return modules
 
 
 def generate(schema_out: Path, generated_out: Path) -> None:
@@ -719,26 +795,7 @@ def generate(schema_out: Path, generated_out: Path) -> None:
         print(f"  hoisted {len(hoisted)} shared fragment type(s) into fragments.py")
 
     init = generated_out / "__init__.py"
-    modules = sorted(
-        p.stem
-        for p in generated_out.glob("*.py")
-        if p.stem not in {"__init__", "fragments"}
-    )
-    documents = {Path(name).stem: text for name, text in composed}
-    for module in modules:
-        path = generated_out / f"{module}.py"
-        text = path.read_text()
-        if not text.startswith(GENERATED_HEADER):
-            text = GENERATED_HEADER + text
-        # Embed the composed GraphQL so the SDK can send it without parsing .graphql
-        # files at runtime. That keeps graphql-core a build-time dependency only.
-        document = documents[module]
-        if '"""' in document:
-            msg = f"{module}: document contains a triple quote and cannot be embedded"
-            raise SystemExit(msg)
-        text += f'\n\nDOCUMENT = """\\\n{document}"""\n'
-        path.write_text(text)
-        ast.parse(text)
+    modules = _embed_documents(generated_out, composed)
     init.write_text(
         GENERATED_HEADER
         + '"""Pydantic models generated from Linear\'s GraphQL schema."""\n',
@@ -785,7 +842,10 @@ def main() -> None:
             ):
                 import difflib
 
-                with open(tmp_generated / name) as f1, open(GENERATED_DIR / name) as f2:
+                with (
+                    (tmp_generated / name).open() as f1,
+                    (GENERATED_DIR / name).open() as f2,
+                ):
                     diff = "".join(
                         difflib.unified_diff(
                             f1.readlines(),

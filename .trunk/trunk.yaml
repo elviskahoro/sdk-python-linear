@@ -29,6 +29,22 @@ lint:
       commands:
         - name: format
           enabled: true
+    # Trunk runs linters from a sandboxed tmp dir with `env -i`, so pyright's
+    # usual environment discovery (PATH lookup) lands on Trunk's own node
+    # runtime, which has none of the project's dependencies. That made pyright
+    # silently check the whole SDK against Unknown types (reportMissingImports
+    # is "none" in the config, so nothing flagged). Point it at the project
+    # venv, the same way the pyrefly plugin does for pyrefly.
+    #
+    # This overrides the plugin's whole pyright invocation, so re-check this
+    # command against the plugin definition whenever trunk.yaml bumps plugin
+    # versions. If `.venv` is missing the check fails red with confusing
+    # Unknown-type findings (pyright warns about the bad --pythonpath but
+    # still runs), so `uv sync` before the first check — see AGENTS.md.
+    - name: pyright
+      commands:
+        - name: lint
+          run: pyright --pythonpath ${workspace}/.venv/bin/python --outputjson ${target}
 
   enabled:
     - actionlint@1.7.12
@@ -170,6 +186,25 @@ lint:
         - "**/*.openapi.json"
         - "**/*.openapi.yaml"
         - "**/*.openapi.yml"
+
+    # bd-managed files: `bd setup` generates and overwrites these wholesale
+    # (ordered list numbering in SKILL.md, quoted strings in agent manifests).
+    # Fixing them by hand would be reverted on the next `bd setup`, so they are
+    # waived here rather than churned.
+    - linters: [markdownlint-cli2]
+      paths:
+        - .agents/skills/beads/**
+    - linters: [yamllint]
+      paths:
+        - .agents/skills/beads/**
+
+    # Vendor-managed Pullfrog workflow ("DO NOT EDIT EXCEPT WHERE INDICATED").
+    # Pinning its action tags to SHAs, restructuring its permissions, or
+    # reformatting it would conflict with the next Pullfrog re-install, so its
+    # findings are waived instead of fixed.
+    - linters: [checkov, semgrep, yamlfmt]
+      paths:
+        - .github/workflows/pullfrog.yml
 
     - linters: [ruff]
       paths:

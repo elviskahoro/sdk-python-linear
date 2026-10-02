@@ -52,7 +52,7 @@ scalar Date
 def test_rebuild_shares_untouched_subtrees() -> None:
     """An override that changes nothing must return the original node."""
     document = parse("query Q { a b }")
-    assert codegen._rebuild(document, lambda _node: {}) is document  # noqa: SLF001
+    assert codegen._rebuild(document, lambda _node: {}) is document
 
 
 def test_rebuild_replaces_fields_without_mutating_inputs() -> None:
@@ -70,7 +70,7 @@ def test_rebuild_replaces_fields_without_mutating_inputs() -> None:
 
     rebuilt = cast(
         "gql_ast.DocumentNode",
-        codegen._rebuild(document, drop_descriptions),  # noqa: SLF001
+        codegen._rebuild(document, drop_descriptions),
     )
     rebuilt_definition = rebuilt.definitions[0]
     assert isinstance(rebuilt_definition, gql_ast.ObjectTypeDefinitionNode)
@@ -83,7 +83,7 @@ def test_rebuild_replaces_fields_without_mutating_inputs() -> None:
 
 
 def test_sanitize_sdl_strips_directives_descriptions_and_keyword_enums() -> None:
-    sanitized = codegen._sanitize_sdl(SDL)  # noqa: SLF001
+    sanitized = codegen._sanitize_sdl(SDL)
 
     assert "directive" not in sanitized  # BUG-1
     assert '"""' not in sanitized  # BUG-2
@@ -98,10 +98,30 @@ def test_sanitize_sdl_strips_directives_descriptions_and_keyword_enums() -> None
 
 def test_sanitize_sdl_orders_scalars_and_enums_first() -> None:
     """Defaults evaluate at class creation, so their enums must come first."""
-    sanitized = codegen._sanitize_sdl(SDL)  # noqa: SLF001
+    sanitized = codegen._sanitize_sdl(SDL)
 
     positions = [
         sanitized.index(definition)
         for definition in ("scalar Date", "enum Keyword", "input Sort", "type Issue")
     ]
     assert positions == sorted(positions)  # BUG-5
+
+
+def test_unwrap_names_the_wrapped_type_and_returns_none_otherwise() -> None:
+    """Pin _unwrap's None contract so a refactor cannot change it silently.
+
+    graphql-core never hands _unwrap something that is not a named type once
+    unwrapped; the two callers split on None by design — enter_field raises
+    SystemExit on it (schema/operation disagreement), close_over_input skips
+    it. Pinning the return values here keeps that split intentional rather
+    than accidental.
+    """
+    from graphql import GraphQLList, GraphQLNonNull, GraphQLScalarType
+
+    named = GraphQLScalarType("X")
+    assert codegen._unwrap(named) is named
+    assert codegen._unwrap(GraphQLNonNull(GraphQLList(named))) is named
+
+    # The two inputs that can never name a type: nothing, and a non-type.
+    assert codegen._unwrap(None) is None
+    assert codegen._unwrap(object()) is None

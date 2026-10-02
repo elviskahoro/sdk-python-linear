@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from types import SimpleNamespace
+from dataclasses import dataclass
+from typing import NoReturn
 
 import httpx
 import pytest
@@ -26,11 +27,31 @@ def _page(ids: list[str], *, has_next: bool, end: str | None) -> dict[str, objec
     }
 
 
-def _conn(ids: list[str], *, has_next: bool, end: str | None) -> SimpleNamespace:
-    """A minimal connection satisfying paginate's protocol, without HTTP."""
-    return SimpleNamespace(
+@dataclass
+class _FakePageInfo:
+    """The ``page_info`` half of paginate's structural protocol."""
+
+    has_next_page: bool
+    end_cursor: str | None
+
+
+@dataclass
+class _FakeConn:
+    """A minimal typed connection satisfying paginate's protocol, without HTTP.
+
+    Typed (rather than SimpleNamespace) so the ``fetch`` handlers below match
+    ``Callable[[str | None], Awaitable[_Connection[T]]]`` statically.
+    """
+
+    nodes: list[str]
+    page_info: _FakePageInfo
+
+
+def _conn(ids: list[str], *, has_next: bool, end: str | None) -> _FakeConn:
+    """Build one fake connection page."""
+    return _FakeConn(
         nodes=list(ids),
-        page_info=SimpleNamespace(has_next_page=has_next, end_cursor=end),
+        page_info=_FakePageInfo(has_next_page=has_next, end_cursor=end),
     )
 
 
@@ -44,11 +65,11 @@ async def test_iter_team_issues_follows_cursors() -> None:
         async with LinearClient(api_key="key") as client:
             issues = [i async for i in LinearQueries(client).iter_team_issues("team-1")]
 
-    assert [i.id for i in issues] == ["a", "b", "c"]  # noqa: S101
+    assert [i.id for i in issues] == ["a", "b", "c"]
     # The second request must carry the first page's end cursor.
     first, second = (json.loads(c.request.content) for c in route.calls)
-    assert first["variables"]["after"] is None  # noqa: S101
-    assert second["variables"]["after"] == "cur-1"  # noqa: S101
+    assert first["variables"]["after"] is None
+    assert second["variables"]["after"] == "cur-1"
 
 
 async def test_iter_issues_respects_limit_and_stops_early() -> None:
@@ -67,9 +88,9 @@ async def test_iter_issues_respects_limit_and_stops_early() -> None:
                 )
             ]
 
-    assert [i.id for i in issues] == ["a", "b", "c"]  # noqa: S101
+    assert [i.id for i in issues] == ["a", "b", "c"]
     # Stops as soon as the limit is hit; it must not fetch a third page.
-    assert len(route.calls) == 2  # noqa: S101
+    assert len(route.calls) == 2
 
 
 async def test_pagination_stops_when_next_page_has_no_cursor() -> None:
@@ -84,20 +105,20 @@ async def test_pagination_stops_when_next_page_has_no_cursor() -> None:
         async with LinearClient(api_key="key") as client:
             issues = [i async for i in LinearQueries(client).iter_team_issues("t")]
 
-    assert [i.id for i in issues] == ["a"]  # noqa: S101
+    assert [i.id for i in issues] == ["a"]
 
 
 async def test_pagination_with_zero_limit_does_not_fetch() -> None:
     calls: list[str | None] = []
 
-    async def fetch(cursor: str | None) -> object:
+    async def fetch(cursor: str | None) -> NoReturn:
         calls.append(cursor)
         raise AssertionError("fetch must not be called for a zero limit")
 
     issues = [issue async for issue in paginate(fetch, limit=0)]
 
-    assert issues == []  # noqa: S101
-    assert calls == []  # noqa: S101
+    assert issues == []
+    assert calls == []
 
 
 async def test_pagination_stops_when_cursor_does_not_advance() -> None:
@@ -127,13 +148,13 @@ async def test_pagination_stops_when_cursor_does_not_advance() -> None:
                 )
             ]
 
-    assert [i.id for i in issues] == ["a", "b", "c"]  # noqa: S101
+    assert [i.id for i in issues] == ["a", "b", "c"]
     # The server returned the same cursor it was just fed; pagination must stop
     # instead of re-issuing byte-identical requests forever.
-    assert len(route.calls) == 2  # noqa: S101
+    assert len(route.calls) == 2
     first, second = (json.loads(c.request.content) for c in route.calls)
-    assert first["variables"]["after"] is None  # noqa: S101
-    assert second["variables"]["after"] == "cur-1"  # noqa: S101
+    assert first["variables"]["after"] is None
+    assert second["variables"]["after"] == "cur-1"
 
 
 async def test_pagination_follows_advancing_cursors_across_multiple_pages() -> None:
@@ -148,10 +169,10 @@ async def test_pagination_follows_advancing_cursors_across_multiple_pages() -> N
         async with LinearClient(api_key="key") as client:
             issues = [i async for i in LinearQueries(client).iter_team_issues("t")]
 
-    assert [i.id for i in issues] == ["a", "b", "c"]  # noqa: S101
-    assert len(route.calls) == 3  # noqa: S101
+    assert [i.id for i in issues] == ["a", "b", "c"]
+    assert len(route.calls) == 3
     afters = [json.loads(c.request.content)["variables"]["after"] for c in route.calls]
-    assert afters == [None, "cur-1", "cur-2"]  # noqa: S101
+    assert afters == [None, "cur-1", "cur-2"]
 
 
 async def test_pagination_tolerates_a_transient_empty_page() -> None:
@@ -164,7 +185,7 @@ async def test_pagination_tolerates_a_transient_empty_page() -> None:
     """
     calls: list[str | None] = []
 
-    async def fetch(cursor: str | None) -> SimpleNamespace:
+    async def fetch(cursor: str | None) -> _FakeConn:
         calls.append(cursor)
         if cursor is None:
             return _conn(["a", "b"], has_next=True, end="cur-1")
@@ -174,8 +195,8 @@ async def test_pagination_tolerates_a_transient_empty_page() -> None:
 
     issues = [issue async for issue in paginate(fetch)]
 
-    assert issues == ["a", "b", "c"]  # noqa: S101
-    assert calls == [None, "cur-1", "cur-2"]  # noqa: S101
+    assert issues == ["a", "b", "c"]
+    assert calls == [None, "cur-1", "cur-2"]
 
 
 async def test_pagination_raises_when_empty_pages_never_recover() -> None:
@@ -186,7 +207,7 @@ async def test_pagination_raises_when_empty_pages_never_recover() -> None:
     """
     calls: list[str | None] = []
 
-    async def fetch(cursor: str | None) -> SimpleNamespace:
+    async def fetch(cursor: str | None) -> _FakeConn:
         calls.append(cursor)
         if len(calls) > MAX_CONSECUTIVE_EMPTY_PAGES + 2:
             raise AssertionError("would loop forever without the empty-page guard")
@@ -197,8 +218,8 @@ async def test_pagination_raises_when_empty_pages_never_recover() -> None:
         async for issue in paginate(fetch):
             collected.append(issue)
 
-    assert collected == []  # noqa: S101
-    assert len(calls) == MAX_CONSECUTIVE_EMPTY_PAGES  # noqa: S101
+    assert collected == []
+    assert len(calls) == MAX_CONSECUTIVE_EMPTY_PAGES
 
 
 async def test_iter_team_issues_raises_on_stalled_connection() -> None:
@@ -222,11 +243,11 @@ async def test_iter_team_issues_raises_on_stalled_connection() -> None:
                 async for issue in LinearQueries(client).iter_team_issues("t"):
                     collected.append(issue.id)
 
-    assert collected == ["a", "b"]  # noqa: S101
+    assert collected == ["a", "b"]
     # One page of nodes, then the full budget of empty pages — nothing more.
-    assert len(route.calls) == 1 + MAX_CONSECUTIVE_EMPTY_PAGES  # noqa: S101
+    assert len(route.calls) == 1 + MAX_CONSECUTIVE_EMPTY_PAGES
     afters = [json.loads(c.request.content)["variables"]["after"] for c in route.calls]
-    assert afters == [None, "cur-1", "cur-2", "cur-3"]  # noqa: S101
+    assert afters == [None, "cur-1", "cur-2", "cur-3"]
 
 
 async def test_pagination_ends_cleanly_when_an_empty_page_closes_the_connection() -> (
@@ -237,14 +258,14 @@ async def test_pagination_ends_cleanly_when_an_empty_page_closes_the_connection(
     """
     calls: list[str | None] = []
 
-    async def fetch(cursor: str | None) -> SimpleNamespace:
+    async def fetch(cursor: str | None) -> _FakeConn:
         calls.append(cursor)
         return _conn([], has_next=False, end=None)
 
     issues = [issue async for issue in paginate(fetch)]
 
-    assert issues == []  # noqa: S101
-    assert calls == [None]  # noqa: S101
+    assert issues == []
+    assert calls == [None]
 
 
 async def test_pagination_limit_survives_trailing_empty_page() -> None:
@@ -254,7 +275,7 @@ async def test_pagination_limit_survives_trailing_empty_page() -> None:
     """
     calls: list[str | None] = []
 
-    async def fetch(cursor: str | None) -> SimpleNamespace:
+    async def fetch(cursor: str | None) -> _FakeConn:
         calls.append(cursor)
         if cursor is None:
             return _conn(["a", "b"], has_next=True, end="cur-1")
@@ -262,8 +283,8 @@ async def test_pagination_limit_survives_trailing_empty_page() -> None:
 
     issues = [issue async for issue in paginate(fetch, limit=10)]
 
-    assert issues == ["a", "b"]  # noqa: S101
-    assert calls == [None, "cur-1"]  # noqa: S101
+    assert issues == ["a", "b"]
+    assert calls == [None, "cur-1"]
 
 
 async def test_pagination_stops_silently_when_an_empty_page_lacks_a_cursor() -> None:
@@ -272,7 +293,7 @@ async def test_pagination_stops_silently_when_an_empty_page_lacks_a_cursor() -> 
     """
     calls: list[str | None] = []
 
-    async def fetch(cursor: str | None) -> SimpleNamespace:
+    async def fetch(cursor: str | None) -> _FakeConn:
         calls.append(cursor)
         if cursor is None:
             return _conn(["a", "b"], has_next=True, end="cur-1")
@@ -280,8 +301,8 @@ async def test_pagination_stops_silently_when_an_empty_page_lacks_a_cursor() -> 
 
     issues = [issue async for issue in paginate(fetch)]
 
-    assert issues == ["a", "b"]  # noqa: S101
-    assert calls == [None, "cur-1"]  # noqa: S101
+    assert issues == ["a", "b"]
+    assert calls == [None, "cur-1"]
 
 
 async def test_pagination_stops_silently_when_an_empty_page_repeats_the_cursor() -> (
@@ -292,7 +313,7 @@ async def test_pagination_stops_silently_when_an_empty_page_repeats_the_cursor()
     """
     calls: list[str | None] = []
 
-    async def fetch(cursor: str | None) -> SimpleNamespace:
+    async def fetch(cursor: str | None) -> _FakeConn:
         calls.append(cursor)
         if cursor is None:
             return _conn(["a", "b"], has_next=True, end="cur-1")
@@ -300,8 +321,8 @@ async def test_pagination_stops_silently_when_an_empty_page_repeats_the_cursor()
 
     issues = [issue async for issue in paginate(fetch)]
 
-    assert issues == ["a", "b"]  # noqa: S101
-    assert calls == [None, "cur-1"]  # noqa: S101
+    assert issues == ["a", "b"]
+    assert calls == [None, "cur-1"]
 
 
 @pytest.mark.parametrize(
@@ -319,7 +340,7 @@ async def test_pagination_cursor_guards_win_over_the_empty_page_budget(
     """
     calls: list[str | None] = []
 
-    async def fetch(cursor: str | None) -> SimpleNamespace:
+    async def fetch(cursor: str | None) -> _FakeConn:
         calls.append(cursor)
         if cursor is None:
             return _conn(["a", "b"], has_next=True, end="cur-1")
@@ -331,10 +352,10 @@ async def test_pagination_cursor_guards_win_over_the_empty_page_budget(
 
     issues = [issue async for issue in paginate(fetch)]
 
-    assert issues == ["a", "b"]  # noqa: S101
+    assert issues == ["a", "b"]
     # Two tolerated empty pages, then a third whose cursor is unusable:
     # a silent stop, not a LinearPaginationError.
-    assert calls == [None, "cur-1", "cur-2", "cur-3"]  # noqa: S101
+    assert calls == [None, "cur-1", "cur-2", "cur-3"]
 
 
 async def test_pagination_limit_does_not_mask_a_stall() -> None:
@@ -344,7 +365,7 @@ async def test_pagination_limit_does_not_mask_a_stall() -> None:
     """
     calls: list[str | None] = []
 
-    async def fetch(cursor: str | None) -> SimpleNamespace:
+    async def fetch(cursor: str | None) -> _FakeConn:
         calls.append(cursor)
         return _conn([], has_next=True, end=f"cur-{len(calls)}")
 
@@ -353,5 +374,5 @@ async def test_pagination_limit_does_not_mask_a_stall() -> None:
         async for issue in paginate(fetch, limit=5):
             collected.append(issue)
 
-    assert collected == []  # noqa: S101
-    assert len(calls) == MAX_CONSECUTIVE_EMPTY_PAGES  # noqa: S101
+    assert collected == []
+    assert len(calls) == MAX_CONSECUTIVE_EMPTY_PAGES

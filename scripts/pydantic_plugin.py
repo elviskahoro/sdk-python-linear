@@ -17,14 +17,17 @@ import textwrap
 from typing import TYPE_CHECKING, ClassVar
 
 from strawberry.codegen import CodegenFile
-from strawberry.codegen.plugins.python import PythonPlugin
+from strawberry.codegen.plugins.python import (
+    PythonPlugin,
+    PythonType as StrawberryPythonType,
+)
 from strawberry.codegen.types import GraphQLObjectType, GraphQLOptional, GraphQLScalar
 
 if TYPE_CHECKING:
-    from strawberry.codegen.types import GraphQLType
+    from strawberry.codegen.types import GraphQLOperation, GraphQLType
 
 
-class PythonType:
+class PythonType(StrawberryPythonType):
     """A Python annotation plus the imports it needs.
 
     Strawberry's own entry assumes the annotation is a single importable name, which
@@ -38,6 +41,7 @@ class PythonType:
         module: str | None = None,
         imports: list[tuple[str, str]] | None = None,
     ) -> None:
+        """Record the annotation and how to import every name it references."""
         self.type = type_
         self.module = module
         if imports is not None:
@@ -51,7 +55,11 @@ class PythonType:
 class PydanticPlugin(PythonPlugin):
     """Emit ``LinearModel`` subclasses and resolve Linear's custom scalars."""
 
-    SCALARS_TO_PYTHON_TYPES: ClassVar[dict[str, PythonType]] = {
+    # Annotated with strawberry's own PythonType so the override stays compatible
+    # with the base class's declaration (ClassVar[dict] is invariant, so a
+    # same-shaped dict of a *different* class would be rejected). Our subclass
+    # instances are valid values of that type.
+    SCALARS_TO_PYTHON_TYPES: ClassVar[dict[str, StrawberryPythonType]] = {
         **PythonPlugin.SCALARS_TO_PYTHON_TYPES,
         # Linear's semi-structured payloads. Deliberately loose: the SDK does not
         # model their internals, and guessing a shape here would be drift.
@@ -78,13 +86,14 @@ class PydanticPlugin(PythonPlugin):
         return super()._print_scalar_type(type_)
 
     @staticmethod
-    def _imports_for(mapped: object) -> list[tuple[str, str]]:
+    def _imports_for(mapped: StrawberryPythonType) -> list[tuple[str, str]]:
         # Entries inherited from PythonPlugin are strawberry's own PythonType, which
-        # only carries `.module`; ours carry an explicit `.imports`.
+        # only carries `.module`; ours carry an explicit `.imports`. The inherited
+        # instances have no `imports` attribute at all, hence the getattr.
         explicit = getattr(mapped, "imports", None)
         if explicit is not None:
             return explicit
-        module = getattr(mapped, "module", None)
+        module = mapped.module
         return [(module, mapped.type)] if module else []
 
     def _get_type_name(self, type_: GraphQLType) -> str:
@@ -110,12 +119,16 @@ class PydanticPlugin(PythonPlugin):
     def generate_code(
         self,
         types: list[GraphQLType],
-        operation: object,
-    ) -> list[object]:
-        # Print the bodies first so self.imports is fully populated, then emit only
-        # the imports the bodies actually reference. Strawberry registers `List` for
-        # every list field but emits lowercase `list[...]`, which would otherwise
-        # leave a dangling unused import in every generated module.
+        operation: GraphQLOperation,  # noqa: ARG002 - fixed by the plugin API
+    ) -> list[CodegenFile]:
+        """Emit one module whose import block matches what its body references.
+
+        The bodies are printed first so ``self.imports`` is fully populated, then
+        only the imports the bodies actually reference are emitted. Strawberry
+        registers ``List`` for every list field but emits lowercase ``list[...]``,
+        which would otherwise leave a dangling unused import in every generated
+        module.
+        """
         bodies = [t for t in (self._print_type(type_) for type_ in types) if t]
         body = "\n\n".join(bodies)
 

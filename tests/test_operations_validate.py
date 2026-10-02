@@ -14,29 +14,29 @@ import sys
 from pathlib import Path
 
 import pytest
-from graphql import build_schema, parse, validate
+from graphql import GraphQLSchema, build_schema, parse, validate
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from scripts import codegen  # noqa: E402
 
-OPERATIONS = codegen._operation_paths()  # noqa: SLF001
+OPERATIONS = codegen._operation_paths()
 
 
 @pytest.fixture(scope="session")
-def linear_schema() -> object:
+def linear_schema() -> GraphQLSchema:
     """Parse the pinned SDL once; it is ~1.3 MB and parsing dominates the runtime."""
     return build_schema((REPO_ROOT / "schema" / "linear.graphql").read_text())
 
 
 def test_operations_exist() -> None:
-    assert OPERATIONS, "no operation documents found"  # noqa: S101
+    assert OPERATIONS, "no operation documents found"
 
 
 @pytest.mark.parametrize("path", OPERATIONS, ids=lambda p: p.stem)
-def test_operation_validates(path: Path, linear_schema: object) -> None:
-    fragments = codegen._fragment_definitions()  # noqa: SLF001
-    document = parse(codegen._compose(path, fragments))  # noqa: SLF001
+def test_operation_validates(path: Path, linear_schema: GraphQLSchema) -> None:
+    fragments = codegen._fragment_definitions()
+    document = parse(codegen._compose(path, fragments))
     errors = validate(linear_schema, document)
-    assert not errors, "\n".join(e.message for e in errors)  # noqa: S101
+    assert not errors, "\n".join(e.message for e in errors)

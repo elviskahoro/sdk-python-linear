@@ -1,0 +1,132 @@
+# Ruff config for sdk-python-linear.
+#
+# This is a copy of the `oss-linter-trunk` plugin's configs/ruff.toml
+# (plugin ref v0.2026.04.14.00.00, as sourced in .trunk/trunk.yaml) plus the
+# per-file-ignores below. Trunk symlinks this file into its lint sandbox as the
+# ruff `direct_config`, and ruff discovers it from there — a config placed
+# anywhere else (e.g. .trunk/configs/) is not reliably picked up.
+#
+# Keep the base sections in sync with the plugin when it upgrades; the
+# per-file-ignores are repo-specific.
+[format]
+quote-style = "double"
+
+[lint]
+fixable = ["ALL"]
+select = [
+  "A",
+  "AIR",
+  "ANN",
+  "ARG",
+  "ASYNC",
+  "B",
+  "BLE",
+  "C",
+  "C4",
+  "COM",
+  "D",
+  "DTZ",
+  "E",
+  "EM",
+  "ERA",
+  "EXE",
+  "F",
+  "FA",
+  "FBT",
+  "FLY",
+  "FIX",
+  "G",
+  "I",
+  "ICN",
+  "INP",
+  "INT",
+  "ISC",
+  "N",
+  "NPY",
+  "PIE",
+  "PGH",
+  "PD",
+  "PL",
+  "PLE",
+  "PLR",
+  "PLW",
+  "PT",
+  "PTH",
+  "PYI",
+  "Q",
+  "RSE",
+  "RET",
+  "RUF",
+  "S",
+  "SLF",
+  "SIM",
+  "TCH",
+  "TD",
+  "TID",
+  "T10",
+  "TRY",
+  "W",
+  "UP",
+]
+ignore = [
+  "ANN101",
+  "B008",
+  "C901",
+  "D100",
+  "D101",
+  "D102",
+  "D103",
+  "D104",
+  "D203",
+  "D205",
+  "D213",
+  "D401",
+  "D406",
+  "D407",
+  "D417",
+  "E401",
+  "E501",
+  "ERA001",
+  "F403",
+  "F405",
+  "F541",
+  "FA102",
+  "FIX002",
+  "PIE807",
+  "PLC0415",
+  "PLR0913",
+  "N815",
+  "RUF100",
+  "UP037",
+]
+
+[lint.per-file-ignores]
+# Tests are exercises of the SDK, not shipping code: asserts are the point,
+# fixtures hand-roll fakes, and private helpers are deliberately exercised.
+"tests/**" = [
+  "S101",    # assert is the tool pytest gives us
+  "PLR2004", # magic values are the expected payloads under assertion
+  "ANN401",  # monkeypatch/fake helpers are deliberately Any-typed
+  "ANN001",  # respx side-effect handlers keep their loose signature
+  "ANN202",  # same, for their return annotations
+  "SLF001",  # tests exercise _private internals on purpose
+  "TRY003",  # raising fake errors with inline messages is the fixture
+  "EM101",   # ditto — message-first would only add noise in tests
+  "EM102",   # ditto
+  "PT011",   # broad pytest.raises is fine when the match string pins it
+  "PT012",   # multi-statement raises blocks document the failing call
+  "RUF043",  # match= patterns intentionally carry metacharacters
+  "FBT003",  # boolean positional in a fake's call list reads fine
+  "S301",    # pickle round-trips of self-built fixtures, never untrusted data
+  "SIM117",  # nested with (mock + client) reads better than one long line
+]
+
+[lint.isort]
+case-sensitive = true
+combine-as-imports = true
+force-sort-within-sections = false
+force-wrap-aliases = true
+order-by-type = true
+
+[lint.pydocstyle]
+convention = "google"

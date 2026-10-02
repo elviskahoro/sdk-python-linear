@@ -19,8 +19,9 @@ from tests.conftest import API_URL, issue_payload, page_info_payload, user_paylo
 
 def test_queries_wildcard_exports_search_result_type() -> None:
     namespace: dict[str, object] = {}
-    exec("from gtm_linear.queries import *", namespace)  # noqa: S102
-    assert "IssueSearchResultFields" in namespace  # noqa: S101
+    # exec runs a fixed import-* string to check __all__ exports.
+    exec("from gtm_linear.queries import *", namespace)  # noqa: S102  # nosec B102
+    assert "IssueSearchResultFields" in namespace
 
 
 def test_filter_inputs_are_not_public_exports_or_documented_api() -> None:
@@ -33,10 +34,10 @@ def test_filter_inputs_are_not_public_exports_or_documented_api() -> None:
         "WorkflowStateType",
     )
 
-    assert not any(hasattr(gtm_linear, name) for name in obsolete_names)  # noqa: S101
-    assert not any(name in gtm_linear.__all__ for name in obsolete_names)  # noqa: S101
+    assert not any(hasattr(gtm_linear, name) for name in obsolete_names)
+    assert not any(name in gtm_linear.__all__ for name in obsolete_names)
     readme = (Path(__file__).parent.parent / "README.md").read_text()
-    assert not any(name in readme for name in obsolete_names)  # noqa: S101
+    assert not any(name in readme for name in obsolete_names)
 
 
 async def test_get_issue_returns_parsed_issue() -> None:
@@ -47,16 +48,16 @@ async def test_get_issue_returns_parsed_issue() -> None:
         async with LinearClient(api_key="key") as client:
             issue = await LinearQueries(client).get_issue("iss-1")
 
-    assert issue is not None  # noqa: S101
-    assert issue.identifier == "ENG-1"  # noqa: S101
+    assert issue is not None
+    assert issue.identifier == "ENG-1"
     # `state` is a real object now, not a string flattened from `state { name }`.
-    assert issue.state.name == "In Progress"  # noqa: S101
-    assert issue.state.type == "started"  # noqa: S101
+    assert issue.state.name == "In Progress"
+    assert issue.state.type == "started"
     # Linear's schema types priority as Float!, so the model does too.
-    assert issue.priority == 2.0  # noqa: S101
-    assert isinstance(issue.priority, float)  # noqa: S101
-    assert issue.assignee is not None  # noqa: S101
-    assert issue.assignee.email == "alice@example.com"  # noqa: S101
+    assert issue.priority == 2.0
+    assert isinstance(issue.priority, float)
+    assert issue.assignee is not None
+    assert issue.assignee.email == "alice@example.com"
 
 
 async def test_get_issue_returns_none_when_missing() -> None:
@@ -65,7 +66,7 @@ async def test_get_issue_returns_none_when_missing() -> None:
             return_value=httpx.Response(200, json={"data": {"issue": None}}),
         )
         async with LinearClient(api_key="key") as client:
-            assert await LinearQueries(client).get_issue("nope") is None  # noqa: S101
+            assert await LinearQueries(client).get_issue("nope") is None
 
 
 async def test_unknown_response_fields_are_ignored() -> None:
@@ -78,7 +79,7 @@ async def test_unknown_response_fields_are_ignored() -> None:
         )
         async with LinearClient(api_key="key") as client:
             issue = await LinearQueries(client).get_issue("iss-1")
-    assert issue is not None  # noqa: S101
+    assert issue is not None
 
 
 async def test_list_issues_page() -> None:
@@ -107,12 +108,12 @@ async def test_list_issues_page() -> None:
                 order_by=PaginationOrderBy.updatedAt,
             )
 
-    assert [i.id for i in page.nodes] == ["a", "b"]  # noqa: S101
-    assert page.page_info.has_next_page is True  # noqa: S101
-    assert page.page_info.end_cursor == "cursor-b"  # noqa: S101
+    assert [i.id for i in page.nodes] == ["a", "b"]
+    assert page.page_info.has_next_page is True
+    assert page.page_info.end_cursor == "cursor-b"
 
     body = json.loads(route.calls.last.request.content)
-    assert body["variables"] == {  # noqa: S101
+    assert body["variables"] == {
         "filter": {
             "team": {"id": {"eq": "team-1"}},
             "state": {"type": {"nin": ["completed", "canceled"]}},
@@ -144,7 +145,7 @@ async def test_list_issues_page_accepts_documented_mapping_filter() -> None:
             await LinearQueries(client).list_issues_page(documented_filter)
 
     body = json.loads(route.calls.last.request.content)
-    assert body["variables"]["filter"] == documented_filter  # noqa: S101
+    assert body["variables"]["filter"] == documented_filter
 
 
 async def test_list_issues_page_omits_unset_order_by() -> None:
@@ -166,7 +167,7 @@ async def test_list_issues_page_omits_unset_order_by() -> None:
             await LinearQueries(client).list_issues_page({"team": {"id": {"eq": "t1"}}})
 
     body = json.loads(route.calls.last.request.content)
-    assert "orderBy" not in body["variables"]  # noqa: S101
+    assert "orderBy" not in body["variables"]
 
 
 async def test_list_workflow_states_page_builds_team_filter() -> None:
@@ -204,12 +205,12 @@ async def test_list_workflow_states_page_builds_team_filter() -> None:
                 order_by=PaginationOrderBy.updatedAt,
             )
 
-    assert page.nodes[0].id == "state-1"  # noqa: S101
-    assert page.nodes[0].name == "In Progress"  # noqa: S101
-    assert page.nodes[0].position == 2.0  # noqa: S101
-    assert page.page_info.has_next_page is True  # noqa: S101
+    assert page.nodes[0].id == "state-1"
+    assert page.nodes[0].name == "In Progress"
+    assert page.nodes[0].position == 2.0
+    assert page.page_info.has_next_page is True
     body = json.loads(route.calls.last.request.content)
-    assert body["variables"] == {  # noqa: S101
+    assert body["variables"] == {
         "filter": {"team": {"id": {"eq": "team-1"}}},
         "first": 25,
         "after": "previous-state-page",
@@ -244,7 +245,7 @@ async def test_list_workflow_states_returns_nodes() -> None:
         async with LinearClient(api_key="key") as client:
             states = await LinearQueries(client).list_workflow_states("team-1")
 
-    assert [state.name for state in states] == ["Todo"]  # noqa: S101
+    assert [state.name for state in states] == ["Todo"]
 
 
 async def test_list_issues_builds_team_filter() -> None:
@@ -265,9 +266,9 @@ async def test_list_issues_builds_team_filter() -> None:
         async with LinearClient(api_key="key") as client:
             issues = await LinearQueries(client).list_issues("team-1")
 
-    assert [issue.id for issue in issues] == ["a"]  # noqa: S101
+    assert [issue.id for issue in issues] == ["a"]
     body = json.loads(route.calls.last.request.content)
-    assert body["variables"]["filter"] == {"team": {"id": {"eq": "team-1"}}}  # noqa: S101
+    assert body["variables"]["filter"] == {"team": {"id": {"eq": "team-1"}}}
 
 
 async def test_get_team() -> None:
@@ -280,8 +281,8 @@ async def test_get_team() -> None:
         )
         async with LinearClient(api_key="key") as client:
             team = await LinearQueries(client).get_team("t1")
-    assert team is not None  # noqa: S101
-    assert team.key == "ENG"  # noqa: S101
+    assert team is not None
+    assert team.key == "ENG"
 
 
 async def test_get_team_by_key() -> None:
@@ -299,10 +300,10 @@ async def test_get_team_by_key() -> None:
         async with LinearClient(api_key="key") as client:
             team = await LinearQueries(client).get_team_by_key("ENG")
 
-    assert team is not None  # noqa: S101
-    assert team.id == "t1"  # noqa: S101
+    assert team is not None
+    assert team.id == "t1"
     body = json.loads(route.calls.last.request.content)
-    assert body["variables"] == {"key": "ENG"}  # noqa: S101
+    assert body["variables"] == {"key": "ENG"}
 
 
 async def test_get_team_by_key_returns_none_when_missing() -> None:
@@ -311,7 +312,7 @@ async def test_get_team_by_key_returns_none_when_missing() -> None:
             return_value=httpx.Response(200, json={"data": {"teams": {"nodes": []}}}),
         )
         async with LinearClient(api_key="key") as client:
-            assert await LinearQueries(client).get_team_by_key("NOPE") is None  # noqa: S101
+            assert await LinearQueries(client).get_team_by_key("NOPE") is None
 
 
 async def test_search_issues() -> None:
@@ -332,8 +333,8 @@ async def test_search_issues() -> None:
         async with LinearClient(api_key="key") as client:
             results = await LinearQueries(client).search_issues("hello")
 
-    assert len(results.nodes) == 1  # noqa: S101
-    assert results.nodes[0].identifier == "ENG-1"  # noqa: S101
+    assert len(results.nodes) == 1
+    assert results.nodes[0].identifier == "ENG-1"
 
 
 async def test_get_user() -> None:
@@ -346,8 +347,8 @@ async def test_get_user() -> None:
         )
         async with LinearClient(api_key="key") as client:
             user = await LinearQueries(client).get_user("u1")
-    assert user is not None  # noqa: S101
-    assert user.name == "Alice"  # noqa: S101
+    assert user is not None
+    assert user.name == "Alice"
 
 
 async def test_get_viewer() -> None:
@@ -360,4 +361,4 @@ async def test_get_viewer() -> None:
         )
         async with LinearClient(api_key="key") as client:
             viewer = await LinearQueries(client).get_viewer()
-    assert viewer.id == "me"  # noqa: S101
+    assert viewer.id == "me"

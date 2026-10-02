@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
-from typing import TYPE_CHECKING, Any, TypeVar
-
-from pydantic import SecretStr
+from typing import TYPE_CHECKING, Any, Self, TypeVar
 
 from ._generated.ListIssues import PaginationOrderBy
 from .client import DEFAULT_TIMEOUT, LinearClient
@@ -14,6 +12,8 @@ from .mutations import LinearMutations
 from .queries import LinearQueries
 
 if TYPE_CHECKING:
+    from pydantic import SecretStr
+
     from ._generated.CreateIssue import IssueCreateInput
     from ._generated.ListIssues import ListIssuesResultIssues
     from ._generated.ListWorkflowStates import ListWorkflowStatesResultWorkflowStates
@@ -89,6 +89,7 @@ class LinearWorkflow:
         base_url: str | None = None,
         timeout: float | None = DEFAULT_TIMEOUT,
     ) -> None:
+        """Build the facade from the same inputs :class:`LinearClient` takes."""
         self._client = LinearClient(
             api_key=api_key,
             base_url=base_url,
@@ -448,16 +449,20 @@ class LinearWorkflow:
         await self._client.aclose()
         self._client.close()
 
-    def __enter__(self) -> LinearWorkflow:
+    def __enter__(self) -> Self:
+        """Enter the synchronous context and return the facade itself."""
         return self
 
     def __exit__(self, *args: object) -> None:
+        """Close the facade's synchronous resources on exit."""
         self.close()
 
-    async def __aenter__(self) -> LinearWorkflow:
+    async def __aenter__(self) -> Self:
+        """Enter the asynchronous context and return the facade itself."""
         return self
 
     async def __aexit__(self, *args: object) -> None:
+        """Close both async and sync resources on exit."""
         await self.aclose()
 
 

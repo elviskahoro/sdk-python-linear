@@ -1,12 +1,17 @@
 name: ci
 
 on:
-  pull_request:
+  pull_request: {} # yamllint disable-line rule:empty-values
   push:
     branches: [main]
   schedule:
     # Weekly: catch Linear changing its schema out from under the pinned copy.
-    - cron: "17 6 * * 1"
+    - cron: 17 6 * * 1
+
+# Everything here only needs to read the repo; the default (write-all) is a
+# supply-chain foot-gun if a dependency in a later step ever turns hostile.
+permissions:
+  contents: read
 
 env:
   # CI installs the committed uv.lock, byte for byte, and fails loudly if the
@@ -21,8 +26,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v8.1.0
+      # v4.4.0
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      # v8.1.0
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
         with:
           python-version: "3.13"
       - run: uv sync
@@ -41,8 +48,10 @@ jobs:
     # import path may depend on it.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v8.1.0
+      # v4.4.0
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      # v8.1.0
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
         with:
           python-version: "3.13"
       - name: Build
@@ -62,8 +71,10 @@ jobs:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v8.1.0
+      # v4.4.0
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      # v8.1.0
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
         with:
           python-version: "3.13"
       - run: uv sync
