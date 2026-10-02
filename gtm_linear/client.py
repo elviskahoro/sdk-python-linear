@@ -22,6 +22,67 @@ HTTP_OK = 200
 DEFAULT_TIMEOUT = 30.0
 
 
+def _coerce_error(entry: Any) -> GraphQLError:  # noqa: ANN401
+    """Coerce one ``errors[]`` entry into a :class:`GraphQLError`.
+
+    Well-formed dicts validate directly; non-dict values and dicts with an
+    unusable ``message`` degrade to ``GraphQLError(message=str(entry))``; dicts
+    that fail validation for an optional field are salvaged by
+    :func:`_salvage_error`. Every branch returns a :class:`GraphQLError`, so
+    ``LinearClient._handle_response`` only ever raises :class:`LinearAPIError`
+    subclasses. Without this guard, ``GraphQLError.model_validate`` raises
+    ``pydantic.ValidationError`` for spec-violating entries, which escapes
+    ``execute`` / ``execute_async`` and bypasses the documented
+    ``except LinearAPIError`` contract.
+    """
+    if not isinstance(entry, dict):
+        return GraphQLError(message=str(entry))
+    try:
+        return GraphQLError.model_validate(entry)
+    except ValidationError:
+        return _salvage_error(entry)
+
+
+def _salvage_error(entry: dict[str, Any]) -> GraphQLError:
+    """Salvage a spec-violating ``errors[]`` dict entry.
+
+    Keeps everything usable and drops only what actually fails: a string
+    ``message``, a dict ``extensions``, ``path`` / ``locations`` lists that
+    validate — each dropped independently, so a valid ``locations`` survives
+    an invalid ``path`` — and every vendor-specific extra key (``GraphQLError``
+    uses ``extra="allow"`` so Linear's non-spec keys survive salvage exactly
+    as they survive direct validation). An unusable ``message`` degrades to
+    ``GraphQLError(message=str(entry))`` — the same fallback non-dict entries
+    always use.
+    """
+    message = entry.get("message")
+    if not isinstance(message, str):
+        return GraphQLError(message=str(entry))
+    known_fields = {"message", "path", "locations", "extensions"}
+    cleaned: dict[str, Any] = {
+        key: value for key, value in entry.items() if key not in known_fields
+    }
+    cleaned["message"] = message
+    if isinstance(entry.get("extensions"), dict):
+        cleaned["extensions"] = entry["extensions"]
+    for field in ("path", "locations"):
+        if isinstance(entry.get(field), list):
+            cleaned[field] = entry[field]
+    while True:
+        try:
+            return GraphQLError.model_validate(cleaned)
+        except ValidationError as exc:
+            # Drop the optional fields pydantic actually rejected — a valid
+            # sibling survives. Any other failure cannot be fixed by dropping
+            # an optional field, so the entry degrades wholesale.
+            failing = {e["loc"][0] for e in exc.errors() if e["loc"]}
+            droppable = [f for f in ("path", "locations") if f in failing]
+            if not droppable:
+                return GraphQLError(message=str(entry))
+            for field in droppable:
+                cleaned.pop(field, None)
+
+
 class LinearClient:
     """GraphQL client for the Linear API.
 
@@ -112,28 +173,6 @@ class LinearClient:
             payload["variables"] = variables
         return payload
 
-    @staticmethod
-    def _coerce_error(entry: Any) -> GraphQLError:  # noqa: ANN401
-        """Coerce one ``errors[]`` entry into a :class:`GraphQLError`.
-
-        Spec-violating dict entries (``{}``, a non-string ``message``, a
-        non-list ``path``/``locations``, or ``"extensions": null``) degrade to
-        ``GraphQLError(message=str(entry))`` — the same fallback the non-dict
-        branch already uses — so :meth:`_handle_response` only ever raises
-        :class:`LinearAPIError` subclasses. Without this guard,
-        ``GraphQLError.model_validate`` raises ``pydantic.ValidationError`` for
-        such entries, which escapes ``execute`` / ``execute_async`` and
-        bypasses the documented ``except LinearAPIError`` contract.
-        """
-        try:
-            return (
-                GraphQLError.model_validate(entry)
-                if isinstance(entry, dict)
-                else GraphQLError(message=str(entry))
-            )
-        except ValidationError:
-            return GraphQLError(message=str(entry))
-
     def _handle_response(self, response: httpx.Response) -> dict[str, Any]:
         """Turn an HTTP response into the GraphQL ``data`` object, or raise.
 
@@ -144,7 +183,7 @@ class LinearClient:
             The contents of the response's ``data`` key.
 
         Raises:
-            LinearGraphQLError: The response carried a GraphQL ``errors`` array.
+            LinearGraphQLError: The response carried a GraphQL ``errors`` payload.
             LinearHTTPError: The response had a non-200 status.
             LinearResponseError: The body was not a usable GraphQL envelope.
         """
@@ -154,7 +193,13 @@ class LinearClient:
             body = None
 
         if isinstance(body, dict) and body.get("errors"):
-            errors = [self._coerce_error(e) for e in body["errors"]]
+            raw_errors = body["errors"]
+            # A truthy non-list ``errors`` value (a scalar, a bare string, a
+            # single error object) is normalized to one entry instead of
+            # raising ``TypeError``, splitting a string into per-character
+            # errors, or iterating a dict's keys.
+            entries = raw_errors if isinstance(raw_errors, list) else [raw_errors]
+            errors = [_coerce_error(e) for e in entries]
             summary = "; ".join(e.message for e in errors)
             raise LinearGraphQLError(f"GraphQL error: {summary}", errors=errors)
 

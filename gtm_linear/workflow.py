@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import functools
-from collections.abc import AsyncIterator, Awaitable, Iterator
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from pydantic import SecretStr
@@ -31,6 +30,32 @@ if TYPE_CHECKING:
 
 
 T = TypeVar("T")
+
+# Identity-decorator TypeVar for _sync_doc: binding to the wrapper's own type
+# is what keeps the sync method's real signature visible to type checkers.
+_F = TypeVar("_F", bound=Callable[..., object])
+
+
+def _sync_doc(source: Callable[..., object]) -> Callable[[_F], _F]:
+    """Copy the async source method's docstring onto a sync wrapper.
+
+    ``functools.wraps(source)`` looks like the obvious tool here, but it also
+    sets ``__wrapped__`` — and pyright then resolves every call through the
+    source's *unbound* signature, so the instance never satisfies ``self`` and
+    each correct ``workflow.<method>(...)`` call is flagged "Argument missing
+    for parameter ..." (six such false ``reportCallIssue`` findings landed on
+    gtm-sdk's main; see elviskahoro/gtm-sdk#848). Copying only ``__doc__``
+    keeps ``help()`` output identical while the wrapper keeps its own — bound
+    and correct — signature. It also stops ``wraps`` from stamping the source's
+    ``__qualname__`` over the wrapper's, which misattributed the workflow
+    methods to ``LinearQueries``/``LinearMutations`` in tracebacks.
+    """
+
+    def decorate(wrapper: _F) -> _F:
+        wrapper.__doc__ = source.__doc__
+        return wrapper
+
+    return decorate
 
 
 class LinearWorkflow:
@@ -80,7 +105,7 @@ class LinearWorkflow:
     async def get_issue_async(self, issue_id: str) -> IssueFields | None:
         return await self._queries.get_issue(issue_id)
 
-    @functools.wraps(LinearQueries.get_issue)
+    @_sync_doc(LinearQueries.get_issue)
     def get_issue(self, issue_id: str) -> IssueFields | None:
         return self._run(self.get_issue_async(issue_id))
 
@@ -91,7 +116,7 @@ class LinearWorkflow:
     ) -> list[IssueFields]:
         return await self._queries.list_issues(team_id, first)
 
-    @functools.wraps(LinearQueries.list_issues)
+    @_sync_doc(LinearQueries.list_issues)
     def list_issues(self, team_id: str, first: int = 50) -> list[IssueFields]:
         return self._run(self.list_issues_async(team_id, first))
 
@@ -112,7 +137,7 @@ class LinearWorkflow:
             order_by=order_by,
         )
 
-    @functools.wraps(LinearQueries.list_workflow_states_page)
+    @_sync_doc(LinearQueries.list_workflow_states_page)
     def list_workflow_states_page(
         self,
         team_id: str,
@@ -139,7 +164,7 @@ class LinearWorkflow:
     ) -> list[WorkflowStateFields]:
         return await self._queries.list_workflow_states(team_id, first=first)
 
-    @functools.wraps(LinearQueries.list_workflow_states)
+    @_sync_doc(LinearQueries.list_workflow_states)
     def list_workflow_states(
         self,
         team_id: str,
@@ -164,7 +189,7 @@ class LinearWorkflow:
             include_archived=include_archived,
         )
 
-    @functools.wraps(LinearQueries.list_issues_page)
+    @_sync_doc(LinearQueries.list_issues_page)
     def list_issues_page(
         self,
         filter: dict[str, Any] | None = None,  # noqa: A002
@@ -213,14 +238,14 @@ class LinearWorkflow:
     async def get_team_async(self, team_id: str) -> TeamFields | None:
         return await self._queries.get_team(team_id)
 
-    @functools.wraps(LinearQueries.get_team)
+    @_sync_doc(LinearQueries.get_team)
     def get_team(self, team_id: str) -> TeamFields | None:
         return self._run(self.get_team_async(team_id))
 
     async def get_team_by_key_async(self, key: str) -> TeamFields | None:
         return await self._queries.get_team_by_key(key)
 
-    @functools.wraps(LinearQueries.get_team_by_key)
+    @_sync_doc(LinearQueries.get_team_by_key)
     def get_team_by_key(self, key: str) -> TeamFields | None:
         return self._run(self.get_team_by_key_async(key))
 
@@ -232,7 +257,7 @@ class LinearWorkflow:
     ) -> SearchIssuesResultSearchIssues:
         return await self._queries.search_issues(term, first, after)
 
-    @functools.wraps(LinearQueries.search_issues)
+    @_sync_doc(LinearQueries.search_issues)
     def search_issues(
         self,
         term: str,
@@ -244,14 +269,14 @@ class LinearWorkflow:
     async def get_user_async(self, user_id: str) -> UserFields | None:
         return await self._queries.get_user(user_id)
 
-    @functools.wraps(LinearQueries.get_user)
+    @_sync_doc(LinearQueries.get_user)
     def get_user(self, user_id: str) -> UserFields | None:
         return self._run(self.get_user_async(user_id))
 
     async def get_viewer_async(self) -> UserFields:
         return await self._queries.get_viewer()
 
-    @functools.wraps(LinearQueries.get_viewer)
+    @_sync_doc(LinearQueries.get_viewer)
     def get_viewer(self) -> UserFields:
         return self._run(self.get_viewer_async())
 
@@ -353,7 +378,7 @@ class LinearWorkflow:
     async def create_issue_async(self, input_: IssueCreateInput) -> IssueFields:
         return await self._mutations.create_issue(input_)
 
-    @functools.wraps(LinearMutations.create_issue)
+    @_sync_doc(LinearMutations.create_issue)
     def create_issue(self, input_: IssueCreateInput) -> IssueFields:
         return self._run(self.create_issue_async(input_))
 
@@ -364,21 +389,21 @@ class LinearWorkflow:
     ) -> IssueFields:
         return await self._mutations.update_issue(issue_id, update)
 
-    @functools.wraps(LinearMutations.update_issue)
+    @_sync_doc(LinearMutations.update_issue)
     def update_issue(self, issue_id: str, update: IssueUpdateInput) -> IssueFields:
         return self._run(self.update_issue_async(issue_id, update))
 
     async def delete_issue_async(self, issue_id: str) -> bool:
         return await self._mutations.delete_issue(issue_id)
 
-    @functools.wraps(LinearMutations.delete_issue)
+    @_sync_doc(LinearMutations.delete_issue)
     def delete_issue(self, issue_id: str) -> bool:
         return self._run(self.delete_issue_async(issue_id))
 
     async def create_comment_async(self, issue_id: str, body: str) -> CommentFields:
         return await self._mutations.create_comment(issue_id, body)
 
-    @functools.wraps(LinearMutations.create_comment)
+    @_sync_doc(LinearMutations.create_comment)
     def create_comment(self, issue_id: str, body: str) -> CommentFields:
         return self._run(self.create_comment_async(issue_id, body))
 

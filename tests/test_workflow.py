@@ -12,7 +12,7 @@ import pytest
 import respx
 
 from gtm_linear import LinearWorkflow, PaginationOrderBy
-from gtm_linear.workflow import LinearQueries
+from gtm_linear.workflow import LinearMutations, LinearQueries
 from tests.conftest import API_URL, issue_payload, page_info_payload
 
 
@@ -117,6 +117,46 @@ async def test_async_facade_delegates_every_query_and_mutation(
         "delete_issue",
         "create_comment",
     ]
+
+
+def test_sync_wrappers_inherit_docstrings_without_wraps_binding() -> None:
+    """Sync wrappers copy ``__doc__`` from their async source — nothing else.
+
+    The obvious implementation is ``@functools.wraps(source)``, but wraps also
+    sets ``__wrapped__``, and pyright resolves calls to a wrapped method through
+    the source's *unbound* signature: the instance never satisfies ``self`` and
+    every correct call reports "Argument missing for parameter ...". gtm-sdk
+    carried six ``# pyright: ignore[reportCallIssue]`` suppressions for exactly
+    that (elviskahoro/gtm-sdk#848). This pins the contract the doc-only
+    ``_sync_doc`` decorator provides: same docstring, no ``__wrapped__``, and a
+    qualname that still attributes the method to ``LinearWorkflow``.
+    """
+    pairs = [
+        (LinearWorkflow.get_issue, LinearQueries.get_issue),
+        (LinearWorkflow.list_issues, LinearQueries.list_issues),
+        (LinearWorkflow.list_issues_page, LinearQueries.list_issues_page),
+        (
+            LinearWorkflow.list_workflow_states,
+            LinearQueries.list_workflow_states,
+        ),
+        (
+            LinearWorkflow.list_workflow_states_page,
+            LinearQueries.list_workflow_states_page,
+        ),
+        (LinearWorkflow.get_team, LinearQueries.get_team),
+        (LinearWorkflow.get_team_by_key, LinearQueries.get_team_by_key),
+        (LinearWorkflow.search_issues, LinearQueries.search_issues),
+        (LinearWorkflow.get_user, LinearQueries.get_user),
+        (LinearWorkflow.get_viewer, LinearQueries.get_viewer),
+        (LinearWorkflow.create_issue, LinearMutations.create_issue),
+        (LinearWorkflow.update_issue, LinearMutations.update_issue),
+        (LinearWorkflow.delete_issue, LinearMutations.delete_issue),
+        (LinearWorkflow.create_comment, LinearMutations.create_comment),
+    ]
+    for sync, source in pairs:
+        assert sync.__doc__ == source.__doc__, sync.__name__  # noqa: S101
+        assert not hasattr(sync, "__wrapped__"), sync.__name__  # noqa: S101
+        assert sync.__qualname__.startswith("LinearWorkflow."), sync.__qualname__  # noqa: S101
 
 
 def test_sync_facade_uses_injected_key_and_closes_async_session() -> None:

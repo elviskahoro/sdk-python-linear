@@ -45,6 +45,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import graphql.language.ast as gql_ast
 from graphql import (
@@ -64,6 +65,9 @@ from graphql import (
     validate,
     visit,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
@@ -152,6 +156,40 @@ def _spread_names(node: object, found: set[str]) -> None:
             _spread_names(item, found)
 
 
+def _rebuild(
+    node: object,
+    overrides: Callable[[gql_ast.Node], dict[str, object]],
+) -> object:
+    """Rebuild an AST tree with per-node field replacements, bottom-up.
+
+    graphql-core 3.3 freezes its AST dataclasses, so parsed documents cannot be
+    edited in place — sanitized copies are constructed node by node and spliced
+    into rebuilt parents. Subtrees the overrides leave untouched are shared
+    as-is, so a transformation that changes nothing returns the original node.
+
+    Every ``key`` is passed to the constructor explicitly: pre-3.3 nodes take a
+    generic ``**kwargs`` init that defaults missing keys to ``None``, so a
+    partial copy would silently drop fields. ``loc`` is carried through, though
+    nothing downstream of this reads it.
+    """
+    if isinstance(node, gql_ast.Node):
+        fields: dict[str, object] = overrides(node)
+        changed = bool(fields)
+        for key in node.keys:
+            child = getattr(node, key, None)
+            rebuilt = _rebuild(child, overrides)
+            if rebuilt is not child:
+                changed = True
+            fields.setdefault(key, rebuilt)
+        return type(node)(**fields) if changed else node
+    if isinstance(node, (list, tuple)):
+        items = [_rebuild(item, overrides) for item in node]
+        if all(new is old for new, old in zip(items, node, strict=True)):
+            return node
+        return type(node)(items)
+    return node
+
+
 def _compose(path: Path, fragments: dict[str, gql_ast.FragmentDefinitionNode]) -> str:
     """Inline the fragments an operation references, transitively.
 
@@ -176,9 +214,14 @@ def _compose(path: Path, fragments: dict[str, gql_ast.FragmentDefinitionNode]) -
             needed.add(child)
             pending.append(child)
 
-    document.definitions = (
-        *document.definitions,
-        *(fragments[name] for name in sorted(needed)),
+    # Splice the fragments in as a new document: graphql-core 3.3 freezes the
+    # AST dataclasses, so `document.definitions = ...` would raise
+    # FrozenInstanceError. `loc` is dropped, which print_ast never reads.
+    document = gql_ast.DocumentNode(
+        definitions=(
+            *document.definitions,
+            *(fragments[name] for name in sorted(needed)),
+        ),
     )
     return print_ast(document)
 
@@ -294,24 +337,26 @@ def _sanitize_sdl(sdl: str) -> str:
         if not isinstance(d, gql_ast.DirectiveDefinitionNode)  # BUG-1
     ]
 
-    def scrub(node: object) -> None:
-        if isinstance(node, gql_ast.Node):
-            if hasattr(node, "description"):
-                node.description = None  # BUG-2
-            for key in node.keys:
-                scrub(getattr(node, key, None))
-        elif isinstance(node, (list, tuple)):
-            for item in node:
-                scrub(item)
-
     renamed: list[str] = []
-    for definition in definitions:
-        scrub(definition)
-        if isinstance(definition, gql_ast.EnumTypeDefinitionNode):
-            for value in definition.values or []:
-                if keyword.iskeyword(value.name.value):  # BUG-3
-                    renamed.append(value.name.value)
-                    value.name.value = f"{value.name.value}_"
+
+    def overrides(node: gql_ast.Node) -> dict[str, object]:
+        fields: dict[str, object] = {}
+        # BUG-2: descriptions are not quote-escaped, so an apostrophe in
+        # Linear's docs would emit invalid Python. Drop them everywhere.
+        if getattr(node, "description", None) is not None:
+            fields["description"] = None
+        # BUG-3: enum values that are Python keywords emit `continue = "continue"`.
+        # Independent of BUG-2: a keyword value may also carry a description.
+        if isinstance(node, gql_ast.EnumValueDefinitionNode) and keyword.iskeyword(
+            node.name.value,
+        ):
+            renamed.append(node.name.value)
+            fields["name"] = gql_ast.NameNode(value=f"{node.name.value}_")
+        return fields
+
+    # Sanitize by rebuilding: graphql-core 3.3 freezes the AST dataclasses, so
+    # the scrub and the keyword rename cannot mutate the parsed nodes in place.
+    definitions = [_rebuild(d, overrides) for d in definitions]
 
     if renamed:
         print(f"  sanitized python-keyword enum values: {renamed}")
@@ -330,7 +375,7 @@ def _sanitize_sdl(sdl: str) -> str:
     }
     definitions.sort(key=lambda d: order.get(type(d), 5))
 
-    document.definitions = tuple(definitions)
+    document = gql_ast.DocumentNode(definitions=tuple(definitions))
     return print_ast(document)
 
 

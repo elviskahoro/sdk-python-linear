@@ -33,7 +33,7 @@ from ._generated.fragments import (
     WorkflowStateFields as WorkflowState,
 )
 from .client import LinearClient
-from .exceptions import LinearAPIError
+from .exceptions import LinearAPIError, LinearPaginationError
 from .models import LinearModel
 from .mutations import LinearMutations
 from .queries import LinearQueries
@@ -57,6 +57,7 @@ __all__ = [
     "LinearClient",
     "LinearModel",
     "LinearMutations",
+    "LinearPaginationError",
     "LinearQueries",
     "LinearWorkflow",
     "PageInfo",

@@ -1,6 +1,6 @@
 [project]
 name = "gtm-linear"
-version = "0.2.0"
+version = "0.2.1"
 description = "GTM workflow adapter for Linear."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -18,11 +18,7 @@ classifiers = [
 ]
 # Runtime is deliberately small: nothing on the import path needs Strawberry or
 # graphql-core. Both are build-time tools (see scripts/codegen.py).
-dependencies = [
-  "httpx>=0.27.0",
-  "pydantic>=2.0.0",
-  "pydantic-settings>=2.14.2",
-]
+dependencies = ["httpx>=0.27.0", "pydantic>=2.0.0", "pydantic-settings>=2.14.2"]
 
 [project.optional-dependencies]
 # Ships gtm_linear._schema, the generated Strawberry mirror of Linear's types, for
@@ -39,7 +35,14 @@ dev = [
   "respx>=0.21",
   # Codegen toolchain. Build-time only: scripts/codegen.py turns Linear's SDL
   # into the Pydantic models under gtm_linear/_generated/.
-  "graphql-core>=3.2",
+  # graphql-core is capped below 3.3 because strawberry 0.316 — the codegen
+  # backend — cannot import graphql-core 3.3 at all: its schema module expects
+  # graphql.execution.ExecutionContext, which 3.3 removed. codegen.py itself is
+  # frozen-AST-safe (it builds replacement documents instead of mutating
+  # parsed nodes; the old in-place splice is what broke 13 CI tests when a
+  # fresh resolution pulled 3.3.0). Lift the cap only together with a
+  # strawberry release that supports 3.3 and a regeneration of the output.
+  "graphql-core>=3.2,<3.3",
   "strawberry-graphql[cli]>=0.316.0",
   # codegen.py runs `ruff format` over its output so regeneration is byte-stable
   # and `trunk check` has nothing left to reformat. Pinned to the version
