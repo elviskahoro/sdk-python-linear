@@ -29,7 +29,7 @@ uv pip install gtm-linear        # once published
 uv sync
 ```
 
-Requires Python `>=3.11`. Runtime deps: `httpx>=0.27`, `pydantic>=2.0`, `strawberry-graphql>=0.240`.
+Requires Python `>=3.11`. Runtime deps: `httpx>=0.27`, `pydantic>=2.0`, `pydantic-settings>=2.14.2`. The optional `[strawberry]` extra (ships the generated schema mirror) adds `strawberry-graphql>=0.328.0`, which pulls `graphql-core>=3.3,<3.4`.
 
 ---
 
