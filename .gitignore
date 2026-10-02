@@ -10,6 +10,12 @@ build/
 tmp/
 .env.local
 
+# Flox local state. Keep .flox/env/manifest.toml and manifest.lock tracked so
+# contributors and CI can reproduce the development environment.
+.flox/cache/
+.flox/log/
+.flox/run/
+
 # Beads / Dolt files (added by bd init)
 .dolt/
 *.db
