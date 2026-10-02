@@ -77,8 +77,11 @@ def test_rebuild_replaces_fields_without_mutating_inputs() -> None:
 
     assert rebuilt is not document
     assert rebuilt_definition.description is None
-    # The parsed input keeps its description: pre-3.3 graphql-core nodes are
-    # mutable, so only an assertion can hold the line until the <3.3 cap lifts.
+    # The parsed input keeps its description: _rebuild must construct copies
+    # and never write to the nodes it was handed. The frozen dataclasses on
+    # graphql-core 3.3 (now the only supported line) raise on a direct
+    # attribute write, but they do not prove the input document was left
+    # untouched — only this assertion does.
     assert definition.description is original
 
 
