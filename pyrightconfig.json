@@ -1,0 +1,35 @@
+{
+  "pythonVersion": "3.11",
+  "analyzeUnannotatedFunctions": true,
+  "deprecateTypingAliases": false,
+  "disableBytesTypePromotions": true,
+  "enableReachabilityAnalysis": true,
+  "enableTypeIgnoreComments": true,
+  "reportMissingTypeStubs": false,
+  "strictListInference": true,
+  "strictDictionaryInference": true,
+  "strictSetInference": true,
+  "strictParameterNoneValue": true,
+  "typeCheckingMode": "strict",
+  "reportAttributeAccessIssue": "warning",
+  "reportDeprecated": "warning",
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "warning",
+  "reportMissingParameterType": "none",
+  "reportMissingTypeArgument": "warning",
+  "reportPrivateUsage": "warning",
+  "reportUnknownArgumentType": "none",
+  "reportUnknownLambdaType": "warning",
+  "reportUnknownMemberType": "none",
+  "reportUnknownParameterType": "none",
+  "reportUnknownVariableType": "none",
+  "reportUntypedBaseClass": "warning",
+  "reportUntypedFunctionDecorator": "warning",
+  "reportUntypedClassDecorator": "warning",
+  "executionEnvironments": [
+    {
+      "root": "tests",
+      "reportPrivateUsage": "none"
+    }
+  ]
+}

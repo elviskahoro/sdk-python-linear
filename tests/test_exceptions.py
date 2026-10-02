@@ -11,7 +11,7 @@ previously never exercised serialization).
 
 from __future__ import annotations
 
-import pickle
+import pickle  # nosec B403 - fixtures serialize self-built exceptions, never untrusted data
 
 import pytest
 
@@ -35,14 +35,14 @@ def _assert_http_error_intact(exc: LinearHTTPError) -> None:
     ``status_code``/``body`` into ``Exception.args``: that would change
     ``str(exc)`` from the message to a tuple repr and break logging output.
     """
-    assert isinstance(exc, LinearHTTPError)  # noqa: S101
-    assert isinstance(exc, LinearAPIError)  # noqa: S101
-    assert exc.status_code == 503  # noqa: S101
-    assert exc.body == "boom"  # noqa: S101
-    assert exc.message == "HTTP error: 503"  # noqa: S101
-    assert exc.errors == []  # noqa: S101
-    assert str(exc) == "HTTP error: 503"  # noqa: S101
-    assert exc.args == ("HTTP error: 503",)  # noqa: S101
+    assert isinstance(exc, LinearHTTPError)
+    assert isinstance(exc, LinearAPIError)
+    assert exc.status_code == 503
+    assert exc.body == "boom"
+    assert exc.message == "HTTP error: 503"
+    assert exc.errors == []
+    assert str(exc) == "HTTP error: 503"
+    assert exc.args == ("HTTP error: 503",)
 
 
 def test_http_error_pickle_roundtrip_preserves_attributes() -> None:
@@ -53,7 +53,8 @@ def test_http_error_pickle_roundtrip_preserves_attributes() -> None:
     ``cls(message)`` before ``__dict__`` (which carries ``status_code``) is
     restored.
     """
-    _assert_http_error_intact(pickle.loads(pickle.dumps(_http_error())))
+    # Round-trips an exception this test built itself, never untrusted data.
+    _assert_http_error_intact(pickle.loads(pickle.dumps(_http_error())))  # nosec B301
 
 
 def test_http_error_constructible_with_message_only() -> None:
@@ -63,10 +64,10 @@ def test_http_error_constructible_with_message_only() -> None:
     ``TypeError: missing required positional argument: 'status_code'``.
     """
     exc = LinearHTTPError("something went wrong")
-    assert exc.status_code == 0  # noqa: S101
-    assert exc.body == ""  # noqa: S101
-    assert exc.message == "something went wrong"  # noqa: S101
-    assert exc.errors == []  # noqa: S101
+    assert exc.status_code == 0
+    assert exc.body == ""
+    assert exc.message == "something went wrong"
+    assert exc.errors == []
 
 
 # Module-level so it is picklable under spawn start methods (Windows/CI), not
@@ -105,9 +106,9 @@ def test_all_api_error_subclasses_constructible_with_message_only() -> None:
         LinearResponseError,
     ):
         instance = cls("only a message")  # type: ignore[call-arg]
-        assert isinstance(instance, cls)  # noqa: S101
-        assert isinstance(instance, LinearAPIError)  # noqa: S101
-        assert instance.message == "only a message"  # noqa: S101
+        assert isinstance(instance, cls)
+        assert isinstance(instance, LinearAPIError)
+        assert instance.message == "only a message"
         # Reconstructing through the default ``__reduce__`` tuple must not raise.
         rebuilt = type(instance)(*instance.args)
-        assert isinstance(rebuilt, cls)  # noqa: S101
+        assert isinstance(rebuilt, cls)

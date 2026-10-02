@@ -26,7 +26,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from scripts import codegen  # noqa: E402
 
-OPERATIONS = codegen._operation_paths()  # noqa: SLF001
+OPERATIONS = codegen._operation_paths()
 SCHEMA_URL = "https://raw.githubusercontent.com/linear/linear/master/packages/sdk/src/schema.graphql"
 
 
@@ -36,14 +36,14 @@ def test_operations_still_valid_against_upstream_schema() -> None:
     response.raise_for_status()
     upstream = build_schema(response.text)
 
-    fragments = codegen._fragment_definitions()  # noqa: SLF001
+    fragments = codegen._fragment_definitions()
     failures: list[str] = []
     for path in OPERATIONS:
-        document = parse(codegen._compose(path, fragments))  # noqa: SLF001
+        document = parse(codegen._compose(path, fragments))
         errors = validate(upstream, document)
         failures.extend(f"{path.name}: {e.message}" for e in errors)
 
-    assert not failures, (  # noqa: S101
+    assert not failures, (
         "Linear's schema has drifted from the pinned copy:\n"
         + "\n".join(f"    {f}" for f in failures)
     )

@@ -18,13 +18,30 @@ T = TypeVar("T")
 
 
 class _PageInfo(Protocol):
-    has_next_page: bool
-    end_cursor: str | None
+    """The page metadata ``paginate`` reads off a connection.
+
+    Declared with read-only properties: protocol *attributes* are mutable and
+    therefore invariant, which would reject every concrete ``PageInfo`` model
+    (they are distinct classes, not subclasses of this protocol). Read-only
+    properties match covariantly, so any type with the two attributes below
+    satisfies the protocol.
+    """
+
+    @property
+    def has_next_page(self) -> bool: ...
+
+    @property
+    def end_cursor(self) -> str | None: ...
 
 
 class _Connection(Protocol[T]):
-    nodes: list[T]
-    page_info: _PageInfo
+    """A Relay connection page: ``nodes`` plus the ``page_info`` protocol above."""
+
+    @property
+    def nodes(self) -> list[T]: ...
+
+    @property
+    def page_info(self) -> _PageInfo: ...
 
 
 # How many consecutive nodeless pages to refetch before declaring the
@@ -118,8 +135,9 @@ async def paginate(
         # case: it lives inside the node loop, which an empty page never
         # enters.)
         if empty_pages >= MAX_CONSECUTIVE_EMPTY_PAGES:
-            raise LinearPaginationError(
+            msg = (
                 f"{empty_pages} consecutive pages returned no nodes while "
-                "pageInfo.hasNextPage stayed true",
+                "pageInfo.hasNextPage stayed true"
             )
+            raise LinearPaginationError(msg)
         cursor = page.page_info.end_cursor

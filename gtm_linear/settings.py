@@ -7,7 +7,10 @@ is the opt-in path.
 
 from __future__ import annotations
 
-from pydantic import SecretStr
+# Imported at runtime on purpose: pydantic resolves field annotations when the
+# class body executes (even under `from __future__ import annotations`), so a
+# TYPE_CHECKING-only import would NameError at import time.
+from pydantic import SecretStr  # noqa: TC002
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

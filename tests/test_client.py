@@ -24,7 +24,7 @@ def test_execute_sync_returns_data() -> None:
         )
         with LinearClient(api_key="key") as client:
             data = client.execute("query { viewer { id } }")
-    assert data == {"viewer": {"id": "u1"}}  # noqa: S101
+    assert data == {"viewer": {"id": "u1"}}
 
 
 def test_execute_passes_variables() -> None:
@@ -34,7 +34,7 @@ def test_execute_passes_variables() -> None:
         )
         with LinearClient(api_key="key") as client:
             client.execute("query($x: String!){ ok }", {"x": "y"})
-    assert route.calls.last.request.read() == (  # noqa: S101
+    assert route.calls.last.request.read() == (
         b'{"query":"query($x: String!){ ok }","variables":{"x":"y"}}'
     )
 
@@ -59,7 +59,7 @@ def test_execute_raises_on_graphql_errors() -> None:
             pytest.raises(LinearAPIError) as exc,
         ):
             client.execute("query { viewer { id } }")
-    assert "bad query" in str(exc.value)  # noqa: S101
+    assert "bad query" in str(exc.value)
 
 
 def test_authorization_header_is_set() -> None:
@@ -69,12 +69,12 @@ def test_authorization_header_is_set() -> None:
         )
         with LinearClient(api_key="secret-key") as client:
             client.execute("query { __typename }")
-    assert route.calls.last.request.headers["Authorization"] == "secret-key"  # noqa: S101
+    assert route.calls.last.request.headers["Authorization"] == "secret-key"
 
 
 def test_default_timeout_is_finite() -> None:
     client = LinearClient(api_key="key")
-    assert client.timeout == 30.0  # noqa: S101
+    assert client.timeout == 30.0
 
 
 async def test_execute_async_returns_data() -> None:
@@ -84,7 +84,7 @@ async def test_execute_async_returns_data() -> None:
         )
         async with LinearClient(api_key="key") as client:
             data = await client.execute_async("query { viewer { id } }")
-    assert data == {"viewer": {"id": "u1"}}  # noqa: S101
+    assert data == {"viewer": {"id": "u1"}}
 
 
 async def test_async_context_manager_closes_real_httpx_client() -> None:
@@ -94,12 +94,12 @@ async def test_async_context_manager_closes_real_httpx_client() -> None:
         )
         client = LinearClient(api_key="key")
         async_client = client._get_async_client()
-        assert not async_client.is_closed  # noqa: S101
+        assert not async_client.is_closed
 
         async with client:
             await client.execute_async("query { __typename }")
 
-        assert async_client.is_closed  # noqa: S101
+        assert async_client.is_closed
 
 
 async def test_aclose_closes_async_client_and_is_idempotent(
@@ -212,9 +212,9 @@ def test_graphql_error_exposes_linear_error_code() -> None:
             with pytest.raises(LinearGraphQLError) as exc:
                 client.execute("query { viewer { id } }")
 
-    assert exc.value.codes == ["AUTHENTICATION_ERROR"]  # noqa: S101
-    assert exc.value.errors[0].path == ["viewer"]  # noqa: S101
-    assert isinstance(exc.value, LinearAPIError)  # noqa: S101
+    assert exc.value.codes == ["AUTHENTICATION_ERROR"]
+    assert exc.value.errors[0].path == ["viewer"]
+    assert isinstance(exc.value, LinearAPIError)
 
 
 def test_http_error_carries_status_code() -> None:
@@ -225,8 +225,8 @@ def test_http_error_carries_status_code() -> None:
             with pytest.raises(LinearHTTPError) as exc:
                 client.execute("query { viewer { id } }")
 
-    assert exc.value.status_code == 503  # noqa: S101
-    assert exc.value.body == "boom"  # noqa: S101
+    assert exc.value.status_code == 503
+    assert exc.value.body == "boom"
 
 
 async def test_async_path_raises_the_same_typed_errors() -> None:
@@ -246,14 +246,14 @@ async def test_async_path_raises_the_same_typed_errors() -> None:
             with pytest.raises(LinearGraphQLError) as exc:
                 await client.execute_async("query { viewer { id } }")
 
-    assert exc.value.codes == ["FORBIDDEN"]  # noqa: S101
+    assert exc.value.codes == ["FORBIDDEN"]
 
 
 def test_repr_does_not_leak_the_api_key() -> None:
     client = LinearClient(api_key="lin_api_supersecret")
-    assert "supersecret" not in repr(client)  # noqa: S101
-    assert "supersecret" not in str(client.api_key)  # noqa: S101
-    assert client.api_key.get_secret_value() == "lin_api_supersecret"  # noqa: S101
+    assert "supersecret" not in repr(client)
+    assert "supersecret" not in str(client.api_key)
+    assert client.api_key.get_secret_value() == "lin_api_supersecret"
 
 
 # Spec-violating ``errors[]`` entries (an empty object, a non-string ``message``,
@@ -307,10 +307,10 @@ def test_malformed_errors_raise_linearapierror(
             pytest.raises(LinearAPIError) as exc,
         ):
             client.execute("query { viewer { id } }")
-    assert isinstance(exc.value, LinearGraphQLError)  # noqa: S101
-    assert len(exc.value.errors) == 1  # noqa: S101
-    assert exc.value.errors[0].message == expected_message  # noqa: S101
-    assert "GraphQL error" in str(exc.value)  # noqa: S101
+    assert isinstance(exc.value, LinearGraphQLError)
+    assert len(exc.value.errors) == 1
+    assert exc.value.errors[0].message == expected_message
+    assert "GraphQL error" in str(exc.value)
 
 
 @pytest.mark.parametrize(
@@ -330,9 +330,9 @@ async def test_malformed_errors_raise_linearapierror_async(
         async with LinearClient(api_key="key") as client:
             with pytest.raises(LinearAPIError) as exc:
                 await client.execute_async("query { viewer { id } }")
-    assert isinstance(exc.value, LinearGraphQLError)  # noqa: S101
-    assert len(exc.value.errors) == 1  # noqa: S101
-    assert exc.value.errors[0].message == expected_message  # noqa: S101
+    assert isinstance(exc.value, LinearGraphQLError)
+    assert len(exc.value.errors) == 1
+    assert exc.value.errors[0].message == expected_message
 
 
 def test_mixed_errors_preserve_structure_and_degrade_malformed() -> None:
@@ -363,23 +363,23 @@ def test_mixed_errors_preserve_structure_and_degrade_malformed() -> None:
             client.execute("query { viewer { id } }")
 
     errors = exc.value.errors
-    assert len(errors) == len(error_entries)  # noqa: S101
+    assert len(errors) == len(error_entries)
     # Well-formed entry keeps its structured shape and surfaces a code.
-    assert errors[0].message == "auth"  # noqa: S101
-    assert errors[0].code == "AUTHENTICATION_ERROR"  # noqa: S101
+    assert errors[0].message == "auth"
+    assert errors[0].code == "AUTHENTICATION_ERROR"
     # Salvageable entry keeps its message and code; only the bad field drops.
-    assert errors[1].message == "partial"  # noqa: S101
-    assert errors[1].code == "RATELIMITED"  # noqa: S101
-    assert exc.value.codes == ["AUTHENTICATION_ERROR", "RATELIMITED"]  # noqa: S101
+    assert errors[1].message == "partial"
+    assert errors[1].code == "RATELIMITED"
+    assert exc.value.codes == ["AUTHENTICATION_ERROR", "RATELIMITED"]
     # Entries with an unusable message degrade to str(entry) instead of
     # leaking ValidationError.
-    assert errors[2].message == str({})  # noqa: S101
+    assert errors[2].message == str({})
     # Non-dict sibling branch (the pre-existing fallback) still works.
-    assert errors[3].message == "bare string"  # noqa: S101
-    assert errors[4].message == str({"message": 123})  # noqa: S101
+    assert errors[3].message == "bare string"
+    assert errors[4].message == str({"message": 123})
     # The summary joins every entry's message.
-    assert "auth" in str(exc.value)  # noqa: S101
-    assert "bare string" in str(exc.value)  # noqa: S101
+    assert "auth" in str(exc.value)
+    assert "bare string" in str(exc.value)
 
 
 # A truthy non-list ``errors`` value used to escape the contract too: a scalar
@@ -416,9 +416,9 @@ def test_non_list_errors_container_raises_linearapierror(
             pytest.raises(LinearAPIError) as exc,
         ):
             client.execute("query { viewer { id } }")
-    assert isinstance(exc.value, LinearGraphQLError)  # noqa: S101
-    assert len(exc.value.errors) == 1  # noqa: S101
-    assert exc.value.errors[0].message == expected_message  # noqa: S101
+    assert isinstance(exc.value, LinearGraphQLError)
+    assert len(exc.value.errors) == 1
+    assert exc.value.errors[0].message == expected_message
 
 
 @pytest.mark.parametrize(
@@ -438,9 +438,9 @@ async def test_non_list_errors_container_raises_linearapierror_async(
         async with LinearClient(api_key="key") as client:
             with pytest.raises(LinearAPIError) as exc:
                 await client.execute_async("query { viewer { id } }")
-    assert isinstance(exc.value, LinearGraphQLError)  # noqa: S101
-    assert len(exc.value.errors) == 1  # noqa: S101
-    assert exc.value.errors[0].message == expected_message  # noqa: S101
+    assert isinstance(exc.value, LinearGraphQLError)
+    assert len(exc.value.errors) == 1
+    assert exc.value.errors[0].message == expected_message
 
 
 def test_coerce_error_preserves_salvages_or_degrades() -> None:
@@ -457,28 +457,28 @@ def test_coerce_error_preserves_salvages_or_degrades() -> None:
     well_formed = _coerce_error(
         {"message": "nope", "extensions": {"code": "FORBIDDEN"}},
     )
-    assert well_formed.message == "nope"  # noqa: S101
-    assert well_formed.code == "FORBIDDEN"  # noqa: S101
+    assert well_formed.message == "nope"
+    assert well_formed.code == "FORBIDDEN"
     salvaged = _coerce_error({"message": "boom", "extensions": None})
-    assert salvaged.message == "boom"  # noqa: S101
+    assert salvaged.message == "boom"
     salvaged_code = _coerce_error(
         {"message": "x", "extensions": {"code": "RATELIMITED"}, "path": "oops"},
     )
-    assert salvaged_code.message == "x"  # noqa: S101
-    assert salvaged_code.code == "RATELIMITED"  # noqa: S101
+    assert salvaged_code.message == "x"
+    assert salvaged_code.code == "RATELIMITED"
     # List fields with invalid elements are dropped individually, so the
     # message, code, and any valid sibling field survive.
     bad_elements = {"message": "x", "path": [{"bad": "shape"}]}
     salvaged_elements = _coerce_error(bad_elements)
-    assert salvaged_elements.message == "x"  # noqa: S101
+    assert salvaged_elements.message == "x"
     bad_elements_code = {
         "message": "x",
         "extensions": {"code": "RATELIMITED"},
         "path": [{"bad": "shape"}],
     }
     salvaged_elements_code = _coerce_error(bad_elements_code)
-    assert salvaged_elements_code.message == "x"  # noqa: S101
-    assert salvaged_elements_code.code == "RATELIMITED"  # noqa: S101
+    assert salvaged_elements_code.message == "x"
+    assert salvaged_elements_code.code == "RATELIMITED"
     # A valid ``locations`` survives an invalid ``path`` sibling.
     mixed = {
         "message": "x",
@@ -486,19 +486,19 @@ def test_coerce_error_preserves_salvages_or_degrades() -> None:
         "path": [1.5],
     }
     salvaged_mixed = _coerce_error(mixed)
-    assert salvaged_mixed.message == "x"  # noqa: S101
-    assert salvaged_mixed.path is None  # noqa: S101
+    assert salvaged_mixed.message == "x"
+    assert salvaged_mixed.path is None
     locations = salvaged_mixed.locations
-    assert locations is not None  # noqa: S101
-    assert locations[0].line == 1  # noqa: S101
-    assert locations[0].column == 2  # noqa: S101
+    assert locations is not None
+    assert locations[0].line == 1
+    assert locations[0].column == 2
     # Vendor-specific extra keys survive salvage, exactly as they survive
     # direct validation (GraphQLError uses extra="allow").
     extras = {"message": "x", "path": "oops", "vendorKey": "keep-me"}
     salvaged_extras = _coerce_error(extras)
-    assert salvaged_extras.message == "x"  # noqa: S101
-    assert salvaged_extras.model_extra == {"vendorKey": "keep-me"}  # noqa: S101
+    assert salvaged_extras.message == "x"
+    assert salvaged_extras.model_extra == {"vendorKey": "keep-me"}
     for entry in ({}, {"message": 123}, "oops", 42):
         degraded = _coerce_error(entry)
-        assert degraded.message == str(entry)  # noqa: S101
-        assert isinstance(degraded, GraphQLError)  # noqa: S101
+        assert degraded.message == str(entry)
+        assert isinstance(degraded, GraphQLError)

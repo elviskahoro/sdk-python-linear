@@ -136,18 +136,16 @@ class LinearMutations:
             The newly created comment.
 
         Raises:
-            ValueError: If the API reports success but returns no comment.
+            ValidationError: If Linear violates its own schema —
+                ``CommentPayload.comment`` is ``Comment!`` (non-null), so a null
+                comment fails model validation rather than reaching this code.
         """
         comment_input = CommentCreateInput(issue_id=issue_id, body=body)
         data = await self._client.execute_async(
             CREATE_COMMENT,
             {"input": _variables(comment_input)},
         )
-        comment = CreateCommentResult.model_validate(data).comment_create.comment
-        if comment is None:
-            error_msg = "Failed to create comment: API did not return a comment object"
-            raise ValueError(error_msg)
-        return comment
+        return CreateCommentResult.model_validate(data).comment_create.comment
 
 
 __all__ = [

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from types import TracebackType
 from typing import TYPE_CHECKING, Any, Self
 
 import httpx
@@ -16,6 +15,8 @@ from .exceptions import (
 )
 
 if TYPE_CHECKING:
+    from types import TracebackType
+
     from .settings import LinearSettings
 
 HTTP_OK = 200
@@ -136,7 +137,10 @@ class LinearClient:
         """Build a client from ``LINEAR_*`` environment variables or ``.env.local``."""
         from .settings import LinearSettings
 
-        return cls.from_settings(LinearSettings())
+        # Pyright synthesizes __init__ from the model's fields and so thinks
+        # ``api_key`` is required here; BaseSettings fills required fields from
+        # the environment at runtime, and it cannot model that.
+        return cls.from_settings(LinearSettings())  # pyright: ignore[reportCallIssue]
 
     def __repr__(self) -> str:
         """Render without the API key."""
@@ -201,11 +205,13 @@ class LinearClient:
             entries = raw_errors if isinstance(raw_errors, list) else [raw_errors]
             errors = [_coerce_error(e) for e in entries]
             summary = "; ".join(e.message for e in errors)
-            raise LinearGraphQLError(f"GraphQL error: {summary}", errors=errors)
+            msg = f"GraphQL error: {summary}"
+            raise LinearGraphQLError(msg, errors=errors)
 
         if response.status_code != HTTP_OK:
+            msg = f"HTTP error: {response.status_code}"
             raise LinearHTTPError(
-                f"HTTP error: {response.status_code}",
+                msg,
                 status_code=response.status_code,
                 body=response.text,
             )

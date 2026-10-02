@@ -27,7 +27,7 @@ def _check(script: str) -> subprocess.CompletedProcess[str]:
 def test_operations_match_spec() -> None:
     """operations/*.graphql must match what the spec plus the schema produce."""
     result = _check("gen_operations.py")
-    assert result.returncode == 0, (  # noqa: S101
+    assert result.returncode == 0, (
         "Operation documents are stale or hand-edited.\n"
         "Run: uv run python scripts/gen_operations.py\n\n"
         f"{result.stdout}\n{result.stderr}"
@@ -37,7 +37,7 @@ def test_operations_match_spec() -> None:
 def test_generated_code_matches_schema() -> None:
     """Regenerating from the pinned schema must reproduce the committed output."""
     result = _check("codegen.py")
-    assert result.returncode == 0, (  # noqa: S101
+    assert result.returncode == 0, (
         "Generated code is stale or hand-edited.\n"
         "Run: uv run python scripts/codegen.py\n\n"
         f"{result.stdout}\n{result.stderr}"

@@ -8,11 +8,12 @@ because a regression in it would silently break every mutation.
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import httpx
 import pytest
 import respx
+from pydantic import ValidationError
 
 from gtm_linear import (
     IssueCreateInput,
@@ -20,6 +21,7 @@ from gtm_linear import (
     LinearClient,
     LinearMutations,
 )
+from gtm_linear._generated.CreateIssue import SLADayCountType
 from tests.conftest import API_URL, issue_payload
 
 
@@ -47,12 +49,12 @@ async def test_create_issue_sends_input_and_parses_response() -> None:
 
     body = json.loads(route.calls.last.request.read())
     # snake_case in Python, camelCase on the wire.
-    assert body["variables"]["input"] == {  # noqa: S101
+    assert body["variables"]["input"] == {
         "title": "Hello",
         "teamId": "team-1",
         "description": "desc",
     }
-    assert issue.identifier == "ENG-1"  # noqa: S101
+    assert issue.identifier == "ENG-1"
 
 
 async def test_create_issue_omits_fields_that_were_never_set() -> None:
@@ -64,10 +66,10 @@ async def test_create_issue_omits_fields_that_were_never_set() -> None:
             )
 
     sent = json.loads(route.calls.last.request.read())["variables"]["input"]
-    assert "description" not in sent  # noqa: S101
+    assert "description" not in sent
     # The generated input carries all 36 schema fields; none of the untouched ones
     # may leak into the request.
-    assert set(sent) == {"title", "teamId"}  # noqa: S101
+    assert set(sent) == {"title", "teamId"}
 
 
 async def test_create_issue_sends_extended_input_fields() -> None:
@@ -86,7 +88,7 @@ async def test_create_issue_sends_extended_input_fields() -> None:
                 ),
             )
 
-    assert json.loads(route.calls.last.request.read())["variables"]["input"] == {  # noqa: S101
+    assert json.loads(route.calls.last.request.read())["variables"]["input"] == {
         "title": "Hello",
         "teamId": "team-1",
         "labelIds": [],
@@ -97,7 +99,16 @@ async def test_create_issue_sends_extended_input_fields() -> None:
     }
 
 
-async def test_create_issue_json_serializes_dates_and_enums() -> None:
+@pytest.mark.parametrize(
+    "sla_type",
+    [SLADayCountType.onlyBusinessDays, "onlyBusinessDays"],
+)
+async def test_create_issue_json_serializes_dates_and_enums(
+    sla_type: SLADayCountType | str,
+) -> None:
+    """The enum member is the typed path; the raw string stays covered because
+    pydantic coerces valid enum values by name, and callers do pass strings.
+    """
     with respx.mock:
         route = respx.post(API_URL).mock(return_value=_create_response())
         async with LinearClient(api_key="key") as client:
@@ -106,15 +117,15 @@ async def test_create_issue_json_serializes_dates_and_enums() -> None:
                     title="Hello",
                     team_id="team-1",
                     due_date=date(2026, 8, 1),
-                    created_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
-                    sla_type="onlyBusinessDays",
+                    created_at=datetime(2026, 8, 1, tzinfo=UTC),
+                    sla_type=sla_type,
                 ),
             )
 
     sent = json.loads(route.calls.last.request.read())["variables"]["input"]
-    assert sent["dueDate"] == "2026-08-01"  # noqa: S101
-    assert sent["createdAt"] == "2026-08-01T00:00:00Z"  # noqa: S101
-    assert sent["slaType"] == "onlyBusinessDays"  # noqa: S101
+    assert sent["dueDate"] == "2026-08-01"
+    assert sent["createdAt"] == "2026-08-01T00:00:00Z"
+    assert sent["slaType"] == "onlyBusinessDays"
 
 
 async def test_create_issue_raises_when_no_issue_returned() -> None:
@@ -142,8 +153,8 @@ async def test_update_issue() -> None:
             )
 
     body = json.loads(route.calls.last.request.read())
-    assert body["variables"] == {"id": "iss-1", "input": {"title": "New title"}}  # noqa: S101
-    assert issue.id == "iss-1"  # noqa: S101
+    assert body["variables"] == {"id": "iss-1", "input": {"title": "New title"}}
+    assert issue.id == "iss-1"
 
 
 async def test_update_issue_can_clear_a_field() -> None:
@@ -161,7 +172,7 @@ async def test_update_issue_can_clear_a_field() -> None:
             )
 
     sent = json.loads(route.calls.last.request.read())["variables"]["input"]
-    assert sent == {"description": None}  # noqa: S101
+    assert sent == {"description": None}
 
 
 async def test_update_issue_omits_untouched_fields() -> None:
@@ -174,7 +185,7 @@ async def test_update_issue_omits_untouched_fields() -> None:
             )
 
     sent = json.loads(route.calls.last.request.read())["variables"]["input"]
-    assert sent == {"title": "only this"}  # noqa: S101
+    assert sent == {"title": "only this"}
 
 
 async def test_delete_issue_returns_success_bool() -> None:
@@ -186,7 +197,7 @@ async def test_delete_issue_returns_success_bool() -> None:
             ),
         )
         async with LinearClient(api_key="key") as client:
-            assert await LinearMutations(client).delete_issue("iss-1") is True  # noqa: S101
+            assert await LinearMutations(client).delete_issue("iss-1") is True
 
 
 async def test_create_comment() -> None:
@@ -212,13 +223,13 @@ async def test_create_comment() -> None:
         async with LinearClient(api_key="key") as client:
             comment = await LinearMutations(client).create_comment("iss-1", "hello")
 
-    assert comment.id == "c-1"  # noqa: S101
+    assert comment.id == "c-1"
     # createdAt is DateTime! in the schema, so it parses to a real datetime.
-    assert comment.created_at.year == 2026  # noqa: S101
+    assert comment.created_at.year == 2026
     body = json.loads(route.calls.last.request.read())
-    assert body["variables"]["input"] == {"issueId": "iss-1", "body": "hello"}  # noqa: S101
-    assert "commentCreate" in body["query"]  # noqa: S101
-    assert "createdAt" in body["query"]  # noqa: S101
+    assert body["variables"]["input"] == {"issueId": "iss-1", "body": "hello"}
+    assert "commentCreate" in body["query"]
+    assert "createdAt" in body["query"]
 
 
 @pytest.mark.parametrize(
@@ -245,4 +256,24 @@ async def test_create_comment_rejects_missing_or_malformed_response(
         )
         async with LinearClient(api_key="key") as client:
             with pytest.raises(ValueError):
+                await LinearMutations(client).create_comment("iss-1", "hello")
+
+
+async def test_create_comment_null_payload_fails_validation_not_a_silent_none() -> None:
+    """``CommentPayload.comment`` is ``Comment!`` in Linear's schema, unlike
+    ``IssuePayload.issue`` (nullable, guarded in create_issue). A null comment
+    is therefore a schema violation by the server and must fail model
+    validation loudly — never parse to ``None`` and flow onward as a None
+    return. This pins that asymmetry as deliberate: it mirrors Linear's SDL,
+    not an oversight.
+    """
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={"data": {"commentCreate": {"success": True, "comment": None}}},
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            with pytest.raises(ValidationError):
                 await LinearMutations(client).create_comment("iss-1", "hello")

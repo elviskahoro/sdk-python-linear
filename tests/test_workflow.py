@@ -4,16 +4,19 @@ from __future__ import annotations
 
 import json
 import warnings
-from collections.abc import AsyncIterator
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import httpx
 import pytest
 import respx
 
 from gtm_linear import LinearWorkflow, PaginationOrderBy
-from gtm_linear.workflow import LinearMutations, LinearQueries
+from gtm_linear.mutations import LinearMutations
+from gtm_linear.queries import LinearQueries
 from tests.conftest import API_URL, issue_payload, page_info_payload
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 
 async def test_async_facade_delegates_every_query_and_mutation(
@@ -35,8 +38,6 @@ async def test_async_facade_delegates_every_query_and_mutation(
             return result
 
         return method
-
-    from gtm_linear.workflow import LinearMutations
 
     monkeypatch.setattr(LinearQueries, "get_issue", query("get_issue", "issue"))
     monkeypatch.setattr(LinearQueries, "list_issues", query("list_issues", ["issue"]))
@@ -154,9 +155,9 @@ def test_sync_wrappers_inherit_docstrings_without_wraps_binding() -> None:
         (LinearWorkflow.create_comment, LinearMutations.create_comment),
     ]
     for sync, source in pairs:
-        assert sync.__doc__ == source.__doc__, sync.__name__  # noqa: S101
-        assert not hasattr(sync, "__wrapped__"), sync.__name__  # noqa: S101
-        assert sync.__qualname__.startswith("LinearWorkflow."), sync.__qualname__  # noqa: S101
+        assert sync.__doc__ == source.__doc__, sync.__name__
+        assert not hasattr(sync, "__wrapped__"), sync.__name__
+        assert sync.__qualname__.startswith("LinearWorkflow."), sync.__qualname__
 
 
 def test_sync_facade_uses_injected_key_and_closes_async_session() -> None:
