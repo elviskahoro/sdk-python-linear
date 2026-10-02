@@ -17,7 +17,7 @@ class GetTeamByKeyVariables(LinearModel):
 
 DOCUMENT = """\
 query GetTeamByKey($key: String!) {
-  teams(filter: {key: {eq: $key}}, first: 1) {
+  teams(filter: { key: { eq: $key } }, first: 1) {
     nodes {
       ...TeamFields
     }
