@@ -236,7 +236,9 @@ async def test_async_path_raises_the_same_typed_errors() -> None:
             return_value=httpx.Response(
                 200,
                 json={
-                    "errors": [{"message": "nope", "extensions": {"code": "FORBIDDEN"}}]
+                    "errors": [
+                        {"message": "nope", "extensions": {"code": "FORBIDDEN"}},
+                    ],
                 },
             ),
         )

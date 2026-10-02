@@ -1,4 +1,4 @@
-"""Detects Linear changing its schema out from under the pinned copy.
+r"""Detects Linear changing its schema out from under the pinned copy.
 
 A vendored snapshot cannot detect upstream drift by construction, so this test
 refetches. It is marked ``network`` and deselected by default (see ``addopts`` in

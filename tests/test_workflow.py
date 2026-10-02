@@ -96,8 +96,8 @@ async def test_async_facade_delegates_every_query_and_mutation(
         assert await linear.search_issues_async("term") == "search"
         assert await linear.get_user_async("u") == "user"
         assert await linear.get_viewer_async() == "viewer"
-        assert await linear.create_issue_async(cast(Any, "create")) == "issue"
-        assert await linear.update_issue_async("i", cast(Any, "update")) == "issue"
+        assert await linear.create_issue_async(cast("Any", "create")) == "issue"
+        assert await linear.update_issue_async("i", cast("Any", "update")) == "issue"
         assert await linear.delete_issue_async("i") is True
         assert await linear.create_comment_async("i", "body") == "comment"
 

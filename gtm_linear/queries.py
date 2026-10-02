@@ -10,18 +10,28 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from ._generated.GetIssue import DOCUMENT as GET_ISSUE
-from ._generated.GetIssue import GetIssueResult
-from ._generated.GetTeam import DOCUMENT as GET_TEAM
-from ._generated.GetTeam import GetTeamResult
-from ._generated.GetTeamByKey import DOCUMENT as GET_TEAM_BY_KEY
-from ._generated.GetTeamByKey import GetTeamByKeyResult
-from ._generated.GetUser import DOCUMENT as GET_USER
-from ._generated.GetUser import GetUserResult
-from ._generated.GetViewer import DOCUMENT as GET_VIEWER
-from ._generated.GetViewer import GetViewerResult
-from ._generated.ListIssues import DOCUMENT as LIST_ISSUES
+from ._generated.GetIssue import (
+    DOCUMENT as GET_ISSUE,
+    GetIssueResult,
+)
+from ._generated.GetTeam import (
+    DOCUMENT as GET_TEAM,
+    GetTeamResult,
+)
+from ._generated.GetTeamByKey import (
+    DOCUMENT as GET_TEAM_BY_KEY,
+    GetTeamByKeyResult,
+)
+from ._generated.GetUser import (
+    DOCUMENT as GET_USER,
+    GetUserResult,
+)
+from ._generated.GetViewer import (
+    DOCUMENT as GET_VIEWER,
+    GetViewerResult,
+)
 from ._generated.ListIssues import (
+    DOCUMENT as LIST_ISSUES,
     ListIssuesResult,
     ListIssuesResultIssues,
     PaginationOrderBy,
@@ -31,8 +41,11 @@ from ._generated.ListWorkflowStates import (
     ListWorkflowStatesResult,
     ListWorkflowStatesResultWorkflowStates,
 )
-from ._generated.SearchIssues import DOCUMENT as SEARCH_ISSUES
-from ._generated.SearchIssues import SearchIssuesResult, SearchIssuesResultSearchIssues
+from ._generated.SearchIssues import (
+    DOCUMENT as SEARCH_ISSUES,
+    SearchIssuesResult,
+    SearchIssuesResultSearchIssues,
+)
 from ._generated.fragments import IssueSearchResultFields, WorkflowStateFields
 from .pagination import paginate
 
@@ -329,8 +342,8 @@ class LinearQueries:
 
 
 __all__ = [
+    "IssueSearchResultFields",
     "LinearQueries",
     "PaginationOrderBy",
-    "IssueSearchResultFields",
     "WorkflowStateFields",
 ]

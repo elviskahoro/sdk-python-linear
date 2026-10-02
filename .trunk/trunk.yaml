@@ -175,6 +175,14 @@ lint:
       paths:
         - "*.ipynb"
 
+    # Tests intentionally use pytest assertions, private test seams, fixture
+    # doubles, and test-only dependencies. Keep production lint/type rules
+    # from rejecting those patterns while continuing to check the application
+    # package itself.
+    - linters: [ruff, pyright, pyrefly, bandit]
+      paths:
+        - tests/**
+
     - linters: [checkov, semgrep]
       paths:
         - "**/*.py"
@@ -245,4 +253,3 @@ actions:
 
   disabled:
     - trunk-fmt-pre-commit
-

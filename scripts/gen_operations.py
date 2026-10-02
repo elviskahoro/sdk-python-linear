@@ -99,7 +99,7 @@ def _resolve_fields(
     deprecated = [f for f in spec_fields if type_.fields[f].deprecation_reason]
     if deprecated:
         print(
-            f"  warning: {where} selects deprecated field(s): {', '.join(deprecated)}"
+            f"  warning: {where} selects deprecated field(s): {', '.join(deprecated)}",
         )
     return list(spec_fields)
 
@@ -116,7 +116,10 @@ def _render_fragment(name: str, spec: dict[str, Any], schema: Any) -> str:  # no
     lines = [f"fragment {name} on {type_name} {{"]
 
     for field_name in _resolve_fields(
-        type_, spec["fields"], exclude, f"fragment {name}"
+        type_,
+        spec["fields"],
+        exclude,
+        f"fragment {name}",
     ):
         lines.append(f"  {field_name}")
 

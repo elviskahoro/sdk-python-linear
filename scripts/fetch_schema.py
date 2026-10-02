@@ -93,7 +93,7 @@ def main() -> None:
         print(f"schema updated from {args.source}: {len(sdl):,} bytes ({delta:+,})")
         print(
             "now run: uv run python scripts/gen_operations.py && "
-            "uv run python scripts/codegen.py"
+            "uv run python scripts/codegen.py",
         )
 
 

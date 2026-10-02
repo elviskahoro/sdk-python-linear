@@ -120,6 +120,6 @@ async def paginate(
         if empty_pages >= MAX_CONSECUTIVE_EMPTY_PAGES:
             raise LinearPaginationError(
                 f"{empty_pages} consecutive pages returned no nodes while "
-                "pageInfo.hasNextPage stayed true"
+                "pageInfo.hasNextPage stayed true",
             )
         cursor = page.page_info.end_cursor

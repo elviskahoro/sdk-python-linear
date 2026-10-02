@@ -15,6 +15,10 @@ from .queries import LinearQueries
 
 if TYPE_CHECKING:
     from ._generated.CreateIssue import IssueCreateInput
+    from ._generated.ListIssues import ListIssuesResultIssues
+    from ._generated.ListWorkflowStates import ListWorkflowStatesResultWorkflowStates
+    from ._generated.SearchIssues import SearchIssuesResultSearchIssues
+    from ._generated.UpdateIssue import IssueUpdateInput
     from ._generated.fragments import (
         CommentFields,
         IssueFields,
@@ -23,10 +27,6 @@ if TYPE_CHECKING:
         UserFields,
         WorkflowStateFields,
     )
-    from ._generated.ListIssues import ListIssuesResultIssues
-    from ._generated.ListWorkflowStates import ListWorkflowStatesResultWorkflowStates
-    from ._generated.SearchIssues import SearchIssuesResultSearchIssues
-    from ._generated.UpdateIssue import IssueUpdateInput
 
 
 T = TypeVar("T")
@@ -409,7 +409,6 @@ class LinearWorkflow:
 
     def _run(self, awaitable: Awaitable[T]) -> T:
         """Run one operation and release its async session before closing the loop."""
-
         try:
             asyncio.get_running_loop()
         except RuntimeError:
