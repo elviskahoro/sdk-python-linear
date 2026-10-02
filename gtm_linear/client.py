@@ -102,18 +102,75 @@ class LinearClient:
         base_url: str | None = None,
         timeout: float | None = DEFAULT_TIMEOUT,
     ) -> None:
-        """Initialize LinearClient.
+        r"""Initialize LinearClient.
 
         Args:
             api_key: Linear API key (``lin_api_...``). Held as a
                 :class:`~pydantic.SecretStr` so it is not printed by ``repr`` or
-                exposed in tracebacks.
+                exposed in tracebacks. Surrounding whitespace is stripped,
+                and embedded whitespace, control, or non-ASCII characters are
+                rejected: secret stores routinely attach a trailing newline to
+                ``LINEAR_API_KEY``, which — stored verbatim — only surfaced at
+                request time as ``httpx.LocalProtocolError: Illegal header
+                value b'lin_api_...\n'``.
             base_url: Override the API endpoint.
             timeout: Request timeout in seconds.
+
+        Raises:
+            TypeError: If ``api_key`` is neither a ``str`` nor a
+                :class:`~pydantic.SecretStr` — a :class:`LinearClient` or
+                :class:`~gtm_linear.settings.LinearSettings` instance passed by
+                mistake, for example, or a ``bytes`` key (decode it first; the
+                signature has only ever promised ``str``). It used to be
+                wrapped in ``SecretStr`` verbatim and stored, then crash the
+                first request deep inside httpx as ``TypeError: Header value
+                must be str or bytes, not LinearClient``.
+            ValueError: If the key is empty once stripped, or contains
+                embedded whitespace, control, or non-ASCII characters (a
+                stray ``Bearer `` prefix, or two secrets concatenated by a
+                bad ``$(cat ...)``, say). None of
+                these can ever authenticate or even form a legal header, so
+                they are misconfigurations better reported at construction
+                than as Linear's ``AUTHENTICATION_ERROR`` — or an
+                ``Illegal header value`` crash — after a round trip.
         """
-        self._api_key = (
-            api_key if isinstance(api_key, SecretStr) else SecretStr(api_key)
+        raw: object = (
+            api_key.get_secret_value() if isinstance(api_key, SecretStr) else api_key
         )
+        if not isinstance(raw, str):
+            # Direct ``SecretStr(x)`` construction does not validate x, so
+            # this also catches non-strings smuggled in inside a SecretStr.
+            error_msg = (
+                "api_key must be a str or SecretStr holding a str, not "
+                f"{type(raw).__name__}. Pass the key itself "
+                '("lin_api_..."); LinearClient.from_env() reads it from '
+                "LINEAR_API_KEY."
+            )
+            raise TypeError(error_msg)
+        stripped = raw.strip()
+        if not stripped:
+            error_msg = (
+                "api_key is empty after stripping whitespace "
+                "(is LINEAR_API_KEY set to a blank value?)"
+            )
+            raise ValueError(error_msg)
+        if any(
+            not char.isascii() or not char.isprintable() or char.isspace()
+            for char in stripped
+        ):
+            # ``strip()`` only trims the ends: interior junk (a stray
+            # ``Bearer `` prefix, two secrets concatenated by a bad
+            # ``$(cat ...)``, a stray space, a control character, mojibake)
+            # would still reach httpx and die at request time as an illegal
+            # — or unencodable — header value.
+            error_msg = (
+                "api_key contains embedded whitespace, control, or "
+                "non-ASCII characters (a Linear key is a single ASCII "
+                "lin_api_... token — likely a Bearer prefix, two secrets "
+                "concatenated, or a corrupted value; pass the raw key)"
+            )
+            raise ValueError(error_msg)
+        self._api_key = SecretStr(stripped)
         self.base_url = base_url or self.BASE_URL
         self.timeout = timeout
         self._headers = {

@@ -109,6 +109,7 @@ ignore = [
   "ANN401",  # monkeypatch/fake helpers are deliberately Any-typed
   "ANN001",  # respx side-effect handlers keep their loose signature
   "ANN202",  # same, for their return annotations
+  "ARG001",  # side-effect fixtures (env isolation) are requested by name, never referenced
   "SLF001",  # tests exercise _private internals on purpose
   "TRY003",  # raising fake errors with inline messages is the fixture
   "EM101",   # ditto — message-first would only add noise in tests
