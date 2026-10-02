@@ -27,6 +27,11 @@ appear in a production schema. Each is worked around below and tagged BUG-n:
   BUG-5  Definitions are emitted in SDL order, so a default can precede its enum.
   BUG-6  Field arguments are dropped, leaving input types unreachable from the
          schema, which makes stage 4 fail on every mutation.
+  BUG-7  Root fields are emitted as class attributes with their arguments dropped;
+         the Query/Mutation classes are rebuilt as resolvers.
+  BUG-8  Custom scalars are emitted as ``X = strawberry.scalar(NewType(...))``, the
+         class form strawberry deprecates; rewritten to plain NewType aliases whose
+         definitions are registered through ``StrawberryConfig.scalar_map``.
 
 Run `uv run python scripts/codegen.py` to regenerate, or `--check` to verify the
 committed output is current (used by CI and tests/test_codegen_is_current.py).
@@ -414,6 +419,54 @@ def _sanitize_sdl(sdl: str) -> str:
     return print_ast(document)
 
 
+def _migrate_scalar_definitions(source: str) -> tuple[str, list[tuple[str, str]]]:
+    """Rewrite schema-codegen's deprecated scalar class form (BUG-8).
+
+    schema-codegen emits ``X = strawberry.scalar(NewType("X", object), **kwargs)``
+    — the class form strawberry deprecates in favour of ``StrawberryConfig
+    .scalar_map``. Each assignment becomes a plain ``NewType`` alias, and the
+    kwargs are returned as ``(name, kwargs)`` pairs so the caller can register
+    ``strawberry.scalar(name=..., **kwargs)`` definitions in the schema config,
+    keyed by those aliases. Fails loudly on an emission the rewrite does not
+    recognise, rather than silently shipping the form strawberry will remove.
+    """
+    found: list[tuple[str, str]] = []
+
+    def unwrap(match: re.Match[str]) -> str:
+        name = match["name"]
+        kwargs = match["kwargs"] or ""
+        if re.search(r"\bname=", kwargs):
+            msg = (
+                f"schema-codegen emitted a `name=` kwarg for scalar {name}; "
+                "the scalar_map entry would duplicate it"
+            )
+            raise SystemExit(msg)
+        found.append((name, kwargs))
+        return f'{name} = NewType("{name}", object)'
+
+    # The `(?P=name)` backreference requires the assignment target to match
+    # the NewType's own name: if they ever diverge, the rewrite declines, the
+    # class form survives, and the drift guard below fails the run rather than
+    # silently renaming the scalar in the generated schema.
+    source = re.sub(
+        r'^(?P<name>\w+) = strawberry\.scalar\(NewType\("(?P=name)", object\)'
+        r"(?:, (?P<kwargs>.*))?\)$",
+        unwrap,
+        source,
+        flags=re.MULTILINE,
+    )
+    # Whitespace-tolerant on purpose: a future schema-codegen that wraps the
+    # call across lines defeats the one-line rewrite above, and this guard is
+    # what turns that drift into a loud failure instead of a silent miss.
+    if re.search(r"strawberry\.scalar\(\s*NewType", source):
+        msg = (
+            "schema-codegen emitted a strawberry.scalar() form the scalar "
+            "migration does not recognise; update _migrate_scalar_definitions"
+        )
+        raise SystemExit(msg)
+    return source, found
+
+
 def _patch_schema_module(path: Path) -> None:
     """Fix defects in schema-codegen's output that we cannot avoid upstream."""
     source = path.read_text()
@@ -429,25 +482,79 @@ def _patch_schema_module(path: Path) -> None:
             flags=re.MULTILINE,
         )
 
+    # BUG-8: custom scalars use the deprecated `strawberry.scalar(cls)` class form,
+    # which strawberry will remove. Unwrap them to NewType aliases here; their
+    # definitions are registered through StrawberryConfig.scalar_map below, the
+    # supported replacement.
+    source, scalars = _migrate_scalar_definitions(source)
+    if scalars:
+        source, imported = re.subn(
+            r"^(import strawberry\n)",
+            r"\1from strawberry.schema.config import StrawberryConfig\n",
+            source,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        if not imported:
+            msg = (
+                "no `import strawberry` line to hang the StrawberryConfig import "
+                "on; update _patch_schema_module"
+            )
+            raise SystemExit(msg)
+
     # BUG-6: input types are unreachable because field arguments were dropped, so
     # register them explicitly or `strawberry codegen` cannot resolve variables.
     # Custom scalars need the same treatment: an opaque filter (see OPAQUE_INPUTS)
     # appears only as a variable type, which is exactly the unreachable case.
+    # Scalar names come from the migration above, not a re-scan of the source: a
+    # NewType line the migration did not produce would land in types=[...] with
+    # no scalar_map entry and die with an opaque strawberry error.
     registered = re.findall(r"@strawberry\.input(?:\([^)]*\))?\s*\nclass (\w+)", source)
-    registered += re.findall(
-        r"^(\w+) = strawberry\.scalar\(",
-        source,
-        flags=re.MULTILINE,
-    )
+    registered += [name for name, _ in scalars]
     registered += re.findall(r"@strawberry\.enum(?:\([^)]*\))?\s*\nclass (\w+)", source)
     if registered:
+        config = ""
+        if scalars:
+            # Keyed by the NewType aliases: strawberry resolves an annotation to
+            # that object, then finds its definition through this map.
+            def entry(name: str, kwargs: str) -> str:
+                extra = f", {kwargs}" if kwargs else ""
+                return f'{name}: strawberry.scalar(name="{name}"{extra})'
+
+            entries = ",\n".join(
+                entry(name, kwargs) for name, kwargs in sorted(scalars)
+            )
+            config = f"config=StrawberryConfig(scalar_map={{{entries}}}), "
         names = ", ".join(sorted(set(registered)))
-        source = re.sub(
-            r"^schema = strawberry\.Schema\(([^)]*)\)\s*$",
-            lambda m: f"schema = strawberry.Schema({m.group(1)}, types=[{names}])",
+        # The char class excludes newlines on purpose: a wrapped Schema() call
+        # must MISS here and trip the guard below, not match across lines and
+        # corrupt the rewrite into unparseable Python.
+
+        def rewrite(match: re.Match[str]) -> str:
+            # Appending our config= next to an upstream one would be a
+            # duplicate keyword argument; fail loudly at generation time.
+            if config and re.search(r"\bconfig=", match.group(1)):
+                msg = (
+                    "schema-codegen now emits its own config= kwarg; "
+                    "update _patch_schema_module"
+                )
+                raise SystemExit(msg)
+            return (
+                f"schema = strawberry.Schema({match.group(1)}, {config}types=[{names}])"
+            )
+
+        source, patched = re.subn(
+            r"^schema = strawberry\.Schema\(([^)\n]*)\)\s*$",
+            rewrite,
             source,
             flags=re.MULTILINE,
         )
+        if not patched:
+            msg = (
+                "schema-codegen no longer emits a one-line strawberry.Schema() "
+                "call to hang the types/config on; update _patch_schema_module"
+            )
+            raise SystemExit(msg)
 
     # BUG-7: schema-codegen emits root fields as class attributes and drops their
     # arguments. Rebuild the Query and Mutation classes as Strawberry resolvers so
