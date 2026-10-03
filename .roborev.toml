@@ -1,0 +1,25 @@
+# roborev review configuration for gtm-linear.
+#
+# `review_guidelines` is embedded into every review prompt. Use it to encode
+# deliberate house decisions so the reviewer stops re-flagging them as findings.
+
+# Use the Pi coding agent with the Fireworks provider for review jobs.
+agent = "pi"
+model = "fireworks/accounts/fireworks/models/glm-5p3"
+
+review_guidelines = """
+- Everything under gtm_linear/_generated/ plus gtm_linear/_schema.py is produced
+  by scripts/codegen.py from the pinned SDL in schema/ and the operations in
+  operations/. Generated code is lint-ignored by design (see .trunk/trunk.yaml);
+  do not flag style or typing issues inside generated files, and do not suggest
+  hand-editing them. Fixes belong in the generator, and codegen.py --check
+  fails CI on drift.
+
+- Tests intentionally exercise _private internals and use bare `assert`
+  instead of unittest/pytest assertion helpers. This is covered by scoped
+  per-file ignores in ruff.toml; do not flag it and do not suggest per-line
+  noqas.
+
+- Errors raise the typed hierarchy in exceptions.py. Do not flag the absence
+  of bare KeyError/ValueError from the transport layer — that is the contract.
+"""
