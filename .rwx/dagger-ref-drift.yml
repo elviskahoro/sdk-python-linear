@@ -6,13 +6,11 @@ on:
       # run against the default branch; event.git.* resolves in this trigger
       # context (same pattern as gtm-sdk's .rwx/tests-bazel-full.yml, whose
       # live cron runs confirmed it).
-      # Runs at 10:00, one hour later than the source: during the pilot phase
-      # both pipelines run side by side, and each does a check-then-create on
-      # the same stale-ref issue -- firing at the same minute lets both see
-      # open=0 and file duplicates. The later run sees whatever issue the
-      # 09:00 GHA run created. After the flip deletes the GHA workflow, the
-      # stagger is moot and can be reverted to the source's 09:00.
-      schedule: 0 10 * * 1
+      # During the pilot this ran at 10:00, an hour behind the GHA twin, so
+      # the two check-then-create pipelines could not both see open=0 and
+      # file duplicate stale-ref issues; with the GHA workflow deleted in the
+      # flip, the stagger is moot and the source's 09:00 is restored.
+      schedule: 0 9 * * 1
       init:
         commit-sha: ${{ event.git.sha }}
         branch: ${{ event.git.branch }}

@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Removed
+
+- The `ci.yml` and `dagger-ref-drift.yml` GitHub Actions workflows — their
+  RWX ports (`.rwx/ci.yml`, `.rwx/dagger-ref-drift.yml`) are now the
+  canonical CI and drift checks, validated against live cloud dispatches on
+  both trigger paths before the flip. The drift cron's pilot stagger is
+  reverted to the original 09:00 UTC. GitHub Actions remains for `pypi.yml`
+  (PyPI trusted publishing) and `pullfrog.yml`; dependabot.yml keeps
+  covering those. See `.rwx/.migration-inventory.md` for the flip status,
+  including the two remaining setup steps (GitHub App wiring and the vault
+  token swap).
+
 ### Added
 
 - RWX pipeline configs under `.rwx/` — `.rwx/ci.yml` (tests, codegen
