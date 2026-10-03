@@ -56,12 +56,21 @@ tasks:
   # which is part of this repo's file contents -- a cache hit would skip the
   # very drift this pipeline exists to detect.
   # The source relied on GHA's implicit `github.token` scoped by
-  # `permissions: issues: write`; RWX has no implicit token, so GH_TOKEN must
-  # come from the default vault (`rwx vaults secrets set GITHUB_TOKEN=...`)
-  # as a PAT with issue-write access to this repo -- see
-  # .rwx/.migration-inventory.md. cache-key: excluded keeps that PAT out of
-  # the task's cache key (moot while cache: false, but kept so re-enabling
-  # caching later can't pin the key to a token value).
+  # `permissions: issues: write`; RWX has no implicit token (probed live
+  # 2026-10-03: the `${{ github.token }}` expression is not available in
+  # task env, so the App installation token can't be used here). GH_TOKEN
+  # therefore comes from a locked, repo-scoped custom vault
+  # (`sdk-python-linear`, permission `elviskahoro/sdk-python-linear:*`) as a
+  # fine-grained PAT with Issues: Read/Write on exactly this repo -- created
+  # with:
+  #   rwx vaults create --name sdk-python-linear \
+  #     --repository-permission 'elviskahoro/sdk-python-linear:*'
+  #   rwx vaults secrets set --vault sdk-python-linear GITHUB_TOKEN=<pat>
+  # The repo-scoped vault also keeps the secret away from fork-PR runs (a
+  # fork's runs carry a different repository slug and never match).
+  # cache-key: excluded keeps the PAT out of the task's cache key (moot
+  # while cache: false, but kept so re-enabling caching later can't pin the
+  # key to a token value).
   # `-R` is explicit (the source relied on gh's git-remote inference):
   # git/clone strips the .git directory by default, so there is no origin
   # remote for gh to infer the repository from.
@@ -71,14 +80,14 @@ tasks:
     env:
       GH_TOKEN:
         # trunk-ignore(semgrep/yaml.github-actions.security.gha-workflow-env-secret.gha-workflow-env-secret): task-scoped `env:` in an RWX run definition, not a GHA workflow-level env block — this secret is only visible to this task's own steps, not every job/step in a workflow.
-        value: ${{ secrets.GITHUB_TOKEN }}
+        value: ${{ vaults.sdk-python-linear.secrets.GITHUB_TOKEN }}
         cache-key: excluded
     run: |
       set -euo pipefail
       # Fail loudly and specifically when the vault secret is missing, rather
       # than at the first gh call with a confusing auth error that reads like
       # a drift-check failure.
-      : "${GH_TOKEN:?GITHUB_TOKEN vault secret not provisioned -- rwx vaults secrets set GITHUB_TOKEN=...}"
+      : "${GH_TOKEN:?GITHUB_TOKEN vault secret not provisioned -- rwx vaults secrets set --vault sdk-python-linear GITHUB_TOKEN=...}"
       repo=elviskahoro/sdk-python-publish-to-pypi
       # No match (pypi.yml stops pinning the module, or the format changes)
       # exits grep 1 and would kill the task bare under `set -e` -- fail with
