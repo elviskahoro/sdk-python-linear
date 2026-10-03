@@ -1,0 +1,49 @@
+on:
+  github:
+    pull_request:
+      init:
+        event-type: pull_request
+
+base:
+  image: ubuntu:24.04
+  config: rwx/base 1.2.0
+
+tasks:
+  # Throwaway probe -- this file lives only on this branch and is never
+  # merged; the PR is closed after the probe reports. It answers two
+  # questions in one real on.github-triggered run:
+  #   1. Does the RWX GitHub App integration fire for this repo? (the run
+  #      existing at all is the answer)
+  #   2. Can the App's installation token (${{ github.token }}) read and
+  #      write issues here? (decides whether .rwx/dagger-ref-drift.yml needs
+  #      a vault PAT or can drop long-lived secrets entirely)
+  # The issues-write probe creates one clearly-labeled issue and closes it
+  # immediately; that is the only side effect.
+  - key: gh-install
+    call: github/install-cli 1.1.0
+    cache: false
+
+  - key: app-token-probe
+    use: [gh-install]
+    env:
+      GH_TOKEN:
+        value: ${{ github.token }}
+        cache-key: excluded
+    run: |
+      set -uo pipefail
+      echo "== github.token resolved? =="
+      if [ -z "${GH_TOKEN:-}" ]; then
+        echo "EMPTY -- github.token did not resolve in this trigger context"
+        exit 0
+      fi
+      echo "resolved (length ${#GH_TOKEN})"
+      echo "== token identity =="
+      gh api user 2>&1 | head -3
+      echo "== issues read on sdk-python-linear =="
+      gh issue list -R elviskahoro/sdk-python-linear --state open --json number --jq 'length' 2>&1 || true
+      echo "== issues write probe: create + close a labeled smoke issue =="
+      url="$(gh issue create -R elviskahoro/sdk-python-linear \
+        --title "[rwx-smoke] GitHub App token issue-write probe (auto-closing)" \
+        --body "Created by an RWX probe run to test whether the App installation token can write issues. Closed immediately; ignore." 2>&1)" \
+        && { echo "created: ${url}"; gh issue close -R elviskahoro/sdk-python-linear "${url##*/}" --reason "not planned" && echo "closed"; } \
+        || echo "ISSUE CREATE FAILED -- app token cannot write issues"
