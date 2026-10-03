@@ -38,6 +38,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   secret, and gained a `dagger-ref-drift` dispatch trigger —
   `rwx dispatch dagger-ref-drift --ref main` reproduces the weekly cron's
   exact path (same repository, ref, and vault unlock) for on-demand checks.
+- Pin the PyPI publisher Dagger module to its `v0.2.2` release, protect
+  version tags upstream, and have the weekly drift check flag only newer
+  stable releases.
 - `LinearClient` — and therefore `LinearWorkflow`, `LinearClient.from_env`,
   and `LinearClient.from_settings` — validates the API key at construction
   instead of failing at the first request deep inside httpx. Surrounding

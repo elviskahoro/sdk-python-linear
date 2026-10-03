@@ -121,6 +121,10 @@ ignore = [
   "S301",    # pickle round-trips of self-built fixtures, never untrusted data
   "SIM117",  # nested with (mock + client) reads better than one long line
 ]
+"tests/test_dagger_ref_drift.py" = [
+  "S107", # the GH token is a synthetic fixture value, never a real secret
+  "S603", # subprocess inputs are controlled test arguments and a fixed script
+]
 
 [lint.isort]
 case-sensitive = true

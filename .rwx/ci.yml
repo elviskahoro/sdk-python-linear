@@ -57,6 +57,36 @@ tasks:
       # public, so no github-token is needed (gtm-sdk's .rwx configs need one
       # only because that repo is private).
 
+  # The publisher-drift integration test executes the same jq projection that
+  # `gh issue list --jq` uses, including its base64/TSV handling of issue bodies.
+  # Pin the release and checksum; install it into the shared tool path.
+  - key: jq-install
+    use: [code]
+    run: |
+      set -euo pipefail
+      tool_dir="$HOME/.local/bin"
+      mkdir -p "$tool_dir"
+      jq_path="$tool_dir/jq"
+      case "$(uname -m)" in
+        x86_64)
+          jq_asset=jq-linux-amd64
+          jq_sha256=5942c9b0934e510ee61eb3e30273f1b3fe2590df93933a93d7c58b81d19c8ff5
+          ;;
+        aarch64|arm64)
+          jq_asset=jq-linux-arm64
+          jq_sha256=4dd2d8a0661df0b22f1bb9a1f9830f06b6f3b8f7d91211a1ef5d7c4f06a8b4a5
+          ;;
+        *)
+          echo "unsupported jq runner architecture: $(uname -m)" >&2
+          exit 1
+          ;;
+      esac
+      curl -fsSL "https://github.com/jqlang/jq/releases/download/jq-1.7.1/${jq_asset}" -o "$jq_path"
+      echo "${jq_sha256}  ${jq_path}" | sha256sum -c -
+      chmod 0755 "$jq_path"
+      "$jq_path" --version
+      echo "$tool_dir" >> "$RWX_ENV/PATH"
+
   # No packaged `uv/install` leaf exists in the RWX catalog (verified via
   # `rwx packages list` 2026-10-03 -- `python/install` installs Python, not
   # uv), so this manual installer stays. Checksum-pinned so an altered or
@@ -69,7 +99,7 @@ tasks:
   # [tool.uv] required-version pin, so bumping this is safe as long as the
   # committed uv.lock still parses and `uv sync --locked` stays clean.
   - key: uv-install
-    use: [code]
+    use: [jq-install]
     run: |
       set -euo pipefail
       script="$(mktemp)"
@@ -103,6 +133,8 @@ tasks:
   # Generated code is current, same steps, same order.
   - key: test
     use: [deps]
+    env:
+      REQUIRE_JQ: "1"
     run: |
       uv run pytest -q
       # Fails if operations/*.graphql drifted from operations/_spec.toml.
