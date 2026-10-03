@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "corridor": {
+      "type": "http",
+      "url": "https://app.corridor.dev/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${CORRIDOR_API_TOKEN}"
+      }
+    }
+  }
+}
