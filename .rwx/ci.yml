@@ -1,0 +1,151 @@
+on:
+  github:
+    push:
+      init:
+        commit-sha: ${{ event.git.sha }}
+        branch: ${{ event.git.branch }}
+        repository: https://github.com/elviskahoro/sdk-python-linear.git
+        event-type: push
+      if: ${{ event.git.branch == 'main' }}
+    pull_request:
+      # Source workflow (.github/workflows/ci.yml) declares `pull_request: {}`
+      # with no branches filter, so there is deliberately no base-branch `if:`
+      # here -- unlike gtm-sdk's .rwx configs, whose source gated on main.
+      init:
+        commit-sha: ${{ event.git.sha }}
+        repository: https://github.com/elviskahoro/sdk-python-linear.git
+        event-type: pull_request
+  cron:
+    - key: weekly-schema-drift
+      # Source workflow: `schedule: cron: 17 6 * * 1` -- weekly Monday 06:17
+      # UTC (no timezone declared in the source cron, so UTC). Catches Linear
+      # changing its schema out from under the pinned copy. Cron schedules run
+      # against the default branch; event.git.* resolves in this trigger
+      # context (same pattern as gtm-sdk's .rwx/tests-bazel-full.yml, whose
+      # live cron runs confirmed it).
+      schedule: 17 6 * * 1
+      init:
+        commit-sha: ${{ event.git.sha }}
+        branch: ${{ event.git.branch }}
+        repository: https://github.com/elviskahoro/sdk-python-linear.git
+        event-type: schedule
+  cli:
+    # Manual `rwx run` dispatch for validation -- the source workflow has no
+    # workflow_dispatch. Mirrors the push trigger's init so a dispatch
+    # exercises the push path; schema-drift stays skipped (it only runs on
+    # schedule).
+    init:
+      commit-sha: ${{ event.git.sha }}
+      branch: ${{ event.git.branch }}
+      repository: https://github.com/elviskahoro/sdk-python-linear.git
+      event-type: push
+
+base:
+  image: ubuntu:24.04
+  config: rwx/base 1.2.0
+
+tasks:
+  - key: code
+    call: git/clone 2.2.0
+    with:
+      repository: ${{ init.repository }}
+      ref: ${{ init.commit-sha }}
+      # Source workflow used actions/checkout with its default fetch-depth: 1;
+      # nothing in the test suite or the two --check scripts reads git
+      # history, so git/clone's default shallow fetch matches. The repo is
+      # public, so no github-token is needed (gtm-sdk's .rwx configs need one
+      # only because that repo is private).
+
+  # No packaged `uv/install` leaf exists in the RWX catalog (verified via
+  # `rwx packages list` 2026-10-03 -- `python/install` installs Python, not
+  # uv), so this manual installer stays. Checksum-pinned so an altered or
+  # compromised script at that URL fails closed instead of executing -- same
+  # pattern as gtm-sdk's .rwx/trunk-check.yml uv-install task.
+  # The source workflow's astral-sh/setup-uv resolved the latest uv (it pins
+  # only the action, not uv); this port pins 0.11.29 instead -- the version
+  # the exact steps below were validated against (uv sync --locked + full
+  # pytest suite). Unlike gtm-sdk, this repo's pyproject.toml carries no
+  # [tool.uv] required-version pin, so bumping this is safe as long as the
+  # committed uv.lock still parses and `uv sync --locked` stays clean.
+  - key: uv-install
+    use: [code]
+    run: |
+      set -euo pipefail
+      script="$(mktemp)"
+      trap 'rm -f "${script}"' EXIT
+      curl -LsSf https://astral.sh/uv/0.11.29/install.sh -o "${script}"
+      echo "504a79fd2ed0dcd47e7f04f0792cfd0871f62e24a7fe40fa8ae0f563a369f2bd  ${script}" | sha256sum -c -
+      sh "${script}"
+      echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
+
+  # No `filter:` here -- `uv sync` installs gtm-linear editable and the test
+  # suite imports scripts/ and operations/ too, so the full source tree must
+  # be present (same rationale as gtm-sdk's .rwx/trunk-check.yml deps task).
+  # UV_LOCKED and UV_PYTHON are exported to $RWX_ENV so every downstream
+  # `uv run` inherits them -- the RWX equivalent of the source workflow's
+  # workflow-level `env:` block, which existed so `uv run` steps fail loudly
+  # on lockfile drift instead of silently re-resolving off PyPI. UV_PYTHON
+  # mirrors setup-uv's python-version input (which sets UV_PYTHON).
+  - key: deps
+    use: [uv-install]
+    env:
+      UV_LOCKED: "1"
+      UV_PYTHON: "3.13"
+    run: |
+      uv sync
+      echo "$PWD/.venv/bin" >> "$RWX_ENV/PATH"
+      echo "$PWD/.venv" > "$RWX_ENV/VIRTUAL_ENV"
+      echo "1" > "$RWX_ENV/UV_LOCKED"
+      echo "3.13" > "$RWX_ENV/UV_PYTHON"
+
+  # Ports the source workflow's `test` job: Tests / Operations are current /
+  # Generated code is current, same steps, same order.
+  - key: test
+    use: [deps]
+    run: |
+      uv run pytest -q
+      # Fails if operations/*.graphql drifted from operations/_spec.toml.
+      uv run python scripts/gen_operations.py --check
+      # Fails if a generated model was hand-edited or the schema pin moved
+      # without regenerating.
+      uv run python scripts/codegen.py --check
+
+  # Ports the source workflow's `lean-install` job: the wheel must build and
+  # import without the [strawberry] extra. `use:`s [uv-install] rather than
+  # [deps] to mirror the source job, which never runs uv sync -- `uv build`
+  # builds in an isolated hatchling env, and the import check installs only
+  # dist/*.whl into a throwaway venv.
+  - key: lean-install
+    use: [uv-install]
+    env:
+      UV_PYTHON: "3.13"
+    run: |
+      set -euo pipefail
+      uv build
+      uv venv -p 3.13 /tmp/lean
+      VIRTUAL_ENV=/tmp/lean uv pip install dist/*.whl
+      # Capture the listing before grepping it: under `set -o pipefail`,
+      # `grep -q` exits on first match and uv can take SIGPIPE (141), which
+      # would make the `if` false and pass the guard exactly when the leak
+      # exists. Captured-then-grepped closes that fail-open window.
+      lean_list="$(VIRTUAL_ENV=/tmp/lean uv pip list)"
+      if grep -qi strawberry <<<"${lean_list}"; then
+        echo "strawberry leaked into the runtime dependency tree"; exit 1
+      fi
+      /tmp/lean/bin/python -c "import gtm_linear; print(gtm_linear.__version__)"
+
+  # Ports the source workflow's `schema-drift` job (`if:
+  # github.event_name == 'schedule'`): network-marked tests are deselected by
+  # default; the schedule runs them so upstream drift surfaces in CI rather
+  # than in a user's traceback. The test fetches Linear's public SDK schema
+  # from raw.githubusercontent.com -- no API key involved.
+  # cache: false is required, not cosmetic: the result depends on Linear's
+  # live schema, not just this repo's files, so a cache hit would freeze the
+  # drift check exactly when upstream moved. RWX caches tasks by content by
+  # default and does not detect non-determinism (see
+  # https://www.rwx.com/docs/caching).
+  - key: schema-drift
+    use: [deps]
+    if: ${{ init.event-type == 'schedule' }}
+    cache: false
+    run: uv run pytest -q -m network
