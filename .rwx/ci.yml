@@ -8,9 +8,10 @@ on:
         event-type: push
       if: ${{ event.git.branch == 'main' }}
     pull_request:
-      # Source workflow (.github/workflows/ci.yml) declares `pull_request: {}`
-      # with no branches filter, so there is deliberately no base-branch `if:`
-      # here -- unlike gtm-sdk's .rwx configs, whose source gated on main.
+      # The source GHA workflow (deleted in the flip) declared
+      # `pull_request: {}` with no branches filter, so there is deliberately
+      # no base-branch `if:` here -- unlike gtm-sdk's .rwx configs, whose
+      # source gated on main.
       init:
         commit-sha: ${{ event.git.sha }}
         repository: https://github.com/elviskahoro/sdk-python-linear.git

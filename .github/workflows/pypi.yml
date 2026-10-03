@@ -18,7 +18,8 @@ jobs:
       # v8.4.1
       - uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77
       # Pinned commit of the owner's module (no tags); checked weekly by
-      # dagger-ref-drift.yml.
+      # .rwx/dagger-ref-drift.yml (the RWX pipeline that replaced the old
+      # GHA drift workflow).
       - run: >-
           dagger -m github.com/elviskahoro/sdk-python-publish-to-pypi@1cdcc45e2e4fe78768d73def9cbe23a54209f618 call build --source . export --path dist
       # v4.6.2

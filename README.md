@@ -422,8 +422,8 @@ sdk-python-linear/
 ├── ruff.toml                 # lint config (repo-local, incl. per-file ignores)
 ├── pyrightconfig.json        # pyright config (repo-local)
 ├── pyrefly.toml              # type-checker config
-├── .github/workflows/        # ci.yml (tests, codegen checks, lean install), pypi.yml
-├── .rwx/                     # RWX pipelines — pilot port of ci.yml + dagger-ref-drift.yml
+├── .github/workflows/        # pypi.yml (publish), pullfrog.yml (agent harness)
+├── .rwx/                     # RWX pipelines — ci.yml + dagger-ref-drift.yml (canonical CI)
 └── .trunk/                   # lint config (trunk.io)
 ```
 
@@ -443,7 +443,7 @@ trunk check --all             # lint + type check (local; run uv sync first)
 trunk fmt                     # autoformat
 ```
 
-CI (`.github/workflows/ci.yml`) runs `pytest`, the two `--check` scripts, a lean-install job (the wheel must import without the `[strawberry]` extra), and a weekly scheduled schema-drift job (`pytest -m network`). `trunk check` is **not** a CI gate.
+CI runs on RWX: `.rwx/ci.yml` runs `pytest`, the two `--check` scripts, a lean-install task (the wheel must import without the `[strawberry]` extra), and a weekly scheduled schema-drift cron (`pytest -m network`); `.rwx/dagger-ref-drift.yml` checks the pinned Dagger publish-module ref weekly. GitHub Actions remains only for the tag-triggered PyPI publish (`pypi.yml`) and the Pullfrog agent harness (`pullfrog.yml`) — see `.rwx/.migration-inventory.md` for the port inventory and flip status. `trunk check` is **not** a CI gate.
 
 Tests use `respx` to mock `httpx` — no network access required. `pytest-asyncio` is in `auto` mode, so async test functions don't need decoration.
 
