@@ -22,6 +22,16 @@ on:
       commit-sha: ${{ event.git.sha }}
       branch: ${{ event.git.branch }}
       repository: https://github.com/elviskahoro/sdk-python-linear.git
+  dispatch:
+    # Ad-hoc drift checks from the Cloud UI / API / CLI (`rwx dispatch
+    # dagger-ref-drift --ref main`). Doubles as the empirical test for the
+    # cron path's locked-vault access: a dispatch with `--ref main` populates
+    # event.git from main and unlocks vaults exactly as the weekly cron does
+    # (same repository, same branch pattern).
+    - key: dagger-ref-drift
+      init:
+        commit-sha: ${{ event.git.sha }}
+        repository: https://github.com/elviskahoro/sdk-python-linear.git
 
 base:
   image: ubuntu:24.04
@@ -60,14 +70,15 @@ tasks:
   # 2026-10-03: the `${{ github.token }}` expression is not available in
   # task env, so the App installation token can't be used here). GH_TOKEN
   # therefore comes from a locked, repo-scoped custom vault
-  # (`sdk-python-linear`, permission `elviskahoro/sdk-python-linear:*`) as a
-  # fine-grained PAT with Issues: Read/Write on exactly this repo -- created
-  # with:
-  #   rwx vaults create --name sdk-python-linear \
-  #     --repository-permission 'elviskahoro/sdk-python-linear:*'
+  # (`sdk-python-linear`) as a fine-grained PAT with Issues: Read/Write on
+  # exactly this repo. Vault access is granted for repository runs on main
+  # (the weekly cron's ref) and for the account user (cli dispatches); a
+  # bare `*` branch pattern was tried and does NOT match -- glob `*` does
+  # not cross `/`, so multi-segment branch names like conductor/* never
+  # matched. The repo-scoped vault also keeps the secret away from fork-PR
+  # runs (a fork's runs carry a different repository slug and never match).
+  # Provision with:
   #   rwx vaults secrets set --vault sdk-python-linear GITHUB_TOKEN=<pat>
-  # The repo-scoped vault also keeps the secret away from fork-PR runs (a
-  # fork's runs carry a different repository slug and never match).
   # cache-key: excluded keeps the PAT out of the task's cache key (moot
   # while cache: false, but kept so re-enabling caching later can't pin the
   # key to a token value).
