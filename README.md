@@ -2,7 +2,7 @@
 
 Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, typed wrapper around `httpx` with optional sync support, Strawberry-typed models, explicit error semantics, and a bundled read-only CLI.
 
-> **Status:** Pre-alpha (`0.0.1`). PyPI name reserved. API surface is small and stable but incomplete — fall back to raw `LinearClient.execute_async` for anything not yet wrapped.
+> **Status:** Alpha (`0.2.2`, see `pyproject.toml` and `CHANGELOG.md`). API surface is small but incomplete — fall back to raw `LinearClient.execute_async` for anything not yet wrapped.
 
 ---
 
@@ -418,7 +418,11 @@ sdk-python-linear/
 ├── operations/               # GraphQL selection sets (codegen inputs)
 ├── schema/                   # Linear SDL pin (codegen input)
 ├── pyproject.toml            # hatchling; deps, extras, console scripts
+├── CHANGELOG.md              # release notes
+├── ruff.toml                 # lint config (repo-local, incl. per-file ignores)
+├── pyrightconfig.json        # pyright config (repo-local)
 ├── pyrefly.toml              # type-checker config
+├── .github/workflows/        # ci.yml (tests, codegen checks, lean install), pypi.yml
 └── .trunk/                   # lint config (trunk.io)
 ```
 
@@ -432,17 +436,23 @@ Build backend: `hatchling`. Wheel packages: `["gtm_linear"]`.
 uv sync                       # install deps
 uv run pytest                 # run tests (respx-mocked, no network)
 uv run pytest tests/test_client.py::test_execute_sync_returns_data  # single test
-trunk check --all             # lint + type check
+uv run python scripts/gen_operations.py --check   # operations/*.graphql vs _spec.toml
+uv run python scripts/codegen.py --check          # generated models vs pinned schema
+trunk check --all             # lint + type check (local; run uv sync first)
 trunk fmt                     # autoformat
 ```
+
+CI (`.github/workflows/ci.yml`) runs `pytest`, the two `--check` scripts, a lean-install job (the wheel must import without the `[strawberry]` extra), and a weekly scheduled schema-drift job (`pytest -m network`). `trunk check` is **not** a CI gate.
 
 Tests use `respx` to mock `httpx` — no network access required. `pytest-asyncio` is in `auto` mode, so async test functions don't need decoration.
 
 ### Conventions
 
 - All public methods are documented with Google-style docstrings.
-- Strawberry types in `generated_types.py` use `# type: ignore[misc]` on the decorator due to a known mypy ↔ Strawberry interaction.
+- Never hand-edit `gtm_linear/_generated/` or `gtm_linear/_schema.py`; regenerate with `scripts/codegen.py` (`--check` fails CI on drift). Both are lint-ignored in `.trunk/trunk.yaml`, so fixes belong in the generator.
+- Transport and API failures raise the typed hierarchy in `gtm_linear/exceptions.py`.
 - Input types are constructed positionally in tests and the smoke script; some checkers flag this (see `# pyright: ignore[reportCallIssue]` in `scripts/smoke.py`).
+- Tests intentionally use `assert` and `_private` internals; scoped per-file ignores in `ruff.toml` cover this, so don't add per-line `noqa`s.
 - No retries, no connection pooling tuning, no logging. Add at the call site.
 
 ---
