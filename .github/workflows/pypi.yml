@@ -17,7 +17,8 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
       # v8.4.1
       - uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77
-      # Pinned commit of the owner's module (no tags); bump by hand.
+      # Pinned commit of the owner's module (no tags); checked weekly by
+      # dagger-ref-drift.yml.
       - run: >-
           dagger -m github.com/elviskahoro/sdk-python-publish-to-pypi@1cdcc45e2e4fe78768d73def9cbe23a54209f618 call build --source . export --path dist
       # v4.6.2
