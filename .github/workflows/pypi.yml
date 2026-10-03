@@ -17,8 +17,9 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
       # v8.4.1
       - uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77
+      # Pinned commit of the owner's module (no tags); bump by hand.
       - run: >-
-          dagger -m github.com/elviskahoro/sdk-python-publish-to-pypi@main call build --source . export --path dist
+          dagger -m github.com/elviskahoro/sdk-python-publish-to-pypi@1cdcc45e2e4fe78768d73def9cbe23a54209f618 call build --source . export --path dist
       # v4.6.2
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -37,5 +38,5 @@ jobs:
         with:
           name: dist
           path: dist/
-      # release/v1 branch head
+      # v1.14.2
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33

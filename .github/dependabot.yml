@@ -1,0 +1,8 @@
+version: 2
+updates:
+  # Bumps the SHA-pinned `uses:` refs. The dagger module ref in pypi.yml's
+  # `run:` step is not visible to Dependabot and is bumped by hand.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
