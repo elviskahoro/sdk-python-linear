@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- RWX pipeline configs under `.rwx/` — `.rwx/ci.yml` (tests, codegen
+  `--check`s, lean install, weekly schema-drift cron) and
+  `.rwx/dagger-ref-drift.yml` (weekly pinned-Dagger-module-ref drift check)
+  — porting the GitHub Actions workflows to RWX following gtm-sdk's pilot
+  pattern. GitHub Actions remains the canonical CI gate until the RWX
+  pipelines are validated and flipped; see `.rwx/.migration-inventory.md`
+  for the port inventory, the deliberate out-of-scope calls (pypi.yml,
+  pullfrog.yml), and the flip checklist.
+
 ### Changed
 
 - `LinearClient` — and therefore `LinearWorkflow`, `LinearClient.from_env`,

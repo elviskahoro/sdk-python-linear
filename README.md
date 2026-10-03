@@ -423,6 +423,7 @@ sdk-python-linear/
 ├── pyrightconfig.json        # pyright config (repo-local)
 ├── pyrefly.toml              # type-checker config
 ├── .github/workflows/        # ci.yml (tests, codegen checks, lean install), pypi.yml
+├── .rwx/                     # RWX pipelines — pilot port of ci.yml + dagger-ref-drift.yml
 └── .trunk/                   # lint config (trunk.io)
 ```
 
