@@ -21,7 +21,7 @@ jobs:
       - run: >-
           dagger -m github.com/elviskahoro/sdk-python-publish-to-pypi@1cdcc45e2e4fe78768d73def9cbe23a54209f618 call build --source . export --path dist
       # v4.6.2
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: dist
           path: dist/
