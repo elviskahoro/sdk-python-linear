@@ -14,9 +14,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   both trigger paths before the flip. The drift cron's pilot stagger is
   reverted to the original 09:00 UTC. GitHub Actions remains for `pypi.yml`
   (PyPI trusted publishing) and `pullfrog.yml`; dependabot.yml keeps
-  covering those. See `.rwx/.migration-inventory.md` for the flip status,
-  including the two remaining setup steps (GitHub App wiring and the vault
-  token swap).
+  covering those. See `.rwx/.migration-inventory.md` for the full record —
+  the two setup steps it flagged as remaining (GitHub App wiring, vault
+  token swap) have since been completed and verified with live runs.
 
 ### Added
 
@@ -24,13 +24,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `--check`s, lean install, weekly schema-drift cron) and
   `.rwx/dagger-ref-drift.yml` (weekly pinned-Dagger-module-ref drift check)
   — porting the GitHub Actions workflows to RWX following gtm-sdk's pilot
-  pattern. GitHub Actions remains the canonical CI gate until the RWX
-  pipelines are validated and flipped; see `.rwx/.migration-inventory.md`
-  for the port inventory, the deliberate out-of-scope calls (pypi.yml,
-  pullfrog.yml), and the flip checklist.
+  pattern. The pilot has since been validated and flipped: RWX is the
+  canonical CI gate, and GitHub Actions remains only for the publish and
+  agent workflows; see `.rwx/.migration-inventory.md`
+  for the port inventory and the deliberate out-of-scope calls (pypi.yml,
+  pullfrog.yml).
 
 ### Changed
 
+- The weekly dagger-ref-drift check reads its GitHub token from a locked,
+  repo-scoped `sdk-python-linear` RWX vault (fine-grained PAT with Issues:
+  Read/Write on this repo only) instead of the shared default-vault
+  secret, and gained a `dagger-ref-drift` dispatch trigger —
+  `rwx dispatch dagger-ref-drift --ref main` reproduces the weekly cron's
+  exact path (same repository, ref, and vault unlock) for on-demand checks.
 - `LinearClient` — and therefore `LinearWorkflow`, `LinearClient.from_env`,
   and `LinearClient.from_settings` — validates the API key at construction
   instead of failing at the first request deep inside httpx. Surrounding
