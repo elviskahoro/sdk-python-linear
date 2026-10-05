@@ -36,6 +36,77 @@ fragment CommentFields on Comment {
   createdAt
 }
 
+fragment IssueContextCommentFields on Comment {
+  id
+  body
+  url
+  createdAt
+  user {
+    id
+    name
+    email
+    active
+  }
+  externalUser {
+    id
+    displayName
+    name
+    email
+  }
+}
+
+fragment IssueContextAttachmentFields on Attachment {
+  id
+  title
+  url
+  source
+  sourceType
+  metadata
+  createdAt
+}
+
+fragment IssueContextRelationFields on IssueRelation {
+  id
+  type
+  createdAt
+  issue {
+    id
+    identifier
+    title
+    url
+  }
+  relatedIssue {
+    id
+    identifier
+    title
+    url
+  }
+}
+
+fragment AttachmentFields on Attachment {
+  id
+  createdAt
+  updatedAt
+  subtitle
+  title
+  url
+}
+
+fragment IssueRelationFields on IssueRelation {
+  id
+  type
+  createdAt
+  updatedAt
+  issue {
+    id
+    identifier
+  }
+  relatedIssue {
+    id
+    identifier
+  }
+}
+
 fragment IssueFields on Issue {
   id
   identifier

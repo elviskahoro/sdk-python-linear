@@ -212,12 +212,18 @@ def _render_operation(
 
     return_type = _unwrap(root_field.type)
     fragment_name = spec.get("fragment")
+    connection = spec.get("connection")
 
     if fragment_name is None:
-        # No entity projection: a bare payload, e.g. issueDelete { success }.
-        leaves = _leaf_fields(return_type, set())
-        selection = ["success"] if "success" in leaves else leaves
-        body = list(selection)
+        # No entity projection: a bare payload, e.g. issueDelete { success }, or
+        # a nested connection selected directly on the returned entity.
+        if connection is not None:
+            body = []
+        else:
+            leaves = _leaf_fields(return_type, set())
+            selection = ["success"] if "success" in leaves else leaves
+            body = list(selection)
+        target_type = return_type.name
     else:
         target = fragments[fragment_name]["on"]
         path = _path_to_type(return_type, target)
@@ -228,6 +234,16 @@ def _render_operation(
             )
             raise SystemExit(msg)
         body = _render_selection(return_type, path, fragment_name, spec)
+        target_type = target
+
+    if connection is not None:
+        body.extend(
+            _render_nested_connection(
+                schema.get_type(target_type),
+                connection,
+                fragments,
+            ),
+        )
 
     lines = [
         f"{header} {{",
@@ -237,6 +253,56 @@ def _render_operation(
         "}",
     ]
     return "\n".join(lines)
+
+
+def _render_nested_connection(
+    owner_type: Any,  # noqa: ANN401
+    spec: dict[str, Any],
+    fragments: dict[str, dict[str, Any]],
+) -> list[str]:
+    """Render a paginated connection nested on the operation's target entity."""
+    field_name = spec["field"]
+    if field_name not in owner_type.fields:
+        msg = f"nested connection: {owner_type.name} has no field {field_name}"
+        raise SystemExit(msg)
+
+    field = owner_type.fields[field_name]
+    arguments: dict[str, str] = spec.get("arguments", {})
+    for argument_name in arguments:
+        if argument_name not in field.args:
+            msg = f"nested connection: {field_name} has no argument {argument_name}"
+            raise SystemExit(msg)
+
+    fragment_name = spec["fragment"]
+    if fragment_name not in fragments:
+        msg = f"nested connection: unknown fragment {fragment_name}"
+        raise SystemExit(msg)
+    connection_type = _unwrap(field.type)
+    target_type = fragments[fragment_name]["on"]
+    path = _path_to_type(connection_type, target_type)
+    if path is None:
+        msg = (
+            f"nested connection {field_name}: cannot reach {target_type} from "
+            f"{connection_type.name}"
+        )
+        raise SystemExit(msg)
+
+    if arguments:
+        rendered = ", ".join(f"{name}: {value}" for name, value in arguments.items())
+        field_call = f"{field_name}({rendered})"
+    else:
+        field_call = field_name
+    nested = _render_selection(
+        connection_type,
+        path,
+        fragment_name,
+        {"paginated": True},
+    )
+    return [
+        f"{field_call} {{",
+        *[f"  {line}" for line in nested],
+        "}",
+    ]
 
 
 def _render_selection(

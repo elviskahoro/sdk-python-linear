@@ -2,8 +2,19 @@
 """Types shared by operations via GraphQL fragments."""
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 from gtm_linear.models import LinearModel
+
+
+class AttachmentFields(LinearModel):
+    """GraphQL type: Attachment."""
+
+    id: str
+    created_at: datetime
+    updated_at: datetime
+    subtitle: Optional[str]
+    title: str
+    url: str
 
 
 class CommentFields(LinearModel):
@@ -41,6 +52,27 @@ class IssueFields(LinearModel):
     assignee: Optional[IssueFieldsAssignee]
 
 
+class IssueRelationFieldsIssue(LinearModel):
+    id: str
+    identifier: str
+
+
+class IssueRelationFieldsRelatedIssue(LinearModel):
+    id: str
+    identifier: str
+
+
+class IssueRelationFields(LinearModel):
+    """GraphQL type: IssueRelation."""
+
+    id: str
+    type: str
+    created_at: datetime
+    updated_at: datetime
+    issue: IssueRelationFieldsIssue
+    related_issue: IssueRelationFieldsRelatedIssue
+
+
 class TeamFields(LinearModel):
     """GraphQL type: Team."""
 
@@ -58,6 +90,18 @@ class UserFields(LinearModel):
     active: bool
 
 
+class IssueContextAttachmentFields(LinearModel):
+    """GraphQL type: Attachment."""
+
+    id: str
+    title: str
+    url: str
+    source: Optional[dict[str, Any]]
+    source_type: Optional[str]
+    metadata: dict[str, Any]
+    created_at: datetime
+
+
 class PageInfoFields(LinearModel):
     """GraphQL type: PageInfo."""
 
@@ -65,6 +109,55 @@ class PageInfoFields(LinearModel):
     has_next_page: bool
     has_previous_page: bool
     start_cursor: Optional[str]
+
+
+class IssueContextCommentFieldsUser(LinearModel):
+    id: str
+    name: str
+    email: str
+    active: bool
+
+
+class IssueContextCommentFieldsExternalUser(LinearModel):
+    id: str
+    display_name: str
+    name: str
+    email: Optional[str]
+
+
+class IssueContextCommentFields(LinearModel):
+    """GraphQL type: Comment."""
+
+    id: str
+    body: str
+    url: str
+    created_at: datetime
+    user: Optional[IssueContextCommentFieldsUser]
+    external_user: Optional[IssueContextCommentFieldsExternalUser]
+
+
+class IssueContextRelationFieldsIssue(LinearModel):
+    id: str
+    identifier: str
+    title: str
+    url: str
+
+
+class IssueContextRelationFieldsRelatedIssue(LinearModel):
+    id: str
+    identifier: str
+    title: str
+    url: str
+
+
+class IssueContextRelationFields(LinearModel):
+    """GraphQL type: IssueRelation."""
+
+    id: str
+    type: str
+    created_at: datetime
+    issue: IssueContextRelationFieldsIssue
+    related_issue: IssueContextRelationFieldsRelatedIssue
 
 
 class WorkflowStateFields(LinearModel):

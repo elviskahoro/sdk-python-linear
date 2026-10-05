@@ -1,0 +1,12 @@
+query ListIssueInverseRelations($id: String!, $first: Int!, $after: String, $includeArchived: Boolean!) {
+  issue(id: $id) {
+    inverseRelations(first: $first, after: $after, includeArchived: $includeArchived) {
+      nodes {
+        ...IssueContextRelationFields
+      }
+      pageInfo {
+        ...PageInfoFields
+      }
+    }
+  }
+}

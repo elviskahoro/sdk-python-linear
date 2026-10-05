@@ -35,6 +35,35 @@ fields = "all"
 on = "Comment"
 fields = ["id", "body", "url", "createdAt"]
 
+[fragments.IssueContextCommentFields]
+on = "Comment"
+fields = ["id", "body", "url", "createdAt"]
+[fragments.IssueContextCommentFields.expand]
+user = ["id", "name", "email", "active"]
+externalUser = ["id", "displayName", "name", "email"]
+
+[fragments.IssueContextAttachmentFields]
+on = "Attachment"
+fields = ["id", "title", "url", "source", "sourceType", "metadata", "createdAt"]
+
+[fragments.IssueContextRelationFields]
+on = "IssueRelation"
+fields = ["id", "type", "createdAt"]
+[fragments.IssueContextRelationFields.expand]
+issue = ["id", "identifier", "title", "url"]
+relatedIssue = ["id", "identifier", "title", "url"]
+
+[fragments.AttachmentFields]
+on = "Attachment"
+fields = ["id", "createdAt", "updatedAt", "subtitle", "title", "url"]
+
+[fragments.IssueRelationFields]
+on = "IssueRelation"
+fields = ["id", "type", "createdAt", "updatedAt"]
+[fragments.IssueRelationFields.expand]
+issue = ["id", "identifier"]
+relatedIssue = ["id", "identifier"]
+
 [fragments.IssueFields]
 on = "Issue"
 fields = ["id", "identifier", "title", "description", "url", "priority"]
@@ -133,3 +162,57 @@ root = "commentCreate"
 fragment = "CommentFields"
 variables = { input = "CommentCreateInput!" }
 arguments = { input = "$input" }
+
+[operations.CreateAttachment]
+kind = "mutation"
+root = "attachmentCreate"
+fragment = "AttachmentFields"
+variables = { input = "AttachmentCreateInput!" }
+arguments = { input = "$input" }
+
+[operations.CreateIssueRelation]
+kind = "mutation"
+root = "issueRelationCreate"
+fragment = "IssueRelationFields"
+variables = { input = "IssueRelationCreateInput!" }
+arguments = { input = "$input" }
+
+[operations.ListIssueComments]
+kind = "query"
+root = "issue"
+variables = { id = "String!", first = "Int!", after = "String", includeArchived = "Boolean!" }
+arguments = { id = "$id" }
+[operations.ListIssueComments.connection]
+field = "comments"
+fragment = "IssueContextCommentFields"
+arguments = { first = "$first", after = "$after", includeArchived = "$includeArchived" }
+
+[operations.ListIssueAttachments]
+kind = "query"
+root = "issue"
+variables = { id = "String!", first = "Int!", after = "String", includeArchived = "Boolean!" }
+arguments = { id = "$id" }
+[operations.ListIssueAttachments.connection]
+field = "attachments"
+fragment = "IssueContextAttachmentFields"
+arguments = { first = "$first", after = "$after", includeArchived = "$includeArchived" }
+
+[operations.ListIssueRelations]
+kind = "query"
+root = "issue"
+variables = { id = "String!", first = "Int!", after = "String", includeArchived = "Boolean!" }
+arguments = { id = "$id" }
+[operations.ListIssueRelations.connection]
+field = "relations"
+fragment = "IssueContextRelationFields"
+arguments = { first = "$first", after = "$after", includeArchived = "$includeArchived" }
+
+[operations.ListIssueInverseRelations]
+kind = "query"
+root = "issue"
+variables = { id = "String!", first = "Int!", after = "String", includeArchived = "Boolean!" }
+arguments = { id = "$id" }
+[operations.ListIssueInverseRelations.connection]
+field = "inverseRelations"
+fragment = "IssueContextRelationFields"
+arguments = { first = "$first", after = "$after", includeArchived = "$includeArchived" }

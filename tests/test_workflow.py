@@ -10,7 +10,15 @@ import httpx
 import pytest
 import respx
 
-from gtm_linear import LinearClient, LinearWorkflow, PaginationOrderBy, WorkflowState
+from gtm_linear import (
+    AttachmentCreateInput,
+    IssueRelationCreateInput,
+    IssueRelationType,
+    LinearClient,
+    LinearWorkflow,
+    PaginationOrderBy,
+    WorkflowState,
+)
 from gtm_linear.mutations import LinearMutations
 from gtm_linear.queries import LinearQueries
 from tests.conftest import API_URL, issue_payload, page_info_payload
@@ -85,6 +93,16 @@ async def test_async_facade_delegates_every_query_and_mutation(
         "create_comment",
         mutation("create_comment", "comment"),
     )
+    monkeypatch.setattr(
+        LinearMutations,
+        "create_attachment",
+        mutation("create_attachment", "attachment"),
+    )
+    monkeypatch.setattr(
+        LinearMutations,
+        "create_issue_relation",
+        mutation("create_issue_relation", "relation"),
+    )
 
     async with LinearWorkflow("key") as linear:
         assert await linear.get_issue_async("i") == "issue"
@@ -101,6 +119,32 @@ async def test_async_facade_delegates_every_query_and_mutation(
         assert await linear.update_issue_async("i", cast("Any", "update")) == "issue"
         assert await linear.delete_issue_async("i") is True
         assert await linear.create_comment_async("i", "body") == "comment"
+        assert (
+            await linear.create_attachment_async(
+                cast(
+                    "Any",
+                    AttachmentCreateInput(
+                        issue_id="ENG-123",
+                        url="https://example.com/pr/1",
+                        title="PR",
+                    ),
+                ),
+            )
+            == "attachment"
+        )
+        assert (
+            await linear.create_issue_relation_async(
+                cast(
+                    "Any",
+                    IssueRelationCreateInput(
+                        issue_id="ENG-123",
+                        related_issue_id="ENG-124",
+                        type=IssueRelationType.related,
+                    ),
+                ),
+            )
+            == "relation"
+        )
 
     assert [name for name, _, _ in calls] == [
         "get_issue",
@@ -117,6 +161,8 @@ async def test_async_facade_delegates_every_query_and_mutation(
         "update_issue",
         "delete_issue",
         "create_comment",
+        "create_attachment",
+        "create_issue_relation",
     ]
 
 
@@ -153,6 +199,8 @@ def test_sync_wrappers_inherit_docstrings_without_wraps_binding() -> None:
         (LinearWorkflow.update_issue, LinearMutations.update_issue),
         (LinearWorkflow.delete_issue, LinearMutations.delete_issue),
         (LinearWorkflow.create_comment, LinearMutations.create_comment),
+        (LinearWorkflow.create_attachment, LinearMutations.create_attachment),
+        (LinearWorkflow.create_issue_relation, LinearMutations.create_issue_relation),
     ]
     for sync, source in pairs:
         assert sync.__doc__ == source.__doc__, sync.__name__
@@ -184,6 +232,41 @@ def test_sync_facade_uses_injected_key_and_closes_async_session() -> None:
     body = json.loads(route.calls.last.request.content)
     assert body["query"]
     assert route.calls.last.request.headers["authorization"] == "injected-key"
+
+
+def test_sync_attachment_and_relation_methods_delegate(
+    monkeypatch: Any,
+) -> None:
+    calls: list[tuple[str, object]] = []
+
+    async def create_attachment(_self: object, input_: object) -> str:
+        calls.append(("create_attachment", input_))
+        return "attachment"
+
+    async def create_issue_relation(_self: object, input_: object) -> str:
+        calls.append(("create_issue_relation", input_))
+        return "relation"
+
+    monkeypatch.setattr(LinearMutations, "create_attachment", create_attachment)
+    monkeypatch.setattr(LinearMutations, "create_issue_relation", create_issue_relation)
+    attachment_input = AttachmentCreateInput(
+        issue_id="ENG-123",
+        url="https://example.com/pr/1",
+        title="PR",
+    )
+    relation_input = IssueRelationCreateInput(
+        issue_id="ENG-123",
+        related_issue_id="ENG-124",
+        type=IssueRelationType.related,
+    )
+
+    linear = LinearWorkflow("key")
+    assert linear.create_attachment(attachment_input) == "attachment"
+    assert linear.create_issue_relation(relation_input) == "relation"
+    assert calls == [
+        ("create_attachment", attachment_input),
+        ("create_issue_relation", relation_input),
+    ]
 
 
 async def test_list_open_team_issues_applies_workflow_filter_and_order() -> None:

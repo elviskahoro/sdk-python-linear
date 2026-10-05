@@ -9,8 +9,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - `LinearQueries.iter_workflow_states` and matching `LinearWorkflow` methods now
-  follow workflow-state cursors automatically. `get_workflow_state_by_type`
-  resolves a unique state across all pages and raises
+  follow workflow-state cursors automatically; `list_workflow_states` remains a
+  first-page convenience method. `get_workflow_state_by_type` resolves a unique
+  state across all pages and raises
   `LinearWorkflowStateLookupError` when no unique match exists.
 
 ### Changed
