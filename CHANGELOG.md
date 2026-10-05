@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Dependabot version updates now observe a 7-day cooldown
+  (`cooldown.default-days: 7`) before proposing updates for newly published
+  GitHub Actions versions, so freshly published — possibly malicious or
+  unstable — tags are not picked up immediately (Dependabot's implicit
+  default is 3 days).
+
+### Removed
+
+- `scripts/trunk-lint-file-beads.py` — the beads-filing lint sweep ported
+  from gtm-sdk in 0.3.0 without its `scripts/lib` support modules or the
+  `dagger` dev dependency, so it never ran in this repo; and it files beads,
+  the tracker this repo has since replaced with GitHub Issues.
+
 ### Fixed
 
 - The PyPI `Development Status` classifier now reads `3 - Alpha` (#69),

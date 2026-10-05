@@ -1,10 +1,33 @@
 # Autoformatter friendly markdownlint config (all formatting rules disabled)
+#
+# Copy of the `oss-linter-trunk` plugin's configs/.markdownlint.yaml (plugin
+# ref v0.2026.04.14.00.00, as sourced in .trunk/trunk.yaml), plus the
+# `blank_lines` and `whitespace` tag disables carried over from the older
+# export this repo originally deployed. The current plugin export drops
+# those two tag keys, which would re-enable MD012 (multiple blank lines) and
+# the MD037/MD038 whitespace rules -- MD038 flags this repo's intentional
+# `Bearer `-style code spans in README.md, so keep them here until the plugin
+# export restores them. The plugin's newer per-rule disables matter for this
+# repo because CHANGELOG.md is Keep a Changelog formatted: `### Added` /
+# `### Changed` / `### Removed` headings legitimately repeat across release
+# sections, which MD024 (no-duplicate-heading) otherwise flags.
+#
+# Keep the base sections in sync with the plugin when it upgrades.
 default: true
 blank_lines: false
 bullet: false
+first-line-heading: false
 html: false
 indentation: false
 line_length: false
+no-duplicate-header: false
+no-duplicate-heading: false
+no-emphasis-as-header: false
+no-emphasis-as-heading: false
+no-hard-tabs: false
+no-trailing-punctuation: false
+single-h1: false
+single-title: false
 spaces: false
 url: false
 whitespace: false

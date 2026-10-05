@@ -144,6 +144,7 @@ if [[ ${pinned} == "${latest}" ]]; then
     [[ -n ${open_issue} ]] || continue
     issue_body=$(printf '%s' "${issue_body_b64}" | decode_base64)
     issue_body=${issue_body//$'\r'/}
+    # shellcheck disable=SC2310 # is_automation_issue is a pure [[ ]] matcher -- nonzero means "not ours", nothing for set -e to mask
     if is_automation_issue "${issue_body}"; then
       gh issue close "${open_issue}" --repo "${issue_repo}" \
         --comment "The publisher pin is current at ${pinned}; closing this stale-ref alert."
@@ -160,6 +161,7 @@ while IFS=$'\t' read -r open_issue issue_body_b64; do
   [[ -n ${open_issue} ]] || continue
   issue_body=$(printf '%s' "${issue_body_b64}" | decode_base64)
   issue_body=${issue_body//$'\r'/}
+  # shellcheck disable=SC2310 # is_automation_issue is a pure [[ ]] matcher -- nonzero means "not ours", nothing for set -e to mask
   if is_automation_issue "${issue_body}"; then
     has_automation_issue=1
     updated_body=$(issue_body_with_operator_notes "${body}" "${issue_body}")

@@ -6,3 +6,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Wait 7 days after a release before proposing an update, so freshly
+    # published -- possibly malicious or unstable -- action tags are not
+    # picked up immediately. Dependabot's implicit default is 3 days.
+    cooldown:
+      default-days: 7

@@ -137,9 +137,13 @@ class LinearClient:
         raw: object = (
             api_key.get_secret_value() if isinstance(api_key, SecretStr) else api_key
         )
-        if not isinstance(raw, str):
-            # Direct ``SecretStr(x)`` construction does not validate x, so
-            # this also catches non-strings smuggled in inside a SecretStr.
+        # Pyright narrows ``raw`` to ``str`` from the declared signature, so
+        # it reports the isinstance below as always-true -- but the signature
+        # cannot stop an untyped caller from passing a wrong type at runtime,
+        # and direct ``SecretStr(x)`` construction does not validate ``x``,
+        # so non-strings can arrive both bare and wrapped in a SecretStr. The
+        # guard is what turns those into the documented TypeError.
+        if not isinstance(raw, str):  # pyright: ignore[reportUnnecessaryIsInstance]
             error_msg = (
                 "api_key must be a str or SecretStr holding a str, not "
                 f"{type(raw).__name__}. Pass the key itself "
