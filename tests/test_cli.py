@@ -80,8 +80,8 @@ TEAM_PAYLOAD: dict[str, Any] = {"id": "team-1", "key": "ENG", "name": "Engineeri
 
 
 def _named(query: str, operation: str) -> bool:
-    """Exact operation-name match, so ``GetIssue`` cannot match ``GetIssueLabels``."""
-    return re.search(rf"query\s+{operation}\b", query) is not None
+    """Exact named-operation match for queries and mutations."""
+    return re.search(rf"(?:query|mutation)\s+{operation}\b", query) is not None
 
 
 def _graphql_router(
@@ -120,6 +120,23 @@ def _graphql_router(
                     "pageInfo": page_info_payload(has_next=more),
                 },
             }
+        elif _named(query, "CreateIssue"):
+            data = {"issueCreate": {"success": True, "issue": issue_payload("iss-new")}}
+        elif _named(query, "UpdateIssue"):
+            data = {"issueUpdate": {"success": True, "issue": issue_payload("iss-1")}}
+        elif _named(query, "CreateComment"):
+            request_body = json.loads(request.content)
+            data = {
+                "commentCreate": {
+                    "success": True,
+                    "comment": {
+                        "id": "comment-1",
+                        "body": request_body["variables"]["input"]["body"],
+                        "url": "https://linear.app/x/comment/comment-1",
+                        "createdAt": "2026-10-05T12:00:00Z",
+                    },
+                },
+            }
         elif query.startswith("query { teams"):
             # The raw escape-hatch document the `teams` command executes.
             data = {
@@ -146,7 +163,16 @@ def _sent_variables(route: respx.Route, operation: str) -> dict[str, Any]:
 def test_help_lists_every_command() -> None:
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0  # noqa: S101
-    for command in ("viewer", "teams", "issues", "issue", "search"):
+    for command in (
+        "viewer",
+        "teams",
+        "issues",
+        "issue",
+        "search",
+        "create-issue",
+        "update-issue",
+        "comment",
+    ):
         assert command in result.output  # noqa: S101
 
 
@@ -815,6 +841,138 @@ def test_issue_json_is_one_dict() -> None:
         result = runner.invoke(app, ["issue", "ENG-1", "--json"], env=AUTH)
     assert result.exit_code == 0  # noqa: S101
     assert json.loads(result.stdout)["identifier"] == "ENG-1"  # noqa: S101
+
+
+@pytest.mark.parametrize(
+    ("argv", "operation", "target"),
+    [
+        (
+            [
+                "create-issue",
+                "--input-json",
+                '{"teamId":"team-1","title":"New"}',
+                "--json",
+            ],
+            "create-issue",
+            {"teamId": "team-1"},
+        ),
+        (
+            ["update-issue", "eng-1", "--input-json", '{"priority":2}', "--json"],
+            "update-issue",
+            "ENG-1",
+        ),
+        (
+            ["comment", "eng-1", "--body", "hello", "--json"],
+            "comment",
+            "ENG-1",
+        ),
+    ],
+)
+def test_write_commands_preview_as_json_without_requests(
+    argv: list[str],
+    operation: str,
+    target: object,
+) -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(app, argv)
+    assert result.exit_code == 0  # noqa: S101
+    preview = json.loads(result.stdout)
+    assert preview["dry_run"] is True  # noqa: S101
+    assert preview["operation"] == operation  # noqa: S101
+    assert preview["target"] == target  # noqa: S101
+    assert "payload" in preview  # noqa: S101
+    assert route.call_count == 0  # noqa: S101
+
+
+def test_create_issue_applies_validated_file_payload_as_json(tmp_path: Path) -> None:
+    input_file = tmp_path / "create.json"
+    input_file.write_text('{"teamId":"team-1","title":"New"}', encoding="utf-8")
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["create-issue", "--input-file", str(input_file), "--apply", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    output = json.loads(result.stdout)
+    assert output["dry_run"] is False  # noqa: S101
+    assert output["result"]["identifier"] == "ENG-1"  # noqa: S101
+    assert _sent_variables(route, "CreateIssue") == {
+        "input": {"teamId": "team-1", "title": "New"},
+    }  # noqa: S101
+
+
+def test_update_issue_resolves_identifier_and_applies_json_payload() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            [
+                "update-issue",
+                "eng-1",
+                "--input-json",
+                '{"title":"Changed"}',
+                "--apply",
+                "--json",
+            ],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    output = json.loads(result.stdout)
+    assert output["result"]["id"] == "iss-1"  # noqa: S101
+    assert _sent_variables(route, "GetIssue") == {"id": "ENG-1"}  # noqa: S101
+    assert _sent_variables(route, "UpdateIssue") == {
+        "id": "iss-1",
+        "input": {"title": "Changed"},
+    }  # noqa: S101
+
+
+def test_comment_applies_body_file_and_resolves_identifier(tmp_path: Path) -> None:
+    body_file = tmp_path / "comment.md"
+    body_file.write_text("A comment from a file.", encoding="utf-8")
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["comment", "ENG-1", "--body-file", str(body_file), "--apply", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    output = json.loads(result.stdout)
+    assert output["result"]["body"] == "A comment from a file."  # noqa: S101
+    assert _sent_variables(route, "CreateComment") == {
+        "input": {"issueId": "iss-1", "body": "A comment from a file."},
+    }  # noqa: S101
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["create-issue"],
+        ["create-issue", "--input-json", "not-json"],
+        ["create-issue", "--input-json", "[]"],
+        ["create-issue", "--input-json", '{"teamId":"team-1","typo":true}'],
+        ["create-issue", "--input-json", '{"title":"missing team"}'],
+        ["create-issue", "--input-json", '{"teamId":"t"}', "--input-file", "file.json"],
+        ["create-issue", "--input-file", "-"],
+        ["update-issue", "ENG-1", "--input-json", "{}"],
+        ["update-issue", "ENG-1", "--input-json", '{"unknown":true}'],
+        ["comment", "ENG-1"],
+        ["comment", "ENG-1", "--body", "", "--body-file", "body.md"],
+        ["comment", "ENG-1", "--body", "  "],
+        ["comment", "ENG-1", "--body-file", "-"],
+    ],
+)
+def test_write_input_validation_is_usage_error_without_requests(
+    argv: list[str],
+) -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(app, argv)
+    assert result.exit_code == 2  # noqa: S101
+    assert route.call_count == 0  # noqa: S101
 
 
 def test_issue_not_found_via_null_issue_is_a_clean_error() -> None:

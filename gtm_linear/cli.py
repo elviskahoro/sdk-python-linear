@@ -1,10 +1,10 @@
-"""Read-only command-line interface shipped with the gtm-linear SDK.
+"""Command-line interface shipped with the gtm-linear SDK.
 
 Installed as the ``gtm-linear`` console script; from a checkout it also runs
 as ``uv run gtm-linear ...``. The SDK's
-typed reads are wrapped as plain shell commands so fetching Linear issues never
-requires writing Python — for writes, use the SDK directly
-(:class:`~gtm_linear.LinearMutations`).
+typed reads and opt-in writes are wrapped as plain shell commands, so common
+Linear workflows never require writing Python. Write commands preview by
+default; pass ``--apply`` to execute a mutation.
 
 Auth: ``LINEAR_API_KEY`` (``lin_api_...``) resolved from the environment or a
 ``.env`` / ``.env.local`` file in the working directory — the same resolution
@@ -21,9 +21,10 @@ Usage:
     gtm-linear issue ENG-123
     gtm-linear search "onboarding" [--limit 10]
 
-Append ``--json`` to any command for machine-readable output. All commands are
-read-only. Options are validated at parse time: ``--limit`` accepts 1-100 and
-out-of-range values exit with a usage error (code 2) rather than being clamped.
+Append ``--json`` to any command for machine-readable output. Mutation
+commands never prompt or read from stdin. Options are validated before any
+mutation request; ``--limit`` accepts 1-100 and out-of-range values exit with
+a usage error (code 2) rather than being clamped.
 """
 
 from __future__ import annotations
@@ -36,15 +37,18 @@ import os
 import re
 import sys
 import unicodedata
-from typing import TYPE_CHECKING, Annotated, Any, NoReturn
+from pathlib import Path  # noqa: TC003 - Typer resolves Path annotations at runtime.
+from typing import TYPE_CHECKING, Annotated, Any, NoReturn, TypeVar
 
 import httpx
 import typer
-from pydantic import SecretStr, ValidationError
+from pydantic import BaseModel, SecretStr, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from . import __version__
+from ._generated.CreateIssue import IssueCreateInput
 from ._generated.ListIssues import PaginationOrderBy
+from ._generated.UpdateIssue import IssueUpdateInput
 from .exceptions import GraphQLError, LinearAPIError
 from .settings import LinearSettings
 from .workflow import LinearWorkflow
@@ -60,7 +64,7 @@ if TYPE_CHECKING:
 
 
 app = typer.Typer(
-    help="Fetch Linear issues via the gtm-linear SDK (read-only).",
+    help="Read Linear issues and perform opt-in writes via the gtm-linear SDK.",
     no_args_is_help=True,
     # `--version` must work without a subcommand. Normally a group fails with
     # "Missing command." before its callback body runs; invoke_without_command
@@ -103,12 +107,167 @@ VerboseOpt = Annotated[
     bool,
     typer.Option("--verbose", "-v", help="Also print URLs and descriptions."),
 ]
+ApplyOpt = Annotated[
+    bool,
+    typer.Option("--apply", help="Execute this mutation (otherwise preview only)."),
+]
+ModelT = TypeVar("ModelT", bound=BaseModel)
 
 
 def _fail(message: str) -> NoReturn:
     """Print an error to stderr and exit 1 — one style for every failure path."""
     typer.secho(f"error: {message}", fg=typer.colors.RED, err=True)
     raise typer.Exit(code=1)
+
+
+def _usage_error(message: str) -> NoReturn:
+    """Raise a parse-style error for invalid mutation input (exit 2)."""
+    raise typer.BadParameter(_cell(message))
+
+
+def _read_json_input(
+    inline_json: str | None,
+    input_file: Path | None,
+) -> dict[str, Any]:
+    """Read exactly one explicit JSON source; stdin is never an input source."""
+    if (inline_json is None) == (input_file is None):
+        _usage_error("provide exactly one of --input-json or --input-file")
+    if inline_json is not None:
+        source = inline_json
+    else:
+        assert input_file is not None  # noqa: S101
+        if str(input_file) == "-":
+            _usage_error("--input-file - is not supported; stdin is never read")
+        try:
+            source = input_file.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            _usage_error(f"could not read input file: {exc}")
+    try:
+        payload = json.loads(source)
+    except json.JSONDecodeError as exc:
+        _usage_error(
+            f"invalid JSON input: {exc.msg} at line {exc.lineno} column {exc.colno}",
+        )
+    if not isinstance(payload, dict):
+        _usage_error("JSON input must be an object")
+    return payload
+
+
+def _validate_input_model(
+    model_type: type[ModelT],
+    payload: dict[str, Any],
+) -> ModelT:
+    """Reject unknown fields before validating through a generated input model."""
+    fields = model_type.model_fields
+    accepted_names: set[str] = set()
+    for field_name, field_info in fields.items():
+        accepted_names.add(field_name)
+        if field_info.alias is not None:
+            accepted_names.add(field_info.alias)
+    unknown = sorted(set(payload) - accepted_names)
+    if unknown:
+        _usage_error(f"unknown input field(s): {', '.join(unknown)}")
+    try:
+        return model_type.model_validate(payload)
+    except ValidationError as exc:
+        first = exc.errors()[0]
+        field = ".".join(str(part) for part in first["loc"])
+        _usage_error(f"invalid input field {field}: {first['msg']}")
+
+
+def _model_payload(model: BaseModel) -> dict[str, Any]:
+    """Serialize a validated mutation input exactly as the GraphQL API expects."""
+    payload = model.model_dump(mode="json", by_alias=True, exclude_unset=True)
+    try:
+        json.dumps(payload, allow_nan=False)
+    except ValueError:
+        _usage_error("numeric inputs must be finite JSON numbers")
+    return payload
+
+
+def _write_output(
+    operation: str,
+    *,
+    dry_run: bool,
+    target: object,
+    payload: dict[str, Any] | None = None,
+    result: BaseModel | None = None,
+    as_json: bool,
+) -> None:
+    """Render a mutation preview or its typed result."""
+    if as_json:
+        output: dict[str, Any] = {
+            "dry_run": dry_run,
+            "operation": operation,
+            "target": target,
+        }
+        if dry_run:
+            output["payload"] = payload
+        elif result is not None:
+            output["result"] = result.model_dump(mode="json", by_alias=True)
+        typer.echo(json.dumps(output, indent=2, ensure_ascii=True))
+        return
+    if dry_run:
+        typer.echo(f"Dry run: {operation} (no changes made).")
+        typer.echo(f"Target: {_cell(json.dumps(target, ensure_ascii=True))}")
+        typer.echo("Payload:")
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=True))
+        typer.echo("Pass --apply to execute this mutation.")
+    else:
+        typer.echo(f"{operation} applied successfully.")
+        if result is not None:
+            typer.echo(
+                json.dumps(
+                    result.model_dump(mode="json", by_alias=True),
+                    indent=2,
+                    ensure_ascii=True,
+                ),
+            )
+
+
+def _normalized_issue_identifier(identifier: str) -> str:
+    """Normalize human issue keys while leaving UUIDs intact."""
+    if re.fullmatch(r"[A-Za-z0-9]+-\d+", identifier):
+        return identifier.upper()
+    return identifier
+
+
+def _resolve_issue_id(linear: LinearWorkflow, identifier: str) -> str:
+    """Resolve a human issue key for a write; UUIDs can be passed directly."""
+    normalized = _normalized_issue_identifier(identifier.strip())
+    if re.fullmatch(
+        r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+        normalized,
+    ):
+        return normalized
+    try:
+        match = linear.get_issue(normalized)
+    except LinearAPIError as exc:
+        if any(_looks_like_not_found(error) for error in exc.errors):
+            _fail(f"no issue found with identifier {normalized}")
+        raise
+    if match is None:
+        _fail(f"no issue found with identifier {normalized}")
+    return match.id
+
+
+def _read_comment_body(body: str | None, body_file: Path | None) -> str:
+    """Read a comment from one explicit source without ever touching stdin."""
+    if (body is None) == (body_file is None):
+        _usage_error("provide exactly one of --body or --body-file")
+    if body is not None:
+        content = body
+    else:
+        assert body_file is not None  # noqa: S101
+        if str(body_file) == "-":
+            _usage_error("--body-file - is not supported; stdin is never read")
+        try:
+            content = body_file.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            _usage_error(f"could not read body file: {exc}")
+    if not content.strip():
+        _usage_error("comment body must not be empty")
+    return content
 
 
 # --- helpers (logic kept separate from the thin Typer command functions) ---
@@ -438,7 +597,7 @@ def _root(
         ),
     ] = False,
 ) -> None:
-    """Fetch Linear issues via the gtm-linear SDK (read-only)."""
+    """Read Linear issues and perform opt-in writes via the gtm-linear SDK."""
     if version:
         typer.echo(f"gtm-linear {__version__}")
         raise typer.Exit
@@ -577,8 +736,7 @@ def issue(
     # Human identifiers are team-key + number ("ENG-123") and arrive in any
     # casing, so normalize those — but pass UUIDs through untouched, since
     # uppercasing a lowercase UUID would break the lookup.
-    if re.fullmatch(r"[A-Za-z0-9]+-\d+", identifier):
-        identifier = identifier.upper()
+    identifier = _normalized_issue_identifier(identifier)
     with _workflow() as linear:
         # get_issue accepts Linear UUIDs and human identifiers alike.
         try:
@@ -606,6 +764,140 @@ def issue(
         typer.echo(" description:")
         for line in _clean(match.description).splitlines():
             typer.echo(f"   {line}")
+
+
+@app.command("create-issue")
+def create_issue(
+    *,
+    input_json: Annotated[
+        str | None,
+        typer.Option("--input-json", help="IssueCreateInput as a JSON object."),
+    ] = None,
+    input_file: Annotated[
+        Path | None,
+        typer.Option("--input-file", help="Path to a UTF-8 JSON input object."),
+    ] = None,
+    apply: ApplyOpt = False,
+    as_json: JsonOpt = False,
+) -> None:
+    """Preview issue creation; pass --apply to create the issue."""
+    payload = _read_json_input(input_json, input_file)
+    input_ = _validate_input_model(IssueCreateInput, payload)
+    if not input_.team_id.strip():
+        _usage_error("create payload teamId must not be empty")
+    serialized = _model_payload(input_)
+    target = {"teamId": serialized.get("teamId")}
+    if not apply:
+        _write_output(
+            "create-issue",
+            dry_run=True,
+            target=target,
+            payload=serialized,
+            as_json=as_json,
+        )
+        return
+    with _workflow() as linear:
+        created = linear.create_issue(input_)
+    _write_output(
+        "create-issue",
+        dry_run=False,
+        target=target,
+        result=created,
+        as_json=as_json,
+    )
+
+
+@app.command("update-issue")
+def update_issue(
+    identifier: Annotated[
+        str,
+        typer.Argument(help="Issue identifier (for example ENG-123) or Linear UUID."),
+    ],
+    *,
+    input_json: Annotated[
+        str | None,
+        typer.Option("--input-json", help="IssueUpdateInput as a JSON object."),
+    ] = None,
+    input_file: Annotated[
+        Path | None,
+        typer.Option("--input-file", help="Path to a UTF-8 JSON input object."),
+    ] = None,
+    apply: ApplyOpt = False,
+    as_json: JsonOpt = False,
+) -> None:
+    """Preview issue updates; pass --apply to update the issue."""
+    payload = _read_json_input(input_json, input_file)
+    update = _validate_input_model(IssueUpdateInput, payload)
+    if not update.model_fields_set:
+        _usage_error("update payload must contain at least one field")
+    serialized = _model_payload(update)
+    if not identifier.strip():
+        _usage_error("issue identifier must not be empty")
+    normalized = _normalized_issue_identifier(identifier.strip())
+    if not apply:
+        _write_output(
+            "update-issue",
+            dry_run=True,
+            target=normalized,
+            payload=serialized,
+            as_json=as_json,
+        )
+        return
+    with _workflow() as linear:
+        issue_id = _resolve_issue_id(linear, normalized)
+        updated = linear.update_issue(issue_id, update)
+    _write_output(
+        "update-issue",
+        dry_run=False,
+        target=normalized,
+        result=updated,
+        as_json=as_json,
+    )
+
+
+@app.command("comment")
+def comment(
+    identifier: Annotated[
+        str,
+        typer.Argument(help="Issue identifier (for example ENG-123) or Linear UUID."),
+    ],
+    *,
+    body: Annotated[
+        str | None,
+        typer.Option("--body", help="Comment body as Markdown."),
+    ] = None,
+    body_file: Annotated[
+        Path | None,
+        typer.Option("--body-file", help="Path to a UTF-8 Markdown body file."),
+    ] = None,
+    apply: ApplyOpt = False,
+    as_json: JsonOpt = False,
+) -> None:
+    """Preview a comment; pass --apply to post it to the issue."""
+    content = _read_comment_body(body, body_file)
+    if not identifier.strip():
+        _usage_error("issue identifier must not be empty")
+    normalized = _normalized_issue_identifier(identifier.strip())
+    payload = {"body": content}
+    if not apply:
+        _write_output(
+            "comment",
+            dry_run=True,
+            target=normalized,
+            payload=payload,
+            as_json=as_json,
+        )
+        return
+    with _workflow() as linear:
+        issue_id = _resolve_issue_id(linear, normalized)
+        created = linear.create_comment(issue_id, content)
+    _write_output(
+        "comment",
+        dry_run=False,
+        target=normalized,
+        result=created,
+        as_json=as_json,
+    )
 
 
 # Unknown leading tokens are treated as the search term, so queries like

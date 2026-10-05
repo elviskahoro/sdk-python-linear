@@ -1,6 +1,6 @@
 # gtm-linear
 
-Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, typed wrapper around `httpx` with optional sync support, Strawberry-typed models, explicit error semantics, and a bundled read-only CLI.
+Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, typed wrapper around `httpx` with optional sync support, Strawberry-typed models, explicit error semantics, and a bundled CLI with opt-in writes.
 
 > **Status:** Alpha (`0.3.0`, see `pyproject.toml` and `CHANGELOG.md`). API surface is small but incomplete — fall back to raw `LinearClient.execute_async` for anything not yet wrapped.
 
@@ -49,7 +49,7 @@ The SDK does not read env vars on its own. Caller is responsible for passing `ap
 
 ## CLI
 
-The package ships a read-only CLI as the `gtm-linear` console command. It wraps `LinearWorkflow`, so the SDK's typed reads are available without writing any Python:
+The package ships a CLI as the `gtm-linear` console command. It wraps `LinearWorkflow`, so typed reads and common writes are available without writing Python. Writes preview by default; they make no API request until you pass `--apply`:
 
 ```bash
 # from a checkout
@@ -61,6 +61,14 @@ uvx gtm-linear issues --team ENG --limit 10
 # or install it as a tool
 uv tool install gtm-linear
 gtm-linear search "onboarding"
+
+# Preview, then explicitly apply a create using generated IssueCreateInput fields
+gtm-linear create-issue --input-json '{"teamId":"TEAM_UUID","title":"Investigate alert"}' --json
+gtm-linear create-issue --input-file issue.json --apply
+
+# Update an issue and post a Markdown comment (both preview unless --apply is set)
+gtm-linear update-issue ENG-123 --input-json '{"priority":2}' --apply
+gtm-linear comment ENG-123 --body "The fix is ready for review."
 ```
 
 Auth uses the SDK's `LinearSettings` resolution: `LINEAR_API_KEY` (`lin_api_...`) from the environment or a `.env` / `.env.local` file in the working directory. Endpoint overrides (`LINEAR_BASE_URL`, `LINEAR_TIMEOUT`) are honored from the real environment only — a dotenv file may supply the key, but never redirect where it is sent. Real environment variables also take precedence over dotenv for the key itself; note that a dotenv file in the current directory is trusted for auth, so run the CLI from directories you control.
@@ -72,8 +80,11 @@ Auth uses the SDK's `LinearSettings` resolution: `LINEAR_API_KEY` (`lin_api_...`
 | `gtm-linear issues --team ENG [--state open\|all] [--limit N] [-v]` | List a team's issues, newest updated first (team key is case-insensitive; default state: open, limit: 25) |
 | `gtm-linear issue ENG-123` | Fetch one issue by identifier (any casing) or Linear UUID |
 | `gtm-linear search "term" [--limit N] [-v]` | Free-text issue search across the workspace (multi-word terms may be unquoted — words are joined; dash-prefixed values are searched as-is, so a mistyped flag becomes the term) |
+| `gtm-linear create-issue (--input-json JSON\|--input-file PATH) [--apply]` | Preview or create an issue using a generated `IssueCreateInput` payload |
+| `gtm-linear update-issue ISSUE (--input-json JSON\|--input-file PATH) [--apply]` | Preview or update an issue using a generated `IssueUpdateInput` payload |
+| `gtm-linear comment ISSUE (--body TEXT\|--body-file PATH) [--apply]` | Preview or post a Markdown comment |
 
-Every command accepts `--json` for machine-readable output. `--limit` is validated to 1–100 at parse time; a full page prints a stderr note that more results exist. Exit codes: `0` success, `1` runtime failure (auth, API, not-found, network, a malformed `LINEAR_BASE_URL`, or an unexpected response shape — each printed as a single red `error: …` line on stderr, never a traceback; a closed output pipe, as in `| head`, exits 1 without printing an error), `130` Ctrl-C, `2` usage error. The CLI is deliberately read-only; writes stay in the SDK (`LinearMutations`) so a shell typo can never mutate Linear.
+Every command accepts `--json` for machine-readable output. For create/update, pass exactly one of `--input-json` or `--input-file`; the JSON object is validated against the SDK's generated input type, and create payloads must include `teamId`. For comments, pass exactly one of `--body` or `--body-file`. Files are read as UTF-8; `-` is not accepted as a file path, so commands never consume stdin or prompt. Update/comment accept an issue identifier (for example `ENG-123`) or Linear UUID; identifiers are resolved only when applying. Add `--apply` to execute a write; without it, the CLI prints a preview and sends no API request. `--json` previews contain `dry_run`, `operation`, `target`, and `payload`; applied writes return the typed resource result. `--limit` is validated to 1–100 at parse time; a full page prints a stderr note that more results exist. Exit codes: `0` success, `1` runtime failure (auth, API, not-found, network, a malformed `LINEAR_BASE_URL`, or an unexpected response shape — each printed as a single red `error: …` line on stderr, never a traceback; a closed output pipe, as in `| head`, exits 1 without printing an error), `130` Ctrl-C, `2` usage error.
 
 ---
 
@@ -404,7 +415,7 @@ sdk-python-linear/
 │   ├── __init__.py           # public re-exports
 │   ├── _generated/           # codegen output: Pydantic models + GraphQL documents
 │   ├── _schema.py            # generated Strawberry mirror ([strawberry] extra)
-│   ├── cli.py                # read-only CLI behind the gtm-linear command
+│   ├── cli.py                # CLI behind the gtm-linear command
 │   ├── client.py             # LinearClient (httpx transport)
 │   ├── exceptions.py         # LinearAPIError and friends
 │   ├── models.py             # LinearModel base class
