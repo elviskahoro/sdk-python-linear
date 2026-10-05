@@ -108,6 +108,31 @@ async def test_pagination_stops_when_next_page_has_no_cursor() -> None:
     assert [i.id for i in issues] == ["a"]
 
 
+@pytest.mark.parametrize(
+    ("first_cursor", "second_cursor", "calls_before_error"),
+    [
+        (None, None, 1),
+        ("cursor-1", "cursor-1", 2),
+    ],
+)
+async def test_strict_pagination_raises_for_invalid_continuation_cursor(
+    first_cursor: str | None,
+    second_cursor: str | None,
+    calls_before_error: int,
+) -> None:
+    calls: list[str | None] = []
+
+    async def fetch(cursor: str | None) -> _FakeConn:
+        calls.append(cursor)
+        end_cursor = first_cursor if cursor is None else second_cursor
+        return _conn([f"item-{len(calls)}"], has_next=True, end=end_cursor)
+
+    with pytest.raises(LinearPaginationError):
+        [node async for node in paginate(fetch, strict_cursor=True)]
+
+    assert len(calls) == calls_before_error
+
+
 async def test_pagination_with_zero_limit_does_not_fetch() -> None:
     calls: list[str | None] = []
 

@@ -13,7 +13,22 @@ TeamFilter = NewType("TeamFilter", object)
 
 WorkflowStateFilter = NewType("WorkflowStateFilter", object)
 
+DateTimeOrDuration = NewType("DateTimeOrDuration", object)
+
+Duration = NewType("Duration", object)
+
+JSONObject = NewType("JSONObject", object)
+
 TimelessDate = NewType("TimelessDate", object)
+
+TimelessDateOrDuration = NewType("TimelessDateOrDuration", object)
+
+
+@strawberry.enum
+class CyclePeriod(Enum):
+    after = "after"
+    before = "before"
+    during = "during"
 
 
 @strawberry.enum
@@ -35,15 +50,141 @@ class PaginationSortOrder(Enum):
 
 
 @strawberry.enum
+class ReleasePipelineType(Enum):
+    continuous = "continuous"
+    scheduled = "scheduled"
+
+
+@strawberry.enum
+class ReleaseStageType(Enum):
+    canceled = "canceled"
+    completed = "completed"
+    planned = "planned"
+    started = "started"
+
+
+@strawberry.enum
 class SLADayCountType(Enum):
     all = "all"
     onlyBusinessDays = "onlyBusinessDays"
+
+
+@strawberry.enum
+class SlaStatus(Enum):
+    Breached = "Breached"
+    Completed = "Completed"
+    Failed = "Failed"
+    HighRisk = "HighRisk"
+    LowRisk = "LowRisk"
+    MediumRisk = "MediumRisk"
+
+
+@strawberry.enum
+class TeamVisibility(Enum):
+    private = "private"
+    public = "public"
+    restricted = "restricted"
+
+
+@strawberry.input
+class ActivityCollectionFilter:
+    and_: strawberry.Maybe[list[ActivityCollectionFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    every: strawberry.Maybe[ActivityFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    or_: strawberry.Maybe[list[ActivityCollectionFilter] | None] = strawberry.field(
+        name="or"
+    )
+    some: strawberry.Maybe[ActivityFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+    user: strawberry.Maybe[UserFilter | None]
+
+
+@strawberry.input
+class ActivityFilter:
+    and_: strawberry.Maybe[list[ActivityFilter] | None] = strawberry.field(name="and")
+    created_at: strawberry.Maybe[DateComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    or_: strawberry.Maybe[list[ActivityFilter] | None] = strawberry.field(name="or")
+    updated_at: strawberry.Maybe[DateComparator | None]
+    user: strawberry.Maybe[UserFilter | None]
 
 
 @strawberry.input
 class AssigneeSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
+
+
+@strawberry.input
+class AttachmentCollectionFilter:
+    and_: strawberry.Maybe[list[AttachmentCollectionFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[NullableUserFilter | None]
+    every: strawberry.Maybe[AttachmentFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    or_: strawberry.Maybe[list[AttachmentCollectionFilter] | None] = strawberry.field(
+        name="or"
+    )
+    some: strawberry.Maybe[AttachmentFilter | None]
+    source_type: strawberry.Maybe[SourceTypeComparator | None]
+    subtitle: strawberry.Maybe[NullableStringComparator | None]
+    title: strawberry.Maybe[StringComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+    url: strawberry.Maybe[StringComparator | None]
+
+
+@strawberry.input
+class AttachmentFilter:
+    and_: strawberry.Maybe[list[AttachmentFilter] | None] = strawberry.field(name="and")
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[NullableUserFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    or_: strawberry.Maybe[list[AttachmentFilter] | None] = strawberry.field(name="or")
+    source_type: strawberry.Maybe[SourceTypeComparator | None]
+    subtitle: strawberry.Maybe[NullableStringComparator | None]
+    title: strawberry.Maybe[StringComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+    url: strawberry.Maybe[StringComparator | None]
+
+
+@strawberry.input
+class BooleanComparator:
+    eq: strawberry.Maybe[bool | None]
+    neq: strawberry.Maybe[bool | None]
+
+
+@strawberry.input
+class CommentCollectionFilter:
+    and_: strawberry.Maybe[list[CommentCollectionFilter] | None] = strawberry.field(
+        name="and"
+    )
+    body: strawberry.Maybe[StringComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    document_content: strawberry.Maybe[NullableDocumentContentFilter | None]
+    every: strawberry.Maybe[CommentFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    initiative: strawberry.Maybe[NullableInitiativeFilter | None]
+    initiative_update: strawberry.Maybe[NullableInitiativeUpdateFilter | None]
+    issue: strawberry.Maybe[NullableIssueFilter | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None]
+    or_: strawberry.Maybe[list[CommentCollectionFilter] | None] = strawberry.field(
+        name="or"
+    )
+    parent: strawberry.Maybe[NullableCommentFilter | None]
+    project: strawberry.Maybe[NullableProjectFilter | None]
+    project_update: strawberry.Maybe[NullableProjectUpdateFilter | None]
+    reactions: strawberry.Maybe[ReactionCollectionFilter | None]
+    some: strawberry.Maybe[CommentFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+    user: strawberry.Maybe[UserFilter | None]
 
 
 @strawberry.input
@@ -69,9 +210,35 @@ class CommentCreateInput:
 
 
 @strawberry.input
+class CommentFilter:
+    and_: strawberry.Maybe[list[CommentFilter] | None] = strawberry.field(name="and")
+    body: strawberry.Maybe[StringComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    document_content: strawberry.Maybe[NullableDocumentContentFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    initiative: strawberry.Maybe[NullableInitiativeFilter | None]
+    initiative_update: strawberry.Maybe[NullableInitiativeUpdateFilter | None]
+    issue: strawberry.Maybe[NullableIssueFilter | None]
+    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None]
+    or_: strawberry.Maybe[list[CommentFilter] | None] = strawberry.field(name="or")
+    parent: strawberry.Maybe[NullableCommentFilter | None]
+    project: strawberry.Maybe[NullableProjectFilter | None]
+    project_update: strawberry.Maybe[NullableProjectUpdateFilter | None]
+    reactions: strawberry.Maybe[ReactionCollectionFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+    user: strawberry.Maybe[UserFilter | None]
+
+
+@strawberry.input
 class CompletedAtSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
+
+
+@strawberry.input
+class ContentComparator:
+    contains: strawberry.Maybe[str | None]
+    not_contains: strawberry.Maybe[str | None]
 
 
 @strawberry.input
@@ -93,6 +260,43 @@ class CustomerImportantCountSort:
 
 
 @strawberry.input
+class CustomerNeedCollectionFilter:
+    and_: strawberry.Maybe[list[CustomerNeedCollectionFilter] | None] = (
+        strawberry.field(name="and")
+    )
+    comment: strawberry.Maybe[NullableCommentFilter | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    customer: strawberry.Maybe[NullableCustomerFilter | None]
+    every: strawberry.Maybe[CustomerNeedFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    issue: strawberry.Maybe[NullableIssueFilter | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    or_: strawberry.Maybe[list[CustomerNeedCollectionFilter] | None] = strawberry.field(
+        name="or"
+    )
+    priority: strawberry.Maybe[NumberComparator | None]
+    project: strawberry.Maybe[NullableProjectFilter | None]
+    some: strawberry.Maybe[CustomerNeedFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class CustomerNeedFilter:
+    and_: strawberry.Maybe[list[CustomerNeedFilter] | None] = strawberry.field(
+        name="and"
+    )
+    comment: strawberry.Maybe[NullableCommentFilter | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    customer: strawberry.Maybe[NullableCustomerFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    issue: strawberry.Maybe[NullableIssueFilter | None]
+    or_: strawberry.Maybe[list[CustomerNeedFilter] | None] = strawberry.field(name="or")
+    priority: strawberry.Maybe[NumberComparator | None]
+    project: strawberry.Maybe[NullableProjectFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
 class CustomerRevenueSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
@@ -105,10 +309,87 @@ class CustomerSort:
 
 
 @strawberry.input
+class CustomerStatusFilter:
+    and_: strawberry.Maybe[list[CustomerStatusFilter] | None] = strawberry.field(
+        name="and"
+    )
+    color: strawberry.Maybe[StringComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    description: strawberry.Maybe[StringComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    or_: strawberry.Maybe[list[CustomerStatusFilter] | None] = strawberry.field(
+        name="or"
+    )
+    position: strawberry.Maybe[NumberComparator | None]
+    type: strawberry.Maybe[StringComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class CustomerTierFilter:
+    and_: strawberry.Maybe[list[CustomerTierFilter] | None] = strawberry.field(
+        name="and"
+    )
+    color: strawberry.Maybe[StringComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    description: strawberry.Maybe[StringComparator | None]
+    display_name: strawberry.Maybe[StringComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    or_: strawberry.Maybe[list[CustomerTierFilter] | None] = strawberry.field(name="or")
+    position: strawberry.Maybe[NumberComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class CycleFilter:
+    and_: strawberry.Maybe[list[CycleFilter] | None] = strawberry.field(name="and")
+    completed_at: strawberry.Maybe[DateComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    ends_at: strawberry.Maybe[DateComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    inherited_from_id: strawberry.Maybe[IDComparator | None]
+    is_active: strawberry.Maybe[BooleanComparator | None]
+    is_future: strawberry.Maybe[BooleanComparator | None]
+    is_in_cooldown: strawberry.Maybe[BooleanComparator | None]
+    is_next: strawberry.Maybe[BooleanComparator | None]
+    is_past: strawberry.Maybe[BooleanComparator | None]
+    is_previous: strawberry.Maybe[BooleanComparator | None]
+    issues: strawberry.Maybe[IssueCollectionFilter | None]
+    name: strawberry.Maybe[StringComparator | None]
+    number: strawberry.Maybe[NumberComparator | None]
+    or_: strawberry.Maybe[list[CycleFilter] | None] = strawberry.field(name="or")
+    starts_at: strawberry.Maybe[DateComparator | None]
+    team: strawberry.Maybe[TeamFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class CyclePeriodComparator:
+    eq: strawberry.Maybe[CyclePeriod | None]
+    in_: strawberry.Maybe[list[CyclePeriod] | None] = strawberry.field(name="in")
+    neq: strawberry.Maybe[CyclePeriod | None]
+    nin: strawberry.Maybe[list[CyclePeriod] | None]
+    null: strawberry.Maybe[bool | None]
+
+
+@strawberry.input
 class CycleSort:
     current_cycle_first: strawberry.Maybe[bool | None] = False
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
+
+
+@strawberry.input
+class DateComparator:
+    eq: strawberry.Maybe[DateTimeOrDuration | None]
+    gt: strawberry.Maybe[DateTimeOrDuration | None]
+    gte: strawberry.Maybe[DateTimeOrDuration | None]
+    in_: strawberry.Maybe[list[DateTimeOrDuration] | None] = strawberry.field(name="in")
+    lt: strawberry.Maybe[DateTimeOrDuration | None]
+    lte: strawberry.Maybe[DateTimeOrDuration | None]
+    neq: strawberry.Maybe[DateTimeOrDuration | None]
+    nin: strawberry.Maybe[list[DateTimeOrDuration] | None]
 
 
 @strawberry.input
@@ -118,15 +399,269 @@ class DelegateSort:
 
 
 @strawberry.input
+class DocumentFilter:
+    and_: strawberry.Maybe[list[DocumentFilter] | None] = strawberry.field(name="and")
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[UserFilter | None]
+    cycle: strawberry.Maybe[CycleFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    initiative: strawberry.Maybe[InitiativeFilter | None]
+    issue: strawberry.Maybe[IssueFilter | None]
+    or_: strawberry.Maybe[list[DocumentFilter] | None] = strawberry.field(name="or")
+    project: strawberry.Maybe[ProjectFilter | None]
+    release: strawberry.Maybe[ReleaseFilter | None]
+    slug_id: strawberry.Maybe[StringComparator | None]
+    team: strawberry.Maybe[NullableTeamFilter | None]
+    title: strawberry.Maybe[StringComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
 class DueDateSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
 
 
 @strawberry.input
+class EstimateComparator:
+    and_: strawberry.Maybe[list[NullableNumberComparator] | None] = strawberry.field(
+        name="and"
+    )
+    eq: strawberry.Maybe[float | None]
+    gt: strawberry.Maybe[float | None]
+    gte: strawberry.Maybe[float | None]
+    in_: strawberry.Maybe[list[float] | None] = strawberry.field(name="in")
+    lt: strawberry.Maybe[float | None]
+    lte: strawberry.Maybe[float | None]
+    neq: strawberry.Maybe[float | None]
+    nin: strawberry.Maybe[list[float] | None]
+    null: strawberry.Maybe[bool | None]
+    or_: strawberry.Maybe[list[NullableNumberComparator] | None] = strawberry.field(
+        name="or"
+    )
+
+
+@strawberry.input
 class EstimateSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
+
+
+@strawberry.input
+class IDComparator:
+    eq: strawberry.Maybe[strawberry.ID | None]
+    in_: strawberry.Maybe[list[strawberry.ID] | None] = strawberry.field(name="in")
+    neq: strawberry.Maybe[strawberry.ID | None]
+    nin: strawberry.Maybe[list[strawberry.ID] | None]
+
+
+@strawberry.input
+class InitiativeCollectionFilter:
+    activity_type: strawberry.Maybe[StringComparator | None]
+    ancestors: strawberry.Maybe[InitiativeCollectionFilter | None]
+    and_: strawberry.Maybe[list[InitiativeCollectionFilter] | None] = strawberry.field(
+        name="and"
+    )
+    canceled_at: strawberry.Maybe[NullableDateComparator | None]
+    completed_at: strawberry.Maybe[NullableDateComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[NullableUserFilter | None]
+    every: strawberry.Maybe[InitiativeFilter | None]
+    health: strawberry.Maybe[StringComparator | None]
+    health_with_age: strawberry.Maybe[StringComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    initiative_updates: strawberry.Maybe[InitiativeUpdatesCollectionFilter | None]
+    labels: strawberry.Maybe[InitiativeLabelCollectionFilter | None]
+    lead_team: strawberry.Maybe[NullableTeamFilter | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    or_: strawberry.Maybe[list[InitiativeCollectionFilter] | None] = strawberry.field(
+        name="or"
+    )
+    owner: strawberry.Maybe[NullableUserFilter | None]
+    priority: strawberry.Maybe[NullableNumberComparator | None]
+    slug_id: strawberry.Maybe[StringComparator | None]
+    some: strawberry.Maybe[InitiativeFilter | None]
+    started_at: strawberry.Maybe[NullableDateComparator | None]
+    status: strawberry.Maybe[StringComparator | None]
+    target_date: strawberry.Maybe[NullableDateComparator | None]
+    teams: strawberry.Maybe[TeamCollectionFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class InitiativeFilter:
+    activity_type: strawberry.Maybe[StringComparator | None]
+    ancestors: strawberry.Maybe[InitiativeCollectionFilter | None]
+    and_: strawberry.Maybe[list[InitiativeFilter] | None] = strawberry.field(name="and")
+    canceled_at: strawberry.Maybe[NullableDateComparator | None]
+    completed_at: strawberry.Maybe[NullableDateComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[NullableUserFilter | None]
+    health: strawberry.Maybe[StringComparator | None]
+    health_with_age: strawberry.Maybe[StringComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    initiative_updates: strawberry.Maybe[InitiativeUpdatesCollectionFilter | None]
+    labels: strawberry.Maybe[InitiativeLabelCollectionFilter | None]
+    lead_team: strawberry.Maybe[NullableTeamFilter | None]
+    name: strawberry.Maybe[StringComparator | None]
+    or_: strawberry.Maybe[list[InitiativeFilter] | None] = strawberry.field(name="or")
+    owner: strawberry.Maybe[NullableUserFilter | None]
+    priority: strawberry.Maybe[NullableNumberComparator | None]
+    slug_id: strawberry.Maybe[StringComparator | None]
+    started_at: strawberry.Maybe[NullableDateComparator | None]
+    status: strawberry.Maybe[StringComparator | None]
+    target_date: strawberry.Maybe[NullableDateComparator | None]
+    teams: strawberry.Maybe[TeamCollectionFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class InitiativeLabelCollectionFilter:
+    and_: strawberry.Maybe[list[InitiativeLabelCollectionFilter] | None] = (
+        strawberry.field(name="and")
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[NullableUserFilter | None]
+    every: strawberry.Maybe[InitiativeLabelFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    is_group: strawberry.Maybe[BooleanComparator | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    null: strawberry.Maybe[bool | None]
+    or_: strawberry.Maybe[list[InitiativeLabelCollectionFilter] | None] = (
+        strawberry.field(name="or")
+    )
+    parent: strawberry.Maybe[InitiativeLabelFilter | None]
+    some: strawberry.Maybe[InitiativeLabelCollectionFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class InitiativeLabelFilter:
+    and_: strawberry.Maybe[list[InitiativeLabelFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[NullableUserFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    is_group: strawberry.Maybe[BooleanComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    or_: strawberry.Maybe[list[InitiativeLabelFilter] | None] = strawberry.field(
+        name="or"
+    )
+    parent: strawberry.Maybe[InitiativeLabelFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class InitiativeUpdatesCollectionFilter:
+    and_: strawberry.Maybe[list[InitiativeUpdatesCollectionFilter] | None] = (
+        strawberry.field(name="and")
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    every: strawberry.Maybe[InitiativeUpdatesFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    or_: strawberry.Maybe[list[InitiativeUpdatesCollectionFilter] | None] = (
+        strawberry.field(name="or")
+    )
+    some: strawberry.Maybe[InitiativeUpdatesFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class InitiativeUpdatesFilter:
+    and_: strawberry.Maybe[list[InitiativeUpdatesFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    or_: strawberry.Maybe[list[InitiativeUpdatesFilter] | None] = strawberry.field(
+        name="or"
+    )
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class IssueCollectionFilter:
+    accumulated_state_updated_at: strawberry.Maybe[NullableDateComparator | None]
+    activity: strawberry.Maybe[ActivityCollectionFilter | None]
+    added_to_cycle_at: strawberry.Maybe[NullableDateComparator | None]
+    added_to_cycle_period: strawberry.Maybe[CyclePeriodComparator | None]
+    age_time: strawberry.Maybe[NullableDurationComparator | None]
+    and_: strawberry.Maybe[list[IssueCollectionFilter] | None] = strawberry.field(
+        name="and"
+    )
+    archived_at: strawberry.Maybe[NullableDateComparator | None]
+    assignee: strawberry.Maybe[NullableUserFilter | None]
+    attachments: strawberry.Maybe[AttachmentCollectionFilter | None]
+    auto_archived_at: strawberry.Maybe[NullableDateComparator | None]
+    auto_closed_at: strawberry.Maybe[NullableDateComparator | None]
+    canceled_at: strawberry.Maybe[NullableDateComparator | None]
+    children: strawberry.Maybe[IssueCollectionFilter | None]
+    comments: strawberry.Maybe[CommentCollectionFilter | None]
+    completed_at: strawberry.Maybe[NullableDateComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[NullableUserFilter | None]
+    customer_count: strawberry.Maybe[NumberComparator | None]
+    customer_important_count: strawberry.Maybe[NumberComparator | None]
+    cycle: strawberry.Maybe[NullableCycleFilter | None]
+    cycle_time: strawberry.Maybe[NullableDurationComparator | None]
+    delegate: strawberry.Maybe[NullableUserFilter | None]
+    description: strawberry.Maybe[NullableStringComparator | None]
+    due_date: strawberry.Maybe[NullableTimelessDateComparator | None]
+    estimate: strawberry.Maybe[EstimateComparator | None]
+    every: strawberry.Maybe[IssueFilter | None]
+    has_active_agent_sessions: strawberry.Maybe[RelationExistsComparator | None]
+    has_blocked_by_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_blocking_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_dismissed_agent_sessions: strawberry.Maybe[RelationExistsComparator | None]
+    has_duplicate_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_errored_agent_sessions: strawberry.Maybe[RelationExistsComparator | None]
+    has_merged_agent_pull_requests: strawberry.Maybe[RelationExistsComparator | None]
+    has_related_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_shared_users: strawberry.Maybe[RelationExistsComparator | None]
+    has_suggested_assignees: strawberry.Maybe[RelationExistsComparator | None]
+    has_suggested_labels: strawberry.Maybe[RelationExistsComparator | None]
+    has_suggested_projects: strawberry.Maybe[RelationExistsComparator | None]
+    has_suggested_related_issues: strawberry.Maybe[RelationExistsComparator | None]
+    has_suggested_similar_issues: strawberry.Maybe[RelationExistsComparator | None]
+    has_suggested_teams: strawberry.Maybe[RelationExistsComparator | None]
+    id: strawberry.Maybe[IssueIDComparator | None]
+    labels: strawberry.Maybe[IssueLabelCollectionFilter | None]
+    last_applied_template: strawberry.Maybe[NullableTemplateFilter | None]
+    lead_time: strawberry.Maybe[NullableDurationComparator | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None]
+    number: strawberry.Maybe[NumberComparator | None]
+    or_: strawberry.Maybe[list[IssueCollectionFilter] | None] = strawberry.field(
+        name="or"
+    )
+    parent: strawberry.Maybe[NullableIssueFilter | None]
+    priority: strawberry.Maybe[NullableNumberComparator | None]
+    project: strawberry.Maybe[NullableProjectFilter | None]
+    project_milestone: strawberry.Maybe[NullableProjectMilestoneFilter | None]
+    reactions: strawberry.Maybe[ReactionCollectionFilter | None]
+    recurring_issue_template: strawberry.Maybe[NullableTemplateFilter | None]
+    releases: strawberry.Maybe[ReleaseCollectionFilter | None]
+    searchable_content: strawberry.Maybe[ContentComparator | None]
+    shared_with: strawberry.Maybe[UserCollectionFilter | None]
+    sla_breaches_at: strawberry.Maybe[NullableDateComparator | None]
+    sla_status: strawberry.Maybe[SlaStatusComparator | None]
+    snoozed_by: strawberry.Maybe[NullableUserFilter | None]
+    snoozed_until_at: strawberry.Maybe[NullableDateComparator | None]
+    some: strawberry.Maybe[IssueFilter | None]
+    source_metadata: strawberry.Maybe[SourceMetadataComparator | None]
+    started_at: strawberry.Maybe[NullableDateComparator | None]
+    state: strawberry.Maybe[WorkflowStateFilter | None]
+    subscribers: strawberry.Maybe[UserCollectionFilter | None]
+    suggestions: strawberry.Maybe[IssueSuggestionCollectionFilter | None]
+    team: strawberry.Maybe[TeamFilter | None]
+    title: strawberry.Maybe[StringComparator | None]
+    triage_time: strawberry.Maybe[NullableDurationComparator | None]
+    triaged_at: strawberry.Maybe[NullableDateComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
 
 
 @strawberry.input
@@ -170,6 +705,50 @@ class IssueCreateInput:
 
 
 @strawberry.input
+class IssueIDComparator:
+    eq: strawberry.Maybe[strawberry.ID | None]
+    in_: strawberry.Maybe[list[strawberry.ID] | None] = strawberry.field(name="in")
+    neq: strawberry.Maybe[strawberry.ID | None]
+    nin: strawberry.Maybe[list[strawberry.ID] | None]
+
+
+@strawberry.input
+class IssueLabelCollectionFilter:
+    and_: strawberry.Maybe[list[IssueLabelCollectionFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[NullableUserFilter | None]
+    every: strawberry.Maybe[IssueLabelFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    is_group: strawberry.Maybe[BooleanComparator | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    null: strawberry.Maybe[bool | None]
+    or_: strawberry.Maybe[list[IssueLabelCollectionFilter] | None] = strawberry.field(
+        name="or"
+    )
+    parent: strawberry.Maybe[IssueLabelFilter | None]
+    some: strawberry.Maybe[IssueLabelFilter | None]
+    team: strawberry.Maybe[NullableTeamFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class IssueLabelFilter:
+    and_: strawberry.Maybe[list[IssueLabelFilter] | None] = strawberry.field(name="and")
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[NullableUserFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    is_group: strawberry.Maybe[BooleanComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    or_: strawberry.Maybe[list[IssueLabelFilter] | None] = strawberry.field(name="or")
+    parent: strawberry.Maybe[IssueLabelFilter | None]
+    team: strawberry.Maybe[NullableTeamFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
 class IssueSortInput:
     accumulated_state_updated_at: strawberry.Maybe[TimeInStatusSort | None]
     assignee: strawberry.Maybe[AssigneeSort | None]
@@ -197,6 +776,47 @@ class IssueSortInput:
     title: strawberry.Maybe[TitleSort | None]
     updated_at: strawberry.Maybe[UpdatedAtSort | None]
     workflow_state: strawberry.Maybe[WorkflowStateSort | None]
+
+
+@strawberry.input
+class IssueSuggestionCollectionFilter:
+    and_: strawberry.Maybe[list[IssueSuggestionCollectionFilter] | None] = (
+        strawberry.field(name="and")
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    every: strawberry.Maybe[IssueSuggestionFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    or_: strawberry.Maybe[list[IssueSuggestionCollectionFilter] | None] = (
+        strawberry.field(name="or")
+    )
+    some: strawberry.Maybe[IssueSuggestionFilter | None]
+    state: strawberry.Maybe[StringComparator | None]
+    suggested_label: strawberry.Maybe[IssueLabelFilter | None]
+    suggested_project: strawberry.Maybe[NullableProjectFilter | None]
+    suggested_team: strawberry.Maybe[NullableTeamFilter | None]
+    suggested_user: strawberry.Maybe[NullableUserFilter | None]
+    type: strawberry.Maybe[StringComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class IssueSuggestionFilter:
+    and_: strawberry.Maybe[list[IssueSuggestionFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    or_: strawberry.Maybe[list[IssueSuggestionFilter] | None] = strawberry.field(
+        name="or"
+    )
+    state: strawberry.Maybe[StringComparator | None]
+    suggested_label: strawberry.Maybe[IssueLabelFilter | None]
+    suggested_project: strawberry.Maybe[NullableProjectFilter | None]
+    suggested_team: strawberry.Maybe[NullableTeamFilter | None]
+    suggested_user: strawberry.Maybe[NullableUserFilter | None]
+    type: strawberry.Maybe[StringComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
 
 
 @strawberry.input
@@ -269,11 +889,647 @@ class MilestoneSort:
 
 
 @strawberry.input
+class NullableCommentFilter:
+    and_: strawberry.Maybe[list[NullableCommentFilter] | None] = strawberry.field(
+        name="and"
+    )
+    body: strawberry.Maybe[StringComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    document_content: strawberry.Maybe[NullableDocumentContentFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    initiative: strawberry.Maybe[NullableInitiativeFilter | None]
+    initiative_update: strawberry.Maybe[NullableInitiativeUpdateFilter | None]
+    issue: strawberry.Maybe[NullableIssueFilter | None]
+    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None]
+    null: strawberry.Maybe[bool | None]
+    or_: strawberry.Maybe[list[NullableCommentFilter] | None] = strawberry.field(
+        name="or"
+    )
+    parent: strawberry.Maybe[NullableCommentFilter | None]
+    project: strawberry.Maybe[NullableProjectFilter | None]
+    project_update: strawberry.Maybe[NullableProjectUpdateFilter | None]
+    reactions: strawberry.Maybe[ReactionCollectionFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+    user: strawberry.Maybe[UserFilter | None]
+
+
+@strawberry.input
+class NullableCustomerFilter:
+    and_: strawberry.Maybe[list[NullableCustomerFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    domains: strawberry.Maybe[StringArrayComparator | None]
+    external_ids: strawberry.Maybe[StringArrayComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None]
+    null: strawberry.Maybe[bool | None]
+    or_: strawberry.Maybe[list[NullableCustomerFilter] | None] = strawberry.field(
+        name="or"
+    )
+    owner: strawberry.Maybe[NullableUserFilter | None]
+    revenue: strawberry.Maybe[NumberComparator | None]
+    size: strawberry.Maybe[NumberComparator | None]
+    slack_channel_id: strawberry.Maybe[StringComparator | None]
+    status: strawberry.Maybe[CustomerStatusFilter | None]
+    tier: strawberry.Maybe[CustomerTierFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class NullableCycleFilter:
+    and_: strawberry.Maybe[list[NullableCycleFilter] | None] = strawberry.field(
+        name="and"
+    )
+    completed_at: strawberry.Maybe[DateComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    ends_at: strawberry.Maybe[DateComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    inherited_from_id: strawberry.Maybe[IDComparator | None]
+    is_active: strawberry.Maybe[BooleanComparator | None]
+    is_future: strawberry.Maybe[BooleanComparator | None]
+    is_in_cooldown: strawberry.Maybe[BooleanComparator | None]
+    is_next: strawberry.Maybe[BooleanComparator | None]
+    is_past: strawberry.Maybe[BooleanComparator | None]
+    is_previous: strawberry.Maybe[BooleanComparator | None]
+    issues: strawberry.Maybe[IssueCollectionFilter | None]
+    name: strawberry.Maybe[StringComparator | None]
+    null: strawberry.Maybe[bool | None]
+    number: strawberry.Maybe[NumberComparator | None]
+    or_: strawberry.Maybe[list[NullableCycleFilter] | None] = strawberry.field(
+        name="or"
+    )
+    starts_at: strawberry.Maybe[DateComparator | None]
+    team: strawberry.Maybe[TeamFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class NullableDateComparator:
+    eq: strawberry.Maybe[DateTimeOrDuration | None]
+    gt: strawberry.Maybe[DateTimeOrDuration | None]
+    gte: strawberry.Maybe[DateTimeOrDuration | None]
+    in_: strawberry.Maybe[list[DateTimeOrDuration] | None] = strawberry.field(name="in")
+    lt: strawberry.Maybe[DateTimeOrDuration | None]
+    lte: strawberry.Maybe[DateTimeOrDuration | None]
+    neq: strawberry.Maybe[DateTimeOrDuration | None]
+    nin: strawberry.Maybe[list[DateTimeOrDuration] | None]
+    null: strawberry.Maybe[bool | None]
+
+
+@strawberry.input
+class NullableDocumentContentFilter:
+    and_: strawberry.Maybe[list[NullableDocumentContentFilter] | None] = (
+        strawberry.field(name="and")
+    )
+    content: strawberry.Maybe[NullableStringComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    document: strawberry.Maybe[DocumentFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    initiative: strawberry.Maybe[InitiativeFilter | None]
+    issue: strawberry.Maybe[IssueFilter | None]
+    null: strawberry.Maybe[bool | None]
+    or_: strawberry.Maybe[list[NullableDocumentContentFilter] | None] = (
+        strawberry.field(name="or")
+    )
+    project: strawberry.Maybe[ProjectFilter | None]
+    project_milestone: strawberry.Maybe[ProjectMilestoneFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class NullableDurationComparator:
+    eq: strawberry.Maybe[Duration | None]
+    gt: strawberry.Maybe[Duration | None]
+    gte: strawberry.Maybe[Duration | None]
+    in_: strawberry.Maybe[list[Duration] | None] = strawberry.field(name="in")
+    lt: strawberry.Maybe[Duration | None]
+    lte: strawberry.Maybe[Duration | None]
+    neq: strawberry.Maybe[Duration | None]
+    nin: strawberry.Maybe[list[Duration] | None]
+    null: strawberry.Maybe[bool | None]
+
+
+@strawberry.input
+class NullableInitiativeFilter:
+    activity_type: strawberry.Maybe[StringComparator | None]
+    ancestors: strawberry.Maybe[InitiativeCollectionFilter | None]
+    and_: strawberry.Maybe[list[NullableInitiativeFilter] | None] = strawberry.field(
+        name="and"
+    )
+    canceled_at: strawberry.Maybe[NullableDateComparator | None]
+    completed_at: strawberry.Maybe[NullableDateComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[NullableUserFilter | None]
+    health: strawberry.Maybe[StringComparator | None]
+    health_with_age: strawberry.Maybe[StringComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    initiative_updates: strawberry.Maybe[InitiativeUpdatesCollectionFilter | None]
+    labels: strawberry.Maybe[InitiativeLabelCollectionFilter | None]
+    lead_team: strawberry.Maybe[NullableTeamFilter | None]
+    name: strawberry.Maybe[StringComparator | None]
+    null: strawberry.Maybe[bool | None]
+    or_: strawberry.Maybe[list[NullableInitiativeFilter] | None] = strawberry.field(
+        name="or"
+    )
+    owner: strawberry.Maybe[NullableUserFilter | None]
+    priority: strawberry.Maybe[NullableNumberComparator | None]
+    slug_id: strawberry.Maybe[StringComparator | None]
+    started_at: strawberry.Maybe[NullableDateComparator | None]
+    status: strawberry.Maybe[StringComparator | None]
+    target_date: strawberry.Maybe[NullableDateComparator | None]
+    teams: strawberry.Maybe[TeamCollectionFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class NullableInitiativeUpdateFilter:
+    and_: strawberry.Maybe[list[NullableInitiativeUpdateFilter] | None] = (
+        strawberry.field(name="and")
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    initiative: strawberry.Maybe[InitiativeFilter | None]
+    null: strawberry.Maybe[bool | None]
+    or_: strawberry.Maybe[list[NullableInitiativeUpdateFilter] | None] = (
+        strawberry.field(name="or")
+    )
+    reactions: strawberry.Maybe[ReactionCollectionFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+    user: strawberry.Maybe[UserFilter | None]
+
+
+@strawberry.input
+class NullableIssueFilter:
+    accumulated_state_updated_at: strawberry.Maybe[NullableDateComparator | None]
+    activity: strawberry.Maybe[ActivityCollectionFilter | None]
+    added_to_cycle_at: strawberry.Maybe[NullableDateComparator | None]
+    added_to_cycle_period: strawberry.Maybe[CyclePeriodComparator | None]
+    age_time: strawberry.Maybe[NullableDurationComparator | None]
+    and_: strawberry.Maybe[list[NullableIssueFilter] | None] = strawberry.field(
+        name="and"
+    )
+    archived_at: strawberry.Maybe[NullableDateComparator | None]
+    assignee: strawberry.Maybe[NullableUserFilter | None]
+    attachments: strawberry.Maybe[AttachmentCollectionFilter | None]
+    auto_archived_at: strawberry.Maybe[NullableDateComparator | None]
+    auto_closed_at: strawberry.Maybe[NullableDateComparator | None]
+    canceled_at: strawberry.Maybe[NullableDateComparator | None]
+    children: strawberry.Maybe[IssueCollectionFilter | None]
+    comments: strawberry.Maybe[CommentCollectionFilter | None]
+    completed_at: strawberry.Maybe[NullableDateComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[NullableUserFilter | None]
+    customer_count: strawberry.Maybe[NumberComparator | None]
+    customer_important_count: strawberry.Maybe[NumberComparator | None]
+    cycle: strawberry.Maybe[NullableCycleFilter | None]
+    cycle_time: strawberry.Maybe[NullableDurationComparator | None]
+    delegate: strawberry.Maybe[NullableUserFilter | None]
+    description: strawberry.Maybe[NullableStringComparator | None]
+    due_date: strawberry.Maybe[NullableTimelessDateComparator | None]
+    estimate: strawberry.Maybe[EstimateComparator | None]
+    has_active_agent_sessions: strawberry.Maybe[RelationExistsComparator | None]
+    has_blocked_by_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_blocking_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_dismissed_agent_sessions: strawberry.Maybe[RelationExistsComparator | None]
+    has_duplicate_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_errored_agent_sessions: strawberry.Maybe[RelationExistsComparator | None]
+    has_merged_agent_pull_requests: strawberry.Maybe[RelationExistsComparator | None]
+    has_related_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_shared_users: strawberry.Maybe[RelationExistsComparator | None]
+    has_suggested_assignees: strawberry.Maybe[RelationExistsComparator | None]
+    has_suggested_labels: strawberry.Maybe[RelationExistsComparator | None]
+    has_suggested_projects: strawberry.Maybe[RelationExistsComparator | None]
+    has_suggested_related_issues: strawberry.Maybe[RelationExistsComparator | None]
+    has_suggested_similar_issues: strawberry.Maybe[RelationExistsComparator | None]
+    has_suggested_teams: strawberry.Maybe[RelationExistsComparator | None]
+    id: strawberry.Maybe[IssueIDComparator | None]
+    labels: strawberry.Maybe[IssueLabelCollectionFilter | None]
+    last_applied_template: strawberry.Maybe[NullableTemplateFilter | None]
+    lead_time: strawberry.Maybe[NullableDurationComparator | None]
+    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None]
+    null: strawberry.Maybe[bool | None]
+    number: strawberry.Maybe[NumberComparator | None]
+    or_: strawberry.Maybe[list[NullableIssueFilter] | None] = strawberry.field(
+        name="or"
+    )
+    parent: strawberry.Maybe[NullableIssueFilter | None]
+    priority: strawberry.Maybe[NullableNumberComparator | None]
+    project: strawberry.Maybe[NullableProjectFilter | None]
+    project_milestone: strawberry.Maybe[NullableProjectMilestoneFilter | None]
+    reactions: strawberry.Maybe[ReactionCollectionFilter | None]
+    recurring_issue_template: strawberry.Maybe[NullableTemplateFilter | None]
+    releases: strawberry.Maybe[ReleaseCollectionFilter | None]
+    searchable_content: strawberry.Maybe[ContentComparator | None]
+    shared_with: strawberry.Maybe[UserCollectionFilter | None]
+    sla_breaches_at: strawberry.Maybe[NullableDateComparator | None]
+    sla_status: strawberry.Maybe[SlaStatusComparator | None]
+    snoozed_by: strawberry.Maybe[NullableUserFilter | None]
+    snoozed_until_at: strawberry.Maybe[NullableDateComparator | None]
+    source_metadata: strawberry.Maybe[SourceMetadataComparator | None]
+    started_at: strawberry.Maybe[NullableDateComparator | None]
+    state: strawberry.Maybe[WorkflowStateFilter | None]
+    subscribers: strawberry.Maybe[UserCollectionFilter | None]
+    suggestions: strawberry.Maybe[IssueSuggestionCollectionFilter | None]
+    team: strawberry.Maybe[TeamFilter | None]
+    title: strawberry.Maybe[StringComparator | None]
+    triage_time: strawberry.Maybe[NullableDurationComparator | None]
+    triaged_at: strawberry.Maybe[NullableDateComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class NullableNumberComparator:
+    eq: strawberry.Maybe[float | None]
+    gt: strawberry.Maybe[float | None]
+    gte: strawberry.Maybe[float | None]
+    in_: strawberry.Maybe[list[float] | None] = strawberry.field(name="in")
+    lt: strawberry.Maybe[float | None]
+    lte: strawberry.Maybe[float | None]
+    neq: strawberry.Maybe[float | None]
+    nin: strawberry.Maybe[list[float] | None]
+    null: strawberry.Maybe[bool | None]
+
+
+@strawberry.input
+class NullableProjectFilter:
+    accessible_teams: strawberry.Maybe[TeamCollectionFilter | None]
+    activity_type: strawberry.Maybe[StringComparator | None]
+    and_: strawberry.Maybe[list[NullableProjectFilter] | None] = strawberry.field(
+        name="and"
+    )
+    canceled_at: strawberry.Maybe[NullableDateComparator | None]
+    completed_at: strawberry.Maybe[NullableDateComparator | None]
+    completed_project_milestones: strawberry.Maybe[
+        ProjectMilestoneCollectionFilter | None
+    ]
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[UserFilter | None]
+    customer_count: strawberry.Maybe[NumberComparator | None]
+    customer_important_count: strawberry.Maybe[NumberComparator | None]
+    has_blocked_by_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_blocking_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_depended_on_by_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_depends_on_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_related_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_violated_relations: strawberry.Maybe[RelationExistsComparator | None]
+    health: strawberry.Maybe[StringComparator | None]
+    health_with_age: strawberry.Maybe[StringComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    initiatives: strawberry.Maybe[InitiativeCollectionFilter | None]
+    issues: strawberry.Maybe[IssueCollectionFilter | None]
+    labels: strawberry.Maybe[ProjectLabelCollectionFilter | None]
+    last_applied_template: strawberry.Maybe[NullableTemplateFilter | None]
+    lead: strawberry.Maybe[NullableUserFilter | None]
+    members: strawberry.Maybe[UserCollectionFilter | None]
+    name: strawberry.Maybe[StringComparator | None]
+    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None]
+    next_project_milestone: strawberry.Maybe[ProjectMilestoneFilter | None]
+    null: strawberry.Maybe[bool | None]
+    or_: strawberry.Maybe[list[NullableProjectFilter] | None] = strawberry.field(
+        name="or"
+    )
+    priority: strawberry.Maybe[NullableNumberComparator | None]
+    project_milestones: strawberry.Maybe[ProjectMilestoneCollectionFilter | None]
+    project_updates: strawberry.Maybe[ProjectUpdatesCollectionFilter | None]
+    roadmaps: strawberry.Maybe[RoadmapCollectionFilter | None]
+    searchable_content: strawberry.Maybe[ContentComparator | None]
+    slug_id: strawberry.Maybe[StringComparator | None]
+    start_date: strawberry.Maybe[NullableDateComparator | None]
+    started_at: strawberry.Maybe[NullableDateComparator | None]
+    state: strawberry.Maybe[StringComparator | None]
+    status: strawberry.Maybe[ProjectStatusFilter | None]
+    target_date: strawberry.Maybe[NullableDateComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class NullableProjectMilestoneFilter:
+    and_: strawberry.Maybe[list[NullableProjectMilestoneFilter] | None] = (
+        strawberry.field(name="and")
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    name: strawberry.Maybe[NullableStringComparator | None]
+    null: strawberry.Maybe[bool | None]
+    or_: strawberry.Maybe[list[NullableProjectMilestoneFilter] | None] = (
+        strawberry.field(name="or")
+    )
+    project: strawberry.Maybe[NullableProjectFilter | None]
+    target_date: strawberry.Maybe[NullableDateComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class NullableProjectUpdateFilter:
+    and_: strawberry.Maybe[list[NullableProjectUpdateFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    null: strawberry.Maybe[bool | None]
+    or_: strawberry.Maybe[list[NullableProjectUpdateFilter] | None] = strawberry.field(
+        name="or"
+    )
+    project: strawberry.Maybe[ProjectFilter | None]
+    reactions: strawberry.Maybe[ReactionCollectionFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+    user: strawberry.Maybe[UserFilter | None]
+
+
+@strawberry.input
+class NullableStringComparator:
+    contains: strawberry.Maybe[str | None]
+    contains_ignore_case: strawberry.Maybe[str | None]
+    contains_ignore_case_and_accent: strawberry.Maybe[str | None]
+    ends_with: strawberry.Maybe[str | None]
+    eq: strawberry.Maybe[str | None]
+    eq_ignore_case: strawberry.Maybe[str | None]
+    in_: strawberry.Maybe[list[str] | None] = strawberry.field(name="in")
+    neq: strawberry.Maybe[str | None]
+    neq_ignore_case: strawberry.Maybe[str | None]
+    nin: strawberry.Maybe[list[str] | None]
+    not_contains: strawberry.Maybe[str | None]
+    not_contains_ignore_case: strawberry.Maybe[str | None]
+    not_ends_with: strawberry.Maybe[str | None]
+    not_starts_with: strawberry.Maybe[str | None]
+    null: strawberry.Maybe[bool | None]
+    starts_with: strawberry.Maybe[str | None]
+    starts_with_ignore_case: strawberry.Maybe[str | None]
+
+
+@strawberry.input
+class NullableTeamFilter:
+    ancestors: strawberry.Maybe[TeamCollectionFilter | None]
+    and_: strawberry.Maybe[list[NullableTeamFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    description: strawberry.Maybe[NullableStringComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    issues: strawberry.Maybe[IssueCollectionFilter | None]
+    key: strawberry.Maybe[StringComparator | None]
+    members: strawberry.Maybe[UserCollectionFilter | None]
+    name: strawberry.Maybe[StringComparator | None]
+    null: strawberry.Maybe[bool | None]
+    or_: strawberry.Maybe[list[NullableTeamFilter] | None] = strawberry.field(name="or")
+    owners: strawberry.Maybe[UserCollectionFilter | None]
+    parent: strawberry.Maybe[NullableTeamFilter | None]
+    private: strawberry.Maybe[BooleanComparator | None]
+    release_pipelines: strawberry.Maybe[ReleasePipelineCollectionFilter | None]
+    restricted_by: strawberry.Maybe[NullableTeamFilter | None]
+    retired_at: strawberry.Maybe[NullableDateComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+    users: strawberry.Maybe[UserCollectionFilter | None]
+    visibility: strawberry.Maybe[TeamVisibilityComparator | None]
+
+
+@strawberry.input
+class NullableTemplateFilter:
+    and_: strawberry.Maybe[list[NullableTemplateFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    inherited_from_id: strawberry.Maybe[IDComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    null: strawberry.Maybe[bool | None]
+    or_: strawberry.Maybe[list[NullableTemplateFilter] | None] = strawberry.field(
+        name="or"
+    )
+    type: strawberry.Maybe[StringComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class NullableTimelessDateComparator:
+    eq: strawberry.Maybe[TimelessDateOrDuration | None]
+    gt: strawberry.Maybe[TimelessDateOrDuration | None]
+    gte: strawberry.Maybe[TimelessDateOrDuration | None]
+    in_: strawberry.Maybe[list[TimelessDateOrDuration] | None] = strawberry.field(
+        name="in"
+    )
+    lt: strawberry.Maybe[TimelessDateOrDuration | None]
+    lte: strawberry.Maybe[TimelessDateOrDuration | None]
+    neq: strawberry.Maybe[TimelessDateOrDuration | None]
+    nin: strawberry.Maybe[list[TimelessDateOrDuration] | None]
+    null: strawberry.Maybe[bool | None]
+
+
+@strawberry.input
+class NullableUserFilter:
+    active: strawberry.Maybe[BooleanComparator | None]
+    admin: strawberry.Maybe[BooleanComparator | None]
+    and_: strawberry.Maybe[list[NullableUserFilter] | None] = strawberry.field(
+        name="and"
+    )
+    app: strawberry.Maybe[BooleanComparator | None]
+    assigned_issues: strawberry.Maybe[IssueCollectionFilter | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    display_name: strawberry.Maybe[StringComparator | None]
+    email: strawberry.Maybe[StringComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    invited: strawberry.Maybe[BooleanComparator | None]
+    is_invited: strawberry.Maybe[BooleanComparator | None]
+    is_me: strawberry.Maybe[BooleanComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    null: strawberry.Maybe[bool | None]
+    or_: strawberry.Maybe[list[NullableUserFilter] | None] = strawberry.field(name="or")
+    owner: strawberry.Maybe[BooleanComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class NumberComparator:
+    eq: strawberry.Maybe[float | None]
+    gt: strawberry.Maybe[float | None]
+    gte: strawberry.Maybe[float | None]
+    in_: strawberry.Maybe[list[float] | None] = strawberry.field(name="in")
+    lt: strawberry.Maybe[float | None]
+    lte: strawberry.Maybe[float | None]
+    neq: strawberry.Maybe[float | None]
+    nin: strawberry.Maybe[list[float] | None]
+
+
+@strawberry.input
 class PrioritySort:
     no_priority_first: strawberry.Maybe[bool | None] = False
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
     use_priority_sort_order_tiebreaker: strawberry.Maybe[bool | None] = True
+
+
+@strawberry.input
+class ProjectCollectionFilter:
+    accessible_teams: strawberry.Maybe[TeamCollectionFilter | None]
+    activity_type: strawberry.Maybe[StringComparator | None]
+    and_: strawberry.Maybe[list[ProjectCollectionFilter] | None] = strawberry.field(
+        name="and"
+    )
+    canceled_at: strawberry.Maybe[NullableDateComparator | None]
+    completed_at: strawberry.Maybe[NullableDateComparator | None]
+    completed_project_milestones: strawberry.Maybe[
+        ProjectMilestoneCollectionFilter | None
+    ]
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[UserFilter | None]
+    customer_count: strawberry.Maybe[NumberComparator | None]
+    customer_important_count: strawberry.Maybe[NumberComparator | None]
+    every: strawberry.Maybe[ProjectFilter | None]
+    has_blocked_by_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_blocking_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_depended_on_by_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_depends_on_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_related_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_violated_relations: strawberry.Maybe[RelationExistsComparator | None]
+    health: strawberry.Maybe[StringComparator | None]
+    health_with_age: strawberry.Maybe[StringComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    initiatives: strawberry.Maybe[InitiativeCollectionFilter | None]
+    issues: strawberry.Maybe[IssueCollectionFilter | None]
+    labels: strawberry.Maybe[ProjectLabelCollectionFilter | None]
+    last_applied_template: strawberry.Maybe[NullableTemplateFilter | None]
+    lead: strawberry.Maybe[NullableUserFilter | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    members: strawberry.Maybe[UserCollectionFilter | None]
+    name: strawberry.Maybe[StringComparator | None]
+    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None]
+    next_project_milestone: strawberry.Maybe[ProjectMilestoneFilter | None]
+    or_: strawberry.Maybe[list[ProjectCollectionFilter] | None] = strawberry.field(
+        name="or"
+    )
+    priority: strawberry.Maybe[NullableNumberComparator | None]
+    project_milestones: strawberry.Maybe[ProjectMilestoneCollectionFilter | None]
+    project_updates: strawberry.Maybe[ProjectUpdatesCollectionFilter | None]
+    roadmaps: strawberry.Maybe[RoadmapCollectionFilter | None]
+    searchable_content: strawberry.Maybe[ContentComparator | None]
+    slug_id: strawberry.Maybe[StringComparator | None]
+    some: strawberry.Maybe[ProjectFilter | None]
+    start_date: strawberry.Maybe[NullableDateComparator | None]
+    started_at: strawberry.Maybe[NullableDateComparator | None]
+    state: strawberry.Maybe[StringComparator | None]
+    status: strawberry.Maybe[ProjectStatusFilter | None]
+    target_date: strawberry.Maybe[NullableDateComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class ProjectFilter:
+    accessible_teams: strawberry.Maybe[TeamCollectionFilter | None]
+    activity_type: strawberry.Maybe[StringComparator | None]
+    and_: strawberry.Maybe[list[ProjectFilter] | None] = strawberry.field(name="and")
+    canceled_at: strawberry.Maybe[NullableDateComparator | None]
+    completed_at: strawberry.Maybe[NullableDateComparator | None]
+    completed_project_milestones: strawberry.Maybe[
+        ProjectMilestoneCollectionFilter | None
+    ]
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[UserFilter | None]
+    customer_count: strawberry.Maybe[NumberComparator | None]
+    customer_important_count: strawberry.Maybe[NumberComparator | None]
+    has_blocked_by_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_blocking_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_depended_on_by_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_depends_on_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_related_relations: strawberry.Maybe[RelationExistsComparator | None]
+    has_violated_relations: strawberry.Maybe[RelationExistsComparator | None]
+    health: strawberry.Maybe[StringComparator | None]
+    health_with_age: strawberry.Maybe[StringComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    initiatives: strawberry.Maybe[InitiativeCollectionFilter | None]
+    issues: strawberry.Maybe[IssueCollectionFilter | None]
+    labels: strawberry.Maybe[ProjectLabelCollectionFilter | None]
+    last_applied_template: strawberry.Maybe[NullableTemplateFilter | None]
+    lead: strawberry.Maybe[NullableUserFilter | None]
+    members: strawberry.Maybe[UserCollectionFilter | None]
+    name: strawberry.Maybe[StringComparator | None]
+    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None]
+    next_project_milestone: strawberry.Maybe[ProjectMilestoneFilter | None]
+    or_: strawberry.Maybe[list[ProjectFilter] | None] = strawberry.field(name="or")
+    priority: strawberry.Maybe[NullableNumberComparator | None]
+    project_milestones: strawberry.Maybe[ProjectMilestoneCollectionFilter | None]
+    project_updates: strawberry.Maybe[ProjectUpdatesCollectionFilter | None]
+    roadmaps: strawberry.Maybe[RoadmapCollectionFilter | None]
+    searchable_content: strawberry.Maybe[ContentComparator | None]
+    slug_id: strawberry.Maybe[StringComparator | None]
+    start_date: strawberry.Maybe[NullableDateComparator | None]
+    started_at: strawberry.Maybe[NullableDateComparator | None]
+    state: strawberry.Maybe[StringComparator | None]
+    status: strawberry.Maybe[ProjectStatusFilter | None]
+    target_date: strawberry.Maybe[NullableDateComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class ProjectLabelCollectionFilter:
+    and_: strawberry.Maybe[list[ProjectLabelCollectionFilter] | None] = (
+        strawberry.field(name="and")
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[NullableUserFilter | None]
+    every: strawberry.Maybe[ProjectLabelFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    is_group: strawberry.Maybe[BooleanComparator | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    null: strawberry.Maybe[bool | None]
+    or_: strawberry.Maybe[list[ProjectLabelCollectionFilter] | None] = strawberry.field(
+        name="or"
+    )
+    parent: strawberry.Maybe[ProjectLabelFilter | None]
+    some: strawberry.Maybe[ProjectLabelCollectionFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class ProjectLabelFilter:
+    and_: strawberry.Maybe[list[ProjectLabelFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[NullableUserFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    is_group: strawberry.Maybe[BooleanComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    or_: strawberry.Maybe[list[ProjectLabelFilter] | None] = strawberry.field(name="or")
+    parent: strawberry.Maybe[ProjectLabelFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class ProjectMilestoneCollectionFilter:
+    and_: strawberry.Maybe[list[ProjectMilestoneCollectionFilter] | None] = (
+        strawberry.field(name="and")
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    every: strawberry.Maybe[ProjectMilestoneFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    name: strawberry.Maybe[NullableStringComparator | None]
+    or_: strawberry.Maybe[list[ProjectMilestoneCollectionFilter] | None] = (
+        strawberry.field(name="or")
+    )
+    project: strawberry.Maybe[NullableProjectFilter | None]
+    some: strawberry.Maybe[ProjectMilestoneFilter | None]
+    target_date: strawberry.Maybe[NullableDateComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class ProjectMilestoneFilter:
+    and_: strawberry.Maybe[list[ProjectMilestoneFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    name: strawberry.Maybe[NullableStringComparator | None]
+    or_: strawberry.Maybe[list[ProjectMilestoneFilter] | None] = strawberry.field(
+        name="or"
+    )
+    project: strawberry.Maybe[NullableProjectFilter | None]
+    target_date: strawberry.Maybe[NullableDateComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
 
 
 @strawberry.input
@@ -283,9 +1539,231 @@ class ProjectSort:
 
 
 @strawberry.input
+class ProjectStatusFilter:
+    and_: strawberry.Maybe[list[ProjectStatusFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    description: strawberry.Maybe[StringComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    or_: strawberry.Maybe[list[ProjectStatusFilter] | None] = strawberry.field(
+        name="or"
+    )
+    position: strawberry.Maybe[NumberComparator | None]
+    projects: strawberry.Maybe[ProjectCollectionFilter | None]
+    type: strawberry.Maybe[StringComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class ProjectUpdatesCollectionFilter:
+    and_: strawberry.Maybe[list[ProjectUpdatesCollectionFilter] | None] = (
+        strawberry.field(name="and")
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    every: strawberry.Maybe[ProjectUpdatesFilter | None]
+    health: strawberry.Maybe[StringComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    or_: strawberry.Maybe[list[ProjectUpdatesCollectionFilter] | None] = (
+        strawberry.field(name="or")
+    )
+    some: strawberry.Maybe[ProjectUpdatesFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class ProjectUpdatesFilter:
+    and_: strawberry.Maybe[list[ProjectUpdatesFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    health: strawberry.Maybe[StringComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    or_: strawberry.Maybe[list[ProjectUpdatesFilter] | None] = strawberry.field(
+        name="or"
+    )
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class ReactionCollectionFilter:
+    and_: strawberry.Maybe[list[ReactionCollectionFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    custom_emoji_id: strawberry.Maybe[IDComparator | None]
+    emoji: strawberry.Maybe[StringComparator | None]
+    every: strawberry.Maybe[ReactionFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    or_: strawberry.Maybe[list[ReactionCollectionFilter] | None] = strawberry.field(
+        name="or"
+    )
+    some: strawberry.Maybe[ReactionFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class ReactionFilter:
+    and_: strawberry.Maybe[list[ReactionFilter] | None] = strawberry.field(name="and")
+    created_at: strawberry.Maybe[DateComparator | None]
+    custom_emoji_id: strawberry.Maybe[IDComparator | None]
+    emoji: strawberry.Maybe[StringComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    or_: strawberry.Maybe[list[ReactionFilter] | None] = strawberry.field(name="or")
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class RelationExistsComparator:
+    eq: strawberry.Maybe[bool | None]
+    neq: strawberry.Maybe[bool | None]
+
+
+@strawberry.input
+class ReleaseCollectionFilter:
+    and_: strawberry.Maybe[list[ReleaseCollectionFilter] | None] = strawberry.field(
+        name="and"
+    )
+    completed_at: strawberry.Maybe[NullableDateComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    every: strawberry.Maybe[ReleaseFilter | None]
+    has_release_notes: strawberry.Maybe[BooleanComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    or_: strawberry.Maybe[list[ReleaseCollectionFilter] | None] = strawberry.field(
+        name="or"
+    )
+    pipeline: strawberry.Maybe[ReleasePipelineFilter | None]
+    some: strawberry.Maybe[ReleaseFilter | None]
+    stage: strawberry.Maybe[ReleaseStageFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+    version: strawberry.Maybe[StringComparator | None]
+
+
+@strawberry.input
+class ReleaseFilter:
+    and_: strawberry.Maybe[list[ReleaseFilter] | None] = strawberry.field(name="and")
+    completed_at: strawberry.Maybe[NullableDateComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    has_release_notes: strawberry.Maybe[BooleanComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    or_: strawberry.Maybe[list[ReleaseFilter] | None] = strawberry.field(name="or")
+    pipeline: strawberry.Maybe[ReleasePipelineFilter | None]
+    stage: strawberry.Maybe[ReleaseStageFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+    version: strawberry.Maybe[StringComparator | None]
+
+
+@strawberry.input
+class ReleasePipelineCollectionFilter:
+    and_: strawberry.Maybe[list[ReleasePipelineCollectionFilter] | None] = (
+        strawberry.field(name="and")
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    every: strawberry.Maybe[ReleasePipelineFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    is_production: strawberry.Maybe[BooleanComparator | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    or_: strawberry.Maybe[list[ReleasePipelineCollectionFilter] | None] = (
+        strawberry.field(name="or")
+    )
+    some: strawberry.Maybe[ReleasePipelineFilter | None]
+    teams: strawberry.Maybe[TeamCollectionFilter | None]
+    type: strawberry.Maybe[ReleasePipelineTypeComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class ReleasePipelineFilter:
+    and_: strawberry.Maybe[list[ReleasePipelineFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    is_production: strawberry.Maybe[BooleanComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    or_: strawberry.Maybe[list[ReleasePipelineFilter] | None] = strawberry.field(
+        name="or"
+    )
+    teams: strawberry.Maybe[TeamCollectionFilter | None]
+    type: strawberry.Maybe[ReleasePipelineTypeComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class ReleasePipelineTypeComparator:
+    eq: strawberry.Maybe[ReleasePipelineType | None]
+    in_: strawberry.Maybe[list[ReleasePipelineType] | None] = strawberry.field(
+        name="in"
+    )
+    neq: strawberry.Maybe[ReleasePipelineType | None]
+    nin: strawberry.Maybe[list[ReleasePipelineType] | None]
+    null: strawberry.Maybe[bool | None]
+
+
+@strawberry.input
 class ReleaseSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
+
+
+@strawberry.input
+class ReleaseStageFilter:
+    and_: strawberry.Maybe[list[ReleaseStageFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    or_: strawberry.Maybe[list[ReleaseStageFilter] | None] = strawberry.field(name="or")
+    type: strawberry.Maybe[ReleaseStageTypeComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class ReleaseStageTypeComparator:
+    eq: strawberry.Maybe[ReleaseStageType | None]
+    in_: strawberry.Maybe[list[ReleaseStageType] | None] = strawberry.field(name="in")
+    neq: strawberry.Maybe[ReleaseStageType | None]
+    nin: strawberry.Maybe[list[ReleaseStageType] | None]
+    null: strawberry.Maybe[bool | None]
+
+
+@strawberry.input
+class RoadmapCollectionFilter:
+    and_: strawberry.Maybe[list[RoadmapCollectionFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[UserFilter | None]
+    every: strawberry.Maybe[RoadmapFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    or_: strawberry.Maybe[list[RoadmapCollectionFilter] | None] = strawberry.field(
+        name="or"
+    )
+    slug_id: strawberry.Maybe[StringComparator | None]
+    some: strawberry.Maybe[RoadmapFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class RoadmapFilter:
+    and_: strawberry.Maybe[list[RoadmapFilter] | None] = strawberry.field(name="and")
+    created_at: strawberry.Maybe[DateComparator | None]
+    creator: strawberry.Maybe[UserFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    or_: strawberry.Maybe[list[RoadmapFilter] | None] = strawberry.field(name="or")
+    slug_id: strawberry.Maybe[StringComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
 
 
 @strawberry.input
@@ -296,15 +1774,140 @@ class RootIssueSort:
 
 
 @strawberry.input
+class SalesforceMetadataIntegrationComparator:
+    case_metadata: strawberry.Maybe[JSONObject | None]
+
+
+@strawberry.input
+class SlaStatusComparator:
+    eq: strawberry.Maybe[SlaStatus | None]
+    in_: strawberry.Maybe[list[SlaStatus] | None] = strawberry.field(name="in")
+    neq: strawberry.Maybe[SlaStatus | None]
+    nin: strawberry.Maybe[list[SlaStatus] | None]
+    null: strawberry.Maybe[bool | None]
+
+
+@strawberry.input
 class SlaStatusSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
 
 
 @strawberry.input
+class SourceMetadataComparator:
+    null: strawberry.Maybe[bool | None]
+    salesforce_metadata: strawberry.Maybe[
+        SalesforceMetadataIntegrationComparator | None
+    ]
+    sub_type: strawberry.Maybe[SubTypeComparator | None]
+
+
+@strawberry.input
+class SourceTypeComparator:
+    contains: strawberry.Maybe[str | None]
+    contains_ignore_case: strawberry.Maybe[str | None]
+    contains_ignore_case_and_accent: strawberry.Maybe[str | None]
+    ends_with: strawberry.Maybe[str | None]
+    eq: strawberry.Maybe[str | None]
+    eq_ignore_case: strawberry.Maybe[str | None]
+    in_: strawberry.Maybe[list[str] | None] = strawberry.field(name="in")
+    neq: strawberry.Maybe[str | None]
+    neq_ignore_case: strawberry.Maybe[str | None]
+    nin: strawberry.Maybe[list[str] | None]
+    not_contains: strawberry.Maybe[str | None]
+    not_contains_ignore_case: strawberry.Maybe[str | None]
+    not_ends_with: strawberry.Maybe[str | None]
+    not_starts_with: strawberry.Maybe[str | None]
+    starts_with: strawberry.Maybe[str | None]
+    starts_with_ignore_case: strawberry.Maybe[str | None]
+
+
+@strawberry.input
+class StringArrayComparator:
+    every: strawberry.Maybe[StringItemComparator | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    some: strawberry.Maybe[StringItemComparator | None]
+
+
+@strawberry.input
+class StringComparator:
+    contains: strawberry.Maybe[str | None]
+    contains_ignore_case: strawberry.Maybe[str | None]
+    contains_ignore_case_and_accent: strawberry.Maybe[str | None]
+    ends_with: strawberry.Maybe[str | None]
+    eq: strawberry.Maybe[str | None]
+    eq_ignore_case: strawberry.Maybe[str | None]
+    in_: strawberry.Maybe[list[str] | None] = strawberry.field(name="in")
+    neq: strawberry.Maybe[str | None]
+    neq_ignore_case: strawberry.Maybe[str | None]
+    nin: strawberry.Maybe[list[str] | None]
+    not_contains: strawberry.Maybe[str | None]
+    not_contains_ignore_case: strawberry.Maybe[str | None]
+    not_ends_with: strawberry.Maybe[str | None]
+    not_starts_with: strawberry.Maybe[str | None]
+    starts_with: strawberry.Maybe[str | None]
+    starts_with_ignore_case: strawberry.Maybe[str | None]
+
+
+@strawberry.input
+class StringItemComparator:
+    contains: strawberry.Maybe[str | None]
+    contains_ignore_case: strawberry.Maybe[str | None]
+    contains_ignore_case_and_accent: strawberry.Maybe[str | None]
+    ends_with: strawberry.Maybe[str | None]
+    eq: strawberry.Maybe[str | None]
+    eq_ignore_case: strawberry.Maybe[str | None]
+    in_: strawberry.Maybe[list[str] | None] = strawberry.field(name="in")
+    neq: strawberry.Maybe[str | None]
+    neq_ignore_case: strawberry.Maybe[str | None]
+    nin: strawberry.Maybe[list[str] | None]
+    not_contains: strawberry.Maybe[str | None]
+    not_contains_ignore_case: strawberry.Maybe[str | None]
+    not_ends_with: strawberry.Maybe[str | None]
+    not_starts_with: strawberry.Maybe[str | None]
+    starts_with: strawberry.Maybe[str | None]
+    starts_with_ignore_case: strawberry.Maybe[str | None]
+
+
+@strawberry.input
+class SubTypeComparator:
+    eq: strawberry.Maybe[str | None]
+    in_: strawberry.Maybe[list[str] | None] = strawberry.field(name="in")
+    neq: strawberry.Maybe[str | None]
+    nin: strawberry.Maybe[list[str] | None]
+    null: strawberry.Maybe[bool | None]
+
+
+@strawberry.input
+class TeamCollectionFilter:
+    ancestors: strawberry.Maybe[TeamCollectionFilter | None]
+    and_: strawberry.Maybe[list[TeamCollectionFilter] | None] = strawberry.field(
+        name="and"
+    )
+    created_at: strawberry.Maybe[DateComparator | None]
+    every: strawberry.Maybe[TeamFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    or_: strawberry.Maybe[list[TeamCollectionFilter] | None] = strawberry.field(
+        name="or"
+    )
+    parent: strawberry.Maybe[NullableTeamFilter | None]
+    some: strawberry.Maybe[TeamFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
 class TeamSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
+
+
+@strawberry.input
+class TeamVisibilityComparator:
+    eq: strawberry.Maybe[TeamVisibility | None]
+    in_: strawberry.Maybe[list[TeamVisibility] | None] = strawberry.field(name="in")
+    neq: strawberry.Maybe[TeamVisibility | None]
+    nin: strawberry.Maybe[list[TeamVisibility] | None]
 
 
 @strawberry.input
@@ -326,6 +1929,53 @@ class UpdatedAtSort:
 
 
 @strawberry.input
+class UserCollectionFilter:
+    active: strawberry.Maybe[BooleanComparator | None]
+    admin: strawberry.Maybe[BooleanComparator | None]
+    and_: strawberry.Maybe[list[UserCollectionFilter] | None] = strawberry.field(
+        name="and"
+    )
+    app: strawberry.Maybe[BooleanComparator | None]
+    assigned_issues: strawberry.Maybe[IssueCollectionFilter | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    display_name: strawberry.Maybe[StringComparator | None]
+    email: strawberry.Maybe[StringComparator | None]
+    every: strawberry.Maybe[UserFilter | None]
+    id: strawberry.Maybe[IDComparator | None]
+    invited: strawberry.Maybe[BooleanComparator | None]
+    is_invited: strawberry.Maybe[BooleanComparator | None]
+    is_me: strawberry.Maybe[BooleanComparator | None]
+    length: strawberry.Maybe[NumberComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    or_: strawberry.Maybe[list[UserCollectionFilter] | None] = strawberry.field(
+        name="or"
+    )
+    owner: strawberry.Maybe[BooleanComparator | None]
+    some: strawberry.Maybe[UserFilter | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
+class UserFilter:
+    active: strawberry.Maybe[BooleanComparator | None]
+    admin: strawberry.Maybe[BooleanComparator | None]
+    and_: strawberry.Maybe[list[UserFilter] | None] = strawberry.field(name="and")
+    app: strawberry.Maybe[BooleanComparator | None]
+    assigned_issues: strawberry.Maybe[IssueCollectionFilter | None]
+    created_at: strawberry.Maybe[DateComparator | None]
+    display_name: strawberry.Maybe[StringComparator | None]
+    email: strawberry.Maybe[StringComparator | None]
+    id: strawberry.Maybe[IDComparator | None]
+    invited: strawberry.Maybe[BooleanComparator | None]
+    is_invited: strawberry.Maybe[BooleanComparator | None]
+    is_me: strawberry.Maybe[BooleanComparator | None]
+    name: strawberry.Maybe[StringComparator | None]
+    or_: strawberry.Maybe[list[UserFilter] | None] = strawberry.field(name="or")
+    owner: strawberry.Maybe[BooleanComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None]
+
+
+@strawberry.input
 class WorkflowStateSort:
     closed_issues_ordered_by_recency: strawberry.Maybe[bool | None] = False
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
@@ -333,11 +1983,35 @@ class WorkflowStateSort:
 
 
 @strawberry.type
+class Attachment:
+    id: strawberry.ID
+    metadata: JSONObject
+    source: JSONObject | None
+    source_type: str | None
+    title: str
+    url: str
+
+
+@strawberry.type
+class AttachmentConnection:
+    nodes: list[Attachment]
+    page_info: PageInfo
+
+
+@strawberry.type
 class Comment:
     body: str
     created_at: datetime
+    external_user: ExternalUser | None
     id: strawberry.ID
     url: str
+    user: User | None
+
+
+@strawberry.type
+class CommentConnection:
+    nodes: list[Comment]
+    page_info: PageInfo
 
 
 @strawberry.type
@@ -347,12 +2021,23 @@ class CommentPayload:
 
 
 @strawberry.type
+class ExternalUser:
+    display_name: str
+    email: str | None
+    id: strawberry.ID
+    name: str
+
+
+@strawberry.type
 class Issue:
     assignee: User | None
+    attachments: AttachmentConnection
+    comments: CommentConnection
     description: str | None
     id: strawberry.ID
     identifier: str
     priority: float
+    relations: IssueRelationConnection
     state: WorkflowState
     title: str
     url: str
@@ -373,6 +2058,19 @@ class IssueConnection:
 class IssuePayload:
     issue: Issue | None
     success: bool
+
+
+@strawberry.type
+class IssueRelation:
+    id: strawberry.ID
+    related_issue: Issue
+    type: str
+
+
+@strawberry.type
+class IssueRelationConnection:
+    nodes: list[IssueRelation]
+    page_info: PageInfo
 
 
 @strawberry.type
@@ -556,14 +2254,30 @@ schema = strawberry.Schema(
     mutation=Mutation,
     config=StrawberryConfig(
         scalar_map={
+            DateTimeOrDuration: strawberry.scalar(
+                name="DateTimeOrDuration",
+                serialize=lambda v: v,
+                parse_value=lambda v: v,
+            ),
+            Duration: strawberry.scalar(
+                name="Duration", serialize=lambda v: v, parse_value=lambda v: v
+            ),
             IssueFilter: strawberry.scalar(
                 name="IssueFilter", serialize=lambda v: v, parse_value=lambda v: v
+            ),
+            JSONObject: strawberry.scalar(
+                name="JSONObject", serialize=lambda v: v, parse_value=lambda v: v
             ),
             TeamFilter: strawberry.scalar(
                 name="TeamFilter", serialize=lambda v: v, parse_value=lambda v: v
             ),
             TimelessDate: strawberry.scalar(
                 name="TimelessDate", serialize=lambda v: v, parse_value=lambda v: v
+            ),
+            TimelessDateOrDuration: strawberry.scalar(
+                name="TimelessDateOrDuration",
+                serialize=lambda v: v,
+                parse_value=lambda v: v,
             ),
             WorkflowStateFilter: strawberry.scalar(
                 name="WorkflowStateFilter",
@@ -573,42 +2287,133 @@ schema = strawberry.Schema(
         }
     ),
     types=[
+        ActivityCollectionFilter,
+        ActivityFilter,
         AssigneeSort,
+        AttachmentCollectionFilter,
+        AttachmentFilter,
+        BooleanComparator,
+        CommentCollectionFilter,
         CommentCreateInput,
+        CommentFilter,
         CompletedAtSort,
+        ContentComparator,
         CreatedAtSort,
         CustomerCountSort,
         CustomerImportantCountSort,
+        CustomerNeedCollectionFilter,
+        CustomerNeedFilter,
         CustomerRevenueSort,
         CustomerSort,
+        CustomerStatusFilter,
+        CustomerTierFilter,
+        CycleFilter,
+        CyclePeriod,
+        CyclePeriodComparator,
         CycleSort,
+        DateComparator,
+        DateTimeOrDuration,
         DelegateSort,
+        DocumentFilter,
         DueDateSort,
+        Duration,
+        EstimateComparator,
         EstimateSort,
+        IDComparator,
+        InitiativeCollectionFilter,
+        InitiativeFilter,
+        InitiativeLabelCollectionFilter,
+        InitiativeLabelFilter,
+        InitiativeUpdatesCollectionFilter,
+        InitiativeUpdatesFilter,
+        IssueCollectionFilter,
         IssueCreateInput,
         IssueFilter,
+        IssueIDComparator,
+        IssueLabelCollectionFilter,
+        IssueLabelFilter,
         IssueSortInput,
+        IssueSuggestionCollectionFilter,
+        IssueSuggestionFilter,
         IssueUpdateInput,
+        JSONObject,
         LabelGroupSort,
         LabelSort,
         LinkCountSort,
         ManualSort,
         MilestoneSort,
+        NullableCommentFilter,
+        NullableCustomerFilter,
+        NullableCycleFilter,
+        NullableDateComparator,
+        NullableDocumentContentFilter,
+        NullableDurationComparator,
+        NullableInitiativeFilter,
+        NullableInitiativeUpdateFilter,
+        NullableIssueFilter,
+        NullableNumberComparator,
+        NullableProjectFilter,
+        NullableProjectMilestoneFilter,
+        NullableProjectUpdateFilter,
+        NullableStringComparator,
+        NullableTeamFilter,
+        NullableTemplateFilter,
+        NullableTimelessDateComparator,
+        NullableUserFilter,
+        NumberComparator,
         PaginationNulls,
         PaginationOrderBy,
         PaginationSortOrder,
         PrioritySort,
+        ProjectCollectionFilter,
+        ProjectFilter,
+        ProjectLabelCollectionFilter,
+        ProjectLabelFilter,
+        ProjectMilestoneCollectionFilter,
+        ProjectMilestoneFilter,
         ProjectSort,
+        ProjectStatusFilter,
+        ProjectUpdatesCollectionFilter,
+        ProjectUpdatesFilter,
+        ReactionCollectionFilter,
+        ReactionFilter,
+        RelationExistsComparator,
+        ReleaseCollectionFilter,
+        ReleaseFilter,
+        ReleasePipelineCollectionFilter,
+        ReleasePipelineFilter,
+        ReleasePipelineType,
+        ReleasePipelineTypeComparator,
         ReleaseSort,
+        ReleaseStageFilter,
+        ReleaseStageType,
+        ReleaseStageTypeComparator,
+        RoadmapCollectionFilter,
+        RoadmapFilter,
         RootIssueSort,
         SLADayCountType,
+        SalesforceMetadataIntegrationComparator,
+        SlaStatus,
+        SlaStatusComparator,
         SlaStatusSort,
+        SourceMetadataComparator,
+        SourceTypeComparator,
+        StringArrayComparator,
+        StringComparator,
+        StringItemComparator,
+        SubTypeComparator,
+        TeamCollectionFilter,
         TeamFilter,
         TeamSort,
+        TeamVisibility,
+        TeamVisibilityComparator,
         TimeInStatusSort,
         TimelessDate,
+        TimelessDateOrDuration,
         TitleSort,
         UpdatedAtSort,
+        UserCollectionFilter,
+        UserFilter,
         WorkflowStateFilter,
         WorkflowStateSort,
     ],

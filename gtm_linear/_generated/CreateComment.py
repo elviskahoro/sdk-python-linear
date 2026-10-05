@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import Any, Optional
 from gtm_linear.models import LinearModel
-from .fragments import CommentFields
+from .fragments import CommentFields, CommentFieldsExternalUser, CommentFieldsUser
 
 
 class CreateCommentResultCommentCreate(LinearModel):
@@ -54,4 +54,16 @@ fragment CommentFields on Comment {
   body
   url
   createdAt
+  user {
+    id
+    name
+    email
+    active
+  }
+  externalUser {
+    id
+    name
+    displayName
+    email
+  }
 }"""

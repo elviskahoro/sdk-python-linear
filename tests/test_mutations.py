@@ -214,6 +214,8 @@ async def test_create_comment() -> None:
                                 "body": "hello",
                                 "url": "https://linear.app/x/comment/c-1",
                                 "createdAt": "2026-01-01T00:00:00.000Z",
+                                "user": None,
+                                "externalUser": None,
                             },
                         },
                     },

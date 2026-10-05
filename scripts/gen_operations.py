@@ -11,6 +11,8 @@ Everything structural is now derived from the schema:
     and therefore how deep the entity sits (``issueCreate { issue { ... } }``,
     ``issues { nodes { ... } }``) — found by searching the return type for the
     fragment's target type rather than being spelled out;
+  * ``path`` can disambiguate a target reachable through multiple fields, while
+    ``path_arguments`` supplies arguments for a nested connection;
   * ``pageInfo`` on anything that paginates;
   * ``success`` on mutation payloads;
   * every field's existence and deprecation status.
@@ -220,7 +222,7 @@ def _render_operation(
         body = list(selection)
     else:
         target = fragments[fragment_name]["on"]
-        path = _path_to_type(return_type, target)
+        path = spec.get("path") or _path_to_type(return_type, target)
         if path is None:
             msg = (
                 f"operation {name}: cannot reach {target} from "
@@ -259,8 +261,11 @@ def _render_selection(
         lines.append("success")
 
     stack: list[Any] = []
+    path_arguments: dict[str, str] = spec.get("path_arguments", {})
     for step in path:
-        lines.append(f"{' ' * indent}{step} {{")
+        args = path_arguments.get(step)
+        field = f"{step}({args})" if args else step
+        lines.append(f"{' ' * indent}{field} {{")
         stack.append(cursor)
         cursor = _unwrap(cursor.fields[step].type)
         indent += 2

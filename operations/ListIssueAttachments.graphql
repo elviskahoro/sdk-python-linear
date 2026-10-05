@@ -1,0 +1,12 @@
+query ListIssueAttachments($id: String!, $first: Int!, $after: String, $orderBy: PaginationOrderBy, $includeArchived: Boolean!) {
+  issue(id: $id) {
+    attachments(first: $first, after: $after, orderBy: $orderBy, includeArchived: $includeArchived) {
+      nodes {
+        ...AttachmentFields
+      }
+      pageInfo {
+        ...PageInfoFields
+      }
+    }
+  }
+}

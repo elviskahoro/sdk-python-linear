@@ -8,13 +8,74 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import httpx
+import pytest
 import respx
+from pydantic import ValidationError
 
 import gtm_linear
-from gtm_linear import LinearClient, LinearQueries, PaginationOrderBy
+from gtm_linear import (
+    LinearClient,
+    LinearPaginationError,
+    LinearQueries,
+    PaginationOrderBy,
+)
 from tests.conftest import API_URL, issue_payload, page_info_payload, user_payload
+
+
+def _issue_context_page(
+    collection: str,
+    nodes: list[dict[str, Any]],
+    *,
+    has_next: bool = False,
+    end_cursor: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "data": {
+            "issue": {
+                collection: {
+                    "nodes": nodes,
+                    "pageInfo": page_info_payload(
+                        has_next=has_next,
+                        end=end_cursor,
+                    ),
+                },
+            },
+        },
+    }
+
+
+def _context_node(collection: str, node_id: str) -> dict[str, Any]:
+    if collection == "comments":
+        return {
+            "id": node_id,
+            "body": "Prior discussion",
+            "url": f"https://linear.app/x/comment/{node_id}",
+            "createdAt": "2026-01-01T00:00:00.000Z",
+            "user": user_payload(),
+            "externalUser": None,
+        }
+    if collection == "attachments":
+        return {
+            "id": node_id,
+            "title": "Pull request",
+            "url": "https://github.com/org/repo/pull/1",
+            "sourceType": "github",
+            "source": {"name": "GitHub"},
+            "metadata": {"status": "open"},
+        }
+    return {
+        "id": node_id,
+        "type": "blocks",
+        "relatedIssue": {
+            "id": "related-1",
+            "identifier": "ENG-2",
+            "title": "Related issue",
+            "url": "https://linear.app/x/issue/ENG-2",
+        },
+    }
 
 
 def test_queries_wildcard_exports_search_result_type() -> None:
@@ -40,6 +101,19 @@ def test_filter_inputs_are_not_public_exports_or_documented_api() -> None:
     assert not any(name in readme for name in obsolete_names)
 
 
+def test_issue_context_models_and_connections_are_public() -> None:
+    public_names = (
+        "Comment",
+        "CommentConnection",
+        "Attachment",
+        "AttachmentConnection",
+        "IssueRelation",
+        "IssueRelationConnection",
+    )
+    assert all(hasattr(gtm_linear, name) for name in public_names)
+    assert all(name in gtm_linear.__all__ for name in public_names)
+
+
 async def test_get_issue_returns_parsed_issue() -> None:
     with respx.mock:
         respx.post(API_URL).mock(
@@ -58,6 +132,16 @@ async def test_get_issue_returns_parsed_issue() -> None:
     assert isinstance(issue.priority, float)
     assert issue.assignee is not None
     assert issue.assignee.email == "alice@example.com"
+    assert set(issue.model_dump()) == {
+        "id",
+        "identifier",
+        "title",
+        "description",
+        "url",
+        "priority",
+        "state",
+        "assignee",
+    }
 
 
 async def test_get_issue_returns_none_when_missing() -> None:
@@ -67,6 +151,199 @@ async def test_get_issue_returns_none_when_missing() -> None:
         )
         async with LinearClient(api_key="key") as client:
             assert await LinearQueries(client).get_issue("nope") is None
+
+
+@pytest.mark.parametrize(
+    ("collection", "method_name"),
+    [
+        ("comments", "list_issue_comments_page"),
+        ("attachments", "list_issue_attachments_page"),
+        ("relations", "list_issue_relations_page"),
+    ],
+)
+async def test_issue_context_page_returns_typed_nodes_and_cursor(
+    collection: str,
+    method_name: str,
+) -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json=_issue_context_page(
+                    collection,
+                    [_context_node(collection, "node-1")],
+                    has_next=True,
+                    end_cursor="next-cursor",
+                ),
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            page = await getattr(LinearQueries(client), method_name)(
+                "ENG-1",
+                first=10,
+                after="previous-cursor",
+                order_by=PaginationOrderBy.updatedAt,
+                include_archived=True,
+            )
+
+    assert page.nodes[0].id == "node-1"
+    assert page.page_info.has_next_page is True
+    assert page.page_info.end_cursor == "next-cursor"
+    request = json.loads(route.calls.last.request.content)
+    assert request["variables"] == {
+        "id": "ENG-1",
+        "first": 10,
+        "after": "previous-cursor",
+        "includeArchived": True,
+        "orderBy": "updatedAt",
+    }
+
+    node = page.nodes[0]
+    if collection == "comments":
+        assert node.body == "Prior discussion"
+        assert node.user is not None
+        assert node.user.name == "Alice"
+        assert node.external_user is None
+    elif collection == "attachments":
+        assert node.title == "Pull request"
+        assert node.source_type == "github"
+        assert node.source == {"name": "GitHub"}
+        assert node.metadata == {"status": "open"}
+    else:
+        assert node.type == "blocks"
+        assert node.related_issue.identifier == "ENG-2"
+        assert node.related_issue.url == "https://linear.app/x/issue/ENG-2"
+
+
+@pytest.mark.parametrize(
+    ("collection", "method_name"),
+    [
+        ("comments", "list_issue_comments_page"),
+        ("attachments", "list_issue_attachments_page"),
+        ("relations", "list_issue_relations_page"),
+    ],
+)
+async def test_issue_context_page_accepts_empty_collection(
+    collection: str,
+    method_name: str,
+) -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json=_issue_context_page(collection, []),
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            page = await getattr(LinearQueries(client), method_name)("ENG-1")
+
+    assert page.nodes == []
+    assert page.page_info.has_next_page is False
+
+
+@pytest.mark.parametrize(
+    ("collection", "method_name"),
+    [
+        ("comments", "list_issue_comments_page"),
+        ("attachments", "list_issue_attachments_page"),
+        ("relations", "list_issue_relations_page"),
+    ],
+)
+async def test_issue_context_page_validates_node_payload(
+    collection: str,
+    method_name: str,
+) -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json=_issue_context_page(collection, [{}]),
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            with pytest.raises(ValidationError):
+                await getattr(LinearQueries(client), method_name)("ENG-1")
+
+
+@pytest.mark.parametrize(
+    ("collection", "iterator_name"),
+    [
+        ("comments", "iter_issue_comments"),
+        ("attachments", "iter_issue_attachments"),
+        ("relations", "iter_issue_relations"),
+    ],
+)
+async def test_issue_context_iterators_follow_cursors(
+    collection: str,
+    iterator_name: str,
+) -> None:
+    with respx.mock:
+        route = respx.post(API_URL)
+        route.side_effect = [
+            httpx.Response(
+                200,
+                json=_issue_context_page(
+                    collection,
+                    [_context_node(collection, "node-1")],
+                    has_next=True,
+                    end_cursor="cursor-1",
+                ),
+            ),
+            httpx.Response(
+                200,
+                json=_issue_context_page(
+                    collection,
+                    [_context_node(collection, "node-2")],
+                ),
+            ),
+        ]
+        async with LinearClient(api_key="key") as client:
+            nodes = [
+                node
+                async for node in getattr(LinearQueries(client), iterator_name)(
+                    "ENG-1",
+                    page_size=1,
+                )
+            ]
+
+    assert [node.id for node in nodes] == ["node-1", "node-2"]
+    first, second = (json.loads(call.request.content) for call in route.calls)
+    assert first["variables"]["after"] is None
+    assert second["variables"]["after"] == "cursor-1"
+
+
+@pytest.mark.parametrize(
+    ("collection", "iterator_name"),
+    [
+        ("comments", "iter_issue_comments"),
+        ("attachments", "iter_issue_attachments"),
+        ("relations", "iter_issue_relations"),
+    ],
+)
+async def test_issue_context_iterators_raise_for_missing_continuation_cursor(
+    collection: str,
+    iterator_name: str,
+) -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json=_issue_context_page(
+                    collection,
+                    [_context_node(collection, "node-1")],
+                    has_next=True,
+                    end_cursor=None,
+                ),
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            with pytest.raises(LinearPaginationError):
+                [
+                    node
+                    async for node in getattr(LinearQueries(client), iterator_name)(
+                        "ENG-1",
+                    )
+                ]
 
 
 async def test_unknown_response_fields_are_ignored() -> None:

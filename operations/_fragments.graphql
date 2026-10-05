@@ -34,6 +34,38 @@ fragment CommentFields on Comment {
   body
   url
   createdAt
+  user {
+    id
+    name
+    email
+    active
+  }
+  externalUser {
+    id
+    name
+    displayName
+    email
+  }
+}
+
+fragment AttachmentFields on Attachment {
+  id
+  title
+  url
+  sourceType
+  source
+  metadata
+}
+
+fragment IssueRelationFields on IssueRelation {
+  id
+  type
+  relatedIssue {
+    id
+    identifier
+    title
+    url
+  }
 }
 
 fragment IssueFields on Issue {

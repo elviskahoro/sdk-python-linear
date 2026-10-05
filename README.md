@@ -14,7 +14,8 @@ Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, t
 | Need ad-hoc GraphQL escape hatch alongside typed helpers | Yes — `LinearClient.execute_async(query, variables)` |
 | Building MCP-style tooling against Linear | Yes (low-level), or prefer the official Linear MCP server for higher-level intent |
 | Need full coverage of Linear's GraphQL schema | **No** — only a focused subset of Linear types is wrapped today |
-| Need webhooks, OAuth flow, or attachments | **No** — not implemented |
+| Need webhooks or OAuth flow | **No** — not implemented |
+| Need issue comments, attachments, or relations | Yes — typed, cursor-paginated query helpers |
 | Writing a one-off shell command | Yes — the bundled CLI: `uvx gtm-linear issues --team ENG` |
 
 If you only need to *create or read a few issues* from an automation, this is the right tool. If you need broad schema coverage, drop down to `execute_async` with a hand-written query.
@@ -158,10 +159,15 @@ Importable from `gtm_linear`:
 | `LinearMutations` | class | Typed write helpers |
 | `LinearWorkflow` | class | Injected-key sync/async facade for CLI workflows |
 | `LinearAPIError` | exception | Raised on HTTP non-200 OR GraphQL `errors` field present |
-| `LinearPaginationError` | exception | Raised by `iter_*` when a connection stalls: several consecutive empty pages while `hasNextPage` stays true |
+| `LinearPaginationError` | exception | Raised by iterators when a connection stalls or a strict iterator receives a missing/non-advancing cursor |
 | `Issue` | model | Linear issue |
-| `Comment` | model | Linear issue comment |
+| `Comment` | model | Linear issue comment, including nullable Linear/external author |
+| `Attachment` | model | Issue attachment, including title, URL, and source metadata |
+| `IssueRelation` | model | Issue relation and its related issue summary |
 | `IssueConnection` | model | Paginated issue list (`nodes`, `pageInfo`) |
+| `CommentConnection` | model | Paginated issue comments (`nodes`, `pageInfo`) |
+| `AttachmentConnection` | model | Paginated issue attachments (`nodes`, `pageInfo`) |
+| `IssueRelationConnection` | model | Paginated issue relations (`nodes`, `pageInfo`) |
 | `IssueCreateInput` | input | `title`, `teamId`, optional `description`, `labelIds`, `priority`, `assigneeId`, `projectId`, `stateId` |
 | `IssueUpdateInput` | input | Optional `title`, `description`, `labelIds`, `priority`, `assigneeId`, `projectId`, `stateId` |
 | Issue filter mapping | `dict[str, Any]` | Linear-shaped nested issue filter passed through to GraphQL |
@@ -232,6 +238,12 @@ All methods are `async`. All accept Linear UUIDs unless noted.
 | Method | Args | Returns | Notes |
 | --- | --- | --- | --- |
 | `get_issue(issue_id)` | `str` | `Issue \| None` | Returns `None` on not-found (not an error) |
+| `list_issue_comments_page(issue_id, first=50, after=None, order_by=None, include_archived=False)` | `str`, `int`, `str \| None`, `PaginationOrderBy \| None`, `bool` | `CommentConnection` | One typed comment page, including author and page info |
+| `list_issue_attachments_page(issue_id, first=50, after=None, order_by=None, include_archived=False)` | `str`, `int`, `str \| None`, `PaginationOrderBy \| None`, `bool` | `AttachmentConnection` | One typed attachment page, including source metadata |
+| `list_issue_relations_page(issue_id, first=50, after=None, order_by=None, include_archived=False)` | `str`, `int`, `str \| None`, `PaginationOrderBy \| None`, `bool` | `IssueRelationConnection` | One typed relation page, including related issue summary |
+| `iter_issue_comments(issue_id, page_size=50, limit=None, order_by=None, include_archived=False)` | `str`, `int`, `int \| None`, `PaginationOrderBy \| None`, `bool` | async iterator of `Comment` | Follows all pages; malformed continuation cursors raise `LinearPaginationError` |
+| `iter_issue_attachments(issue_id, page_size=50, limit=None, order_by=None, include_archived=False)` | `str`, `int`, `int \| None`, `PaginationOrderBy \| None`, `bool` | async iterator of `Attachment` | Follows all pages; malformed continuation cursors raise `LinearPaginationError` |
+| `iter_issue_relations(issue_id, page_size=50, limit=None, order_by=None, include_archived=False)` | `str`, `int`, `int \| None`, `PaginationOrderBy \| None`, `bool` | async iterator of `IssueRelation` | Follows all pages; malformed continuation cursors raise `LinearPaginationError` |
 | `list_issues(team_id, first=50)` | `str`, `int` | `list[Issue]` | Compatibility helper for a team's first issue page |
 | `list_issues_page(filter=None, first=50, after=None, order_by=None, include_archived=False)` | `dict[str, Any] \| None`, `int`, `str \| None`, `PaginationOrderBy \| None`, `bool` | `IssueConnection` | Root issue connection with cursor pagination |
 | `search_issues(term)` | `str` | `list[Issue]` | Backed by Linear's `searchIssues` GraphQL field |
@@ -294,9 +306,9 @@ if issues.page_info.has_next_page:
     )
 ```
 
-### Issue shape returned by queries
+### Issue shape returned by issue lookups and lists
 
-Every issue method returns this projection:
+Issue lookup, list, and search methods return this projection:
 
 ```python
 Issue(
@@ -312,6 +324,37 @@ Issue(
 ```
 
 `status` is a **flattened string** (the state's `name`), not the full Linear `WorkflowState` object. If you need state ID or color, use `execute_async` directly.
+
+### Reading an issue's comments, attachments, and relations
+
+The lightweight `get_issue()` projection is unchanged. Use the separate page methods
+when you need cursor metadata, or the `iter_issue_*` helpers to fetch every item. The
+iterators have no implicit item limit and raise `LinearPaginationError` if Linear
+claims another page without providing an advancing cursor.
+
+```python
+issue_id = "ENG-123"
+
+comments = [comment async for comment in queries.iter_issue_comments(issue_id)]
+attachments = [
+    attachment async for attachment in queries.iter_issue_attachments(issue_id)
+]
+relations = [relation async for relation in queries.iter_issue_relations(issue_id)]
+
+for comment in comments:
+    author = comment.user or comment.external_user
+    print(comment.created_at, author, comment.body)
+
+for attachment in attachments:
+    print(attachment.title, attachment.url, attachment.source_type, attachment.source)
+
+for relation in relations:
+    print(relation.type, relation.related_issue.identifier, relation.related_issue.url)
+```
+
+Each `list_issue_*_page()` method accepts `first`, `after`, `order_by`, and
+`include_archived`, and returns a typed connection with `.nodes` and `.page_info`.
+Use `.page_info.end_cursor` as `after` to request the next page.
 
 ---
 

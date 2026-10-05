@@ -34,6 +34,19 @@ fields = "all"
 [fragments.CommentFields]
 on = "Comment"
 fields = ["id", "body", "url", "createdAt"]
+[fragments.CommentFields.expand]
+user = ["id", "name", "email", "active"]
+externalUser = ["id", "name", "displayName", "email"]
+
+[fragments.AttachmentFields]
+on = "Attachment"
+fields = ["id", "title", "url", "sourceType", "source", "metadata"]
+
+[fragments.IssueRelationFields]
+on = "IssueRelation"
+fields = ["id", "type"]
+[fragments.IssueRelationFields.expand]
+relatedIssue = ["id", "identifier", "title", "url"]
 
 [fragments.IssueFields]
 on = "Issue"
@@ -58,6 +71,35 @@ root = "issue"
 fragment = "IssueFields"
 variables = { id = "String!" }
 arguments = { id = "$id" }
+
+# Issue has multiple routes to these node types; pin each direct connection path.
+# Nested pagination arguments are applied to that connection field.
+[operations.ListIssueComments]
+kind = "query"
+root = "issue"
+fragment = "CommentFields"
+path = ["comments", "nodes"]
+variables = { id = "String!", first = "Int!", after = "String", orderBy = "PaginationOrderBy", includeArchived = "Boolean!" }
+arguments = { id = "$id" }
+path_arguments = { comments = "first: $first, after: $after, orderBy: $orderBy, includeArchived: $includeArchived" }
+
+[operations.ListIssueAttachments]
+kind = "query"
+root = "issue"
+fragment = "AttachmentFields"
+path = ["attachments", "nodes"]
+variables = { id = "String!", first = "Int!", after = "String", orderBy = "PaginationOrderBy", includeArchived = "Boolean!" }
+arguments = { id = "$id" }
+path_arguments = { attachments = "first: $first, after: $after, orderBy: $orderBy, includeArchived: $includeArchived" }
+
+[operations.ListIssueRelations]
+kind = "query"
+root = "issue"
+fragment = "IssueRelationFields"
+path = ["relations", "nodes"]
+variables = { id = "String!", first = "Int!", after = "String", orderBy = "PaginationOrderBy", includeArchived = "Boolean!" }
+arguments = { id = "$id" }
+path_arguments = { relations = "first: $first, after: $after, orderBy: $orderBy, includeArchived: $includeArchived" }
 
 [operations.GetTeam]
 kind = "query"

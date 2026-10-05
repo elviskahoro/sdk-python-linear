@@ -2,8 +2,22 @@
 """Types shared by operations via GraphQL fragments."""
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 from gtm_linear.models import LinearModel
+
+
+class CommentFieldsUser(LinearModel):
+    id: str
+    name: str
+    email: str
+    active: bool
+
+
+class CommentFieldsExternalUser(LinearModel):
+    id: str
+    name: str
+    display_name: str
+    email: Optional[str]
 
 
 class CommentFields(LinearModel):
@@ -13,6 +27,8 @@ class CommentFields(LinearModel):
     body: str
     url: str
     created_at: datetime
+    user: Optional[CommentFieldsUser]
+    external_user: Optional[CommentFieldsExternalUser]
 
 
 class IssueFieldsState(LinearModel):
@@ -58,6 +74,17 @@ class UserFields(LinearModel):
     active: bool
 
 
+class AttachmentFields(LinearModel):
+    """GraphQL type: Attachment."""
+
+    id: str
+    title: str
+    url: str
+    source_type: Optional[str]
+    source: Optional[dict[str, Any]]
+    metadata: dict[str, Any]
+
+
 class PageInfoFields(LinearModel):
     """GraphQL type: PageInfo."""
 
@@ -65,6 +92,21 @@ class PageInfoFields(LinearModel):
     has_next_page: bool
     has_previous_page: bool
     start_cursor: Optional[str]
+
+
+class IssueRelationFieldsRelatedIssue(LinearModel):
+    id: str
+    identifier: str
+    title: str
+    url: str
+
+
+class IssueRelationFields(LinearModel):
+    """GraphQL type: IssueRelation."""
+
+    id: str
+    type: str
+    related_issue: IssueRelationFieldsRelatedIssue
 
 
 class WorkflowStateFields(LinearModel):

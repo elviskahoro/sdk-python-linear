@@ -30,6 +30,21 @@ from ._generated.GetViewer import (
     DOCUMENT as GET_VIEWER,
     GetViewerResult,
 )
+from ._generated.ListIssueAttachments import (
+    DOCUMENT as LIST_ISSUE_ATTACHMENTS,
+    ListIssueAttachmentsResult,
+    ListIssueAttachmentsResultIssueAttachments,
+)
+from ._generated.ListIssueComments import (
+    DOCUMENT as LIST_ISSUE_COMMENTS,
+    ListIssueCommentsResult,
+    ListIssueCommentsResultIssueComments,
+)
+from ._generated.ListIssueRelations import (
+    DOCUMENT as LIST_ISSUE_RELATIONS,
+    ListIssueRelationsResult,
+    ListIssueRelationsResultIssueRelations,
+)
 from ._generated.ListIssues import (
     DOCUMENT as LIST_ISSUES,
     ListIssuesResult,
@@ -53,7 +68,10 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
     from ._generated.fragments import (
+        AttachmentFields,
+        CommentFields,
         IssueFields,
+        IssueRelationFields,
         TeamFields,
         UserFields,
     )
@@ -84,6 +102,105 @@ class LinearQueries:
         if not data.get("issue"):
             return None
         return GetIssueResult.model_validate(data).issue
+
+    async def list_issue_comments_page(
+        self,
+        issue_id: str,
+        first: int = 50,
+        after: str | None = None,
+        order_by: PaginationOrderBy | None = None,
+        *,
+        include_archived: bool = False,
+    ) -> ListIssueCommentsResultIssueComments:
+        """Fetch one page of comments associated with an issue.
+
+        Args:
+            issue_id: The Linear issue ID or identifier (for example ``ENG-123``).
+            first: Maximum comments to return (default 50).
+            after: Cursor from a previous page's ``page_info.end_cursor``.
+            order_by: Optional creation-time or update-time ordering.
+            include_archived: Whether to include archived comments.
+
+        Returns:
+            The page with typed comments and cursor metadata.
+        """
+        variables: dict[str, Any] = {
+            "id": issue_id,
+            "first": first,
+            "after": after,
+            "includeArchived": include_archived,
+        }
+        if order_by is not None:
+            variables["orderBy"] = order_by.value
+
+        data = await self._client.execute_async(LIST_ISSUE_COMMENTS, variables)
+        return ListIssueCommentsResult.model_validate(data).issue.comments
+
+    async def list_issue_attachments_page(
+        self,
+        issue_id: str,
+        first: int = 50,
+        after: str | None = None,
+        order_by: PaginationOrderBy | None = None,
+        *,
+        include_archived: bool = False,
+    ) -> ListIssueAttachmentsResultIssueAttachments:
+        """Fetch one page of attachments associated with an issue.
+
+        Args:
+            issue_id: The Linear issue ID or identifier (for example ``ENG-123``).
+            first: Maximum attachments to return (default 50).
+            after: Cursor from a previous page's ``page_info.end_cursor``.
+            order_by: Optional creation-time or update-time ordering.
+            include_archived: Whether to include archived attachments.
+
+        Returns:
+            The page with typed attachments and cursor metadata.
+        """
+        variables: dict[str, Any] = {
+            "id": issue_id,
+            "first": first,
+            "after": after,
+            "includeArchived": include_archived,
+        }
+        if order_by is not None:
+            variables["orderBy"] = order_by.value
+
+        data = await self._client.execute_async(LIST_ISSUE_ATTACHMENTS, variables)
+        return ListIssueAttachmentsResult.model_validate(data).issue.attachments
+
+    async def list_issue_relations_page(
+        self,
+        issue_id: str,
+        first: int = 50,
+        after: str | None = None,
+        order_by: PaginationOrderBy | None = None,
+        *,
+        include_archived: bool = False,
+    ) -> ListIssueRelationsResultIssueRelations:
+        """Fetch one page of relations associated with an issue.
+
+        Args:
+            issue_id: The Linear issue ID or identifier (for example ``ENG-123``).
+            first: Maximum relations to return (default 50).
+            after: Cursor from a previous page's ``page_info.end_cursor``.
+            order_by: Optional creation-time or update-time ordering.
+            include_archived: Whether to include archived relations.
+
+        Returns:
+            The page with typed relations and cursor metadata.
+        """
+        variables: dict[str, Any] = {
+            "id": issue_id,
+            "first": first,
+            "after": after,
+            "includeArchived": include_archived,
+        }
+        if order_by is not None:
+            variables["orderBy"] = order_by.value
+
+        data = await self._client.execute_async(LIST_ISSUE_RELATIONS, variables)
+        return ListIssueRelationsResult.model_validate(data).issue.relations
 
     async def list_issues(self, team_id: str, first: int = 50) -> list[IssueFields]:
         """List issues for a team.
@@ -256,6 +373,110 @@ class LinearQueries:
         """
         data = await self._client.execute_async(GET_VIEWER)
         return GetViewerResult.model_validate(data).viewer
+
+    def iter_issue_comments(
+        self,
+        issue_id: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        order_by: PaginationOrderBy | None = None,
+        include_archived: bool = False,
+    ) -> AsyncIterator[CommentFields]:
+        """Iterate every comment on an issue, following cursors automatically.
+
+        Args:
+            issue_id: The Linear issue ID or identifier.
+            page_size: How many comments to request per round trip.
+            limit: Stop after this many comments. None fetches everything.
+            order_by: Optional creation-time or update-time ordering.
+            include_archived: Whether to include archived comments.
+
+        Returns:
+            An async iterator over comments. Invalid continuation cursors raise
+            :class:`LinearPaginationError` rather than truncating the results.
+        """
+
+        async def fetch(cursor: str | None) -> ListIssueCommentsResultIssueComments:
+            return await self.list_issue_comments_page(
+                issue_id,
+                first=page_size,
+                after=cursor,
+                order_by=order_by,
+                include_archived=include_archived,
+            )
+
+        return paginate(fetch, limit=limit, strict_cursor=True)
+
+    def iter_issue_attachments(
+        self,
+        issue_id: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        order_by: PaginationOrderBy | None = None,
+        include_archived: bool = False,
+    ) -> AsyncIterator[AttachmentFields]:
+        """Iterate every attachment on an issue, following cursors automatically.
+
+        Args:
+            issue_id: The Linear issue ID or identifier.
+            page_size: How many attachments to request per round trip.
+            limit: Stop after this many attachments. None fetches everything.
+            order_by: Optional creation-time or update-time ordering.
+            include_archived: Whether to include archived attachments.
+
+        Returns:
+            An async iterator over attachments. Invalid continuation cursors raise
+            :class:`LinearPaginationError` rather than truncating the results.
+        """
+
+        async def fetch(
+            cursor: str | None,
+        ) -> ListIssueAttachmentsResultIssueAttachments:
+            return await self.list_issue_attachments_page(
+                issue_id,
+                first=page_size,
+                after=cursor,
+                order_by=order_by,
+                include_archived=include_archived,
+            )
+
+        return paginate(fetch, limit=limit, strict_cursor=True)
+
+    def iter_issue_relations(
+        self,
+        issue_id: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        order_by: PaginationOrderBy | None = None,
+        include_archived: bool = False,
+    ) -> AsyncIterator[IssueRelationFields]:
+        """Iterate every relation on an issue, following cursors automatically.
+
+        Args:
+            issue_id: The Linear issue ID or identifier.
+            page_size: How many relations to request per round trip.
+            limit: Stop after this many relations. None fetches everything.
+            order_by: Optional creation-time or update-time ordering.
+            include_archived: Whether to include archived relations.
+
+        Returns:
+            An async iterator over relations. Invalid continuation cursors raise
+            :class:`LinearPaginationError` rather than truncating the results.
+        """
+
+        async def fetch(cursor: str | None) -> ListIssueRelationsResultIssueRelations:
+            return await self.list_issue_relations_page(
+                issue_id,
+                first=page_size,
+                after=cursor,
+                order_by=order_by,
+                include_archived=include_archived,
+            )
+
+        return paginate(fetch, limit=limit, strict_cursor=True)
 
     def iter_issues(
         self,
