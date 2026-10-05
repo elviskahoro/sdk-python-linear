@@ -91,7 +91,11 @@ tasks:
     cache: false
     env:
       GH_TOKEN:
-        # trunk-ignore(semgrep/yaml.github-actions.security.gha-workflow-env-secret.gha-workflow-env-secret): task-scoped `env:` in an RWX run definition, not a GHA workflow-level env block — this secret is only visible to this task's own steps, not every job/step in a workflow.
+        # Task-scoped `env:` in an RWX run definition, not a GHA workflow-level
+        # env block — this secret is only visible to this task's own steps, not
+        # every job/step in a workflow. The trunk-ignore that used to sit here
+        # suppressed nothing (semgrep's gha-workflow-env-secret rule does not
+        # fire on .rwx/ files), so it was removed rather than kept stale.
         value: ${{ vaults.sdk-python-linear.secrets.GITHUB_TOKEN }}
         cache-key: excluded
     run: bash scripts/dagger_ref_drift.sh
