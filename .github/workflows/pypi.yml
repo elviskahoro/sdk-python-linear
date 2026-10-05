@@ -17,18 +17,16 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       # v8.4.1
       - uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77
-      # Versioned release tag, protected upstream against updates/deletion.
-      # Dagger resolves the tag in a separate fetch, so the SHA check is
-      # best-effort: a retarget after the check could run a different commit.
-      # Upstream tag protection is the normal-operation control. RWX repeats
-      # the check weekly.
-      # Checked weekly for newer releases by .rwx/dagger-ref-drift.yml.
+      # Offline guard confirms the active SHA matches Renovate's metadata record;
+      # it does not verify that the SHA belongs to the recorded release tag.
+      # Weekly RWX verifies that mapping and reports drift, but does not block publishing.
       # Required format: publisher-module-sha: <tag> <40-character lowercase SHA>.
+      # Keep this record within 8 lines of the dagger -m command for Renovate.
       # publisher-module-sha: v0.2.2 1cdcc45e2e4fe78768d73def9cbe23a54209f618
-      - name: Check publisher module release tag
-        run: bash scripts/dagger_ref_drift.sh --verify-tag
+      - name: Verify publisher module SHA pin
+        run: bash scripts/dagger_ref_drift.sh --verify-pin
       - run: >-
-          dagger -m github.com/elviskahoro/sdk-python-publish-to-pypi@v0.2.2 call build --source . export --path dist
+          dagger -m github.com/elviskahoro/sdk-python-publish-to-pypi@1cdcc45e2e4fe78768d73def9cbe23a54209f618 call build --source . export --path dist
       # v4.6.2
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:

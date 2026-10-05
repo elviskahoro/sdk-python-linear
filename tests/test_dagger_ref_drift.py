@@ -47,9 +47,10 @@ def _run_check(
     git_exit_code: int = 0,
     gh_issue_list_exit_code: int = 0,
     expected_sha: str = PINNED_SHA,
+    active_sha: str | None = None,
     include_sha_record: bool = True,
     sha_record: str | None = None,
-    verify_tag_only: bool = False,
+    verify_pin_only: bool = False,
     gh_token: str | None = "test-token",
     include_trailing_sha_note: bool = False,
     comment_pin: str | None = None,
@@ -72,7 +73,7 @@ def _run_check(
         if comment_pin is not None:
             workflow_contents += f"# Example ref: github.com/{REPO}@{comment_pin}\n"
         workflow_contents += (
-            f"dagger -m github.com/{REPO}@{pin} call build --source .\n"
+            f"dagger -m github.com/{REPO}@{active_sha or expected_sha} call build --source .\n"
         )
         if second_pin is not None:
             workflow_contents += (
@@ -178,8 +179,8 @@ def _run_check(
     else:
         environment.pop("GH_TOKEN", None)
     check_args = ["bash", str(CHECK_SCRIPT)]
-    if verify_tag_only:
-        check_args.append("--verify-tag")
+    if verify_pin_only:
+        check_args.append("--verify-pin")
     check_args.extend(extra_args)
     result = subprocess.run(
         check_args,
@@ -252,6 +253,17 @@ def test_malformed_tag_sha_record_fails_clearly(tmp_path: Path) -> None:
     assert gh_calls == ""
 
 
+def test_active_module_ref_must_match_renovate_sha_record(tmp_path: Path) -> None:
+    result, gh_calls, _, _ = _run_check(
+        tmp_path,
+        active_sha=RETAGGED_SHA,
+    )
+
+    assert result.returncode != 0
+    assert "pypi.yml records" in result.stderr
+    assert gh_calls == ""
+
+
 def test_tag_sha_record_rejects_trailing_comment_text(tmp_path: Path) -> None:
     result, gh_calls, _, _ = _run_check(tmp_path, include_trailing_sha_note=True)
 
@@ -260,16 +272,18 @@ def test_tag_sha_record_rejects_trailing_comment_text(tmp_path: Path) -> None:
     assert gh_calls == ""
 
 
-def test_publish_verification_mode_needs_no_github_token(tmp_path: Path) -> None:
-    result, gh_calls, _, gh_queries = _run_check(
+def test_publish_pin_verification_is_offline_and_needs_no_token(tmp_path: Path) -> None:
+    result, gh_calls, git_args, gh_queries = _run_check(
         tmp_path,
-        verify_tag_only=True,
+        refs=(f"{RETAGGED_SHA} refs/tags/v0.2.2",),
+        verify_pin_only=True,
         gh_token=None,
     )
 
     assert result.returncode == 0, result.stderr
-    assert f"checked {REPO}@v0.2.2 commit_sha={PINNED_SHA}" in result.stdout
+    assert f"verified {REPO}@v0.2.2 recorded commit_sha={PINNED_SHA}" in result.stdout
     assert gh_calls == ""
+    assert git_args == ""
     assert gh_queries == ""
 
 
@@ -277,7 +291,7 @@ def test_real_pypi_workflow_pin_and_sha_parse_in_publish_mode(
     tmp_path: Path,
 ) -> None:
     workflow_contents = (REPO_ROOT / ".github/workflows/pypi.yml").read_text()
-    pin_pattern = rf"github\.com/{re.escape(REPO)}@(v\d+\.\d+\.\d+)"
+    pin_pattern = rf"github\.com/{re.escape(REPO)}@([0-9a-f]{{40}})"
     pin_match = re.search(pin_pattern, workflow_contents)
     sha_match = re.search(
         r"^\s*# publisher-module-sha: (v\d+\.\d+\.\d+) ([0-9a-f]{40})$",
@@ -286,25 +300,67 @@ def test_real_pypi_workflow_pin_and_sha_parse_in_publish_mode(
     )
     assert pin_match is not None
     assert sha_match is not None
-    pin = pin_match.group(1)
-    assert sha_match.group(1) == pin
+    active_sha = pin_match.group(1)
+    pin = sha_match.group(1)
     sha = sha_match.group(2)
-    check_step = "run: bash scripts/dagger_ref_drift.sh --verify-tag"
-    build_step = f"dagger -m github.com/{REPO}@{pin} call build"
+    assert active_sha == sha
+    check_step = "run: bash scripts/dagger_ref_drift.sh --verify-pin"
+    build_step = f"dagger -m github.com/{REPO}@{sha} call build"
     assert workflow_contents.index(check_step) < workflow_contents.index(build_step)
-    result, gh_calls, _, _ = _run_check(
+    result, gh_calls, git_args, _ = _run_check(
         tmp_path,
         pin=pin,
         expected_sha=sha,
+        active_sha=active_sha,
         refs=(f"{sha} refs/tags/{pin}",),
-        verify_tag_only=True,
+        verify_pin_only=True,
         gh_token=None,
         use_real_workflow=True,
     )
 
     assert result.returncode == 0, result.stderr
-    assert f"checked {REPO}@{pin} commit_sha={sha}" in result.stdout
+    assert f"verified {REPO}@{pin} recorded commit_sha={sha}" in result.stdout
     assert gh_calls == ""
+    assert git_args == ""
+
+
+def test_renovate_manager_keeps_release_and_immutable_sha_in_sync() -> None:
+    # Guard real-file extraction and demonstrate the pair's intended update
+    # shape; Renovate's replacement engine is not exercised by this test.
+    renovate = json.loads((REPO_ROOT / "renovate.json").read_text())
+    manager = renovate["customManagers"][0]
+    pattern = manager["matchStrings"][0].replace("(?<", "(?P<")
+    workflow = (REPO_ROOT / ".github/workflows/pypi.yml").read_text()
+    match = re.search(pattern, workflow)
+
+    assert match is not None
+    assert manager["datasourceTemplate"] == "github-tags"
+    assert manager["versioningTemplate"] == "semver"
+    assert renovate["autoReplaceGlobalMatch"] is True
+    assert match.group("packageName") == REPO
+    current_value = match.group("currentValue")
+    assert re.fullmatch(r"v\d+\.\d+\.\d+", current_value)
+    tag_record = re.search(
+        r"^\s*# publisher-module-sha: (v\d+\.\d+\.\d+) [0-9a-f]{40}$",
+        workflow,
+        re.MULTILINE,
+    )
+    assert tag_record is not None
+    assert current_value == tag_record.group(1)
+    current_digest = match.group("currentDigest")
+    active_ref = re.search(
+        rf"github\.com/{re.escape(REPO)}@([0-9a-f]{{40}})",
+        workflow,
+    )
+    assert active_ref is not None
+    assert current_digest == active_ref.group(1)
+
+    next_version = "v99.0.0"
+    upgraded = match.group(0).replace(current_value, next_version)
+    upgraded = upgraded.replace(current_digest, RETAGGED_SHA)
+    assert upgraded.count(RETAGGED_SHA) == 2
+    assert f"@{next_version}" not in upgraded  # the build reference remains a SHA
+    assert f"publisher-module-sha: {next_version} {RETAGGED_SHA}" in upgraded
 
 
 def test_newer_stable_release_uses_semver_order_and_opens_issue(
@@ -658,7 +714,18 @@ def test_unrecognized_pin_fails_clearly(tmp_path: Path, pin: str) -> None:
     result, _, _, _ = _run_check(tmp_path, pin=pin)
 
     assert result.returncode != 0
-    assert "expected exactly one stable version-tagged" in result.stderr
+    assert "invalid release tag" in result.stderr
+
+
+@pytest.mark.parametrize("active_sha", ["v0.2.2", "1cdcc45", "A" * 40])
+def test_active_module_ref_rejects_non_sha_values(
+    tmp_path: Path,
+    active_sha: str,
+) -> None:
+    result, _, _, _ = _run_check(tmp_path, active_sha=active_sha)
+
+    assert result.returncode != 0
+    assert "expected exactly one SHA-pinned" in result.stderr
 
 
 def test_multiple_pins_fail_clearly(tmp_path: Path) -> None:
@@ -719,23 +786,10 @@ def test_tag_retarget_is_detected_against_recorded_sha(tmp_path: Path) -> None:
     assert gh_calls == ""
 
 
-def test_publish_verification_fails_on_tag_retarget_before_gh_calls(
-    tmp_path: Path,
-) -> None:
-    result, gh_calls, _, gh_queries = _run_check(
-        tmp_path,
-        refs=(f"{RETAGGED_SHA} refs/tags/v0.2.2",),
-        verify_tag_only=True,
-        gh_token=None,
-    )
-
-    assert result.returncode != 0
-    assert f"resolves to {RETAGGED_SHA}" in result.stderr
-    assert gh_calls == ""
-    assert gh_queries == ""
-
-
-@pytest.mark.parametrize("extra_args", [("--verify",), ("--verify-tag", "extra")])
+@pytest.mark.parametrize(
+    "extra_args",
+    [("--verify",), ("--verify-tag",), ("--verify-pin", "extra")],
+)
 def test_invalid_arguments_fail_before_network_access(
     tmp_path: Path,
     extra_args: tuple[str, ...],

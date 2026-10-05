@@ -11,53 +11,68 @@ legacy_body_prefix="pypi.yml pins ${repo}@"
 legacy_body_head_phrase="upstream HEAD"
 legacy_body_action_phrase="Review and re-pin"
 pypi_workflow=.github/workflows/pypi.yml
-verify_tag_only=0
-if [[ $# -eq 1 && $1 == --verify-tag ]]; then
-  verify_tag_only=1
+verify_pin_only=0
+if [[ $# -eq 1 && $1 == --verify-pin ]]; then
+  verify_pin_only=1
 elif [[ $# -ne 0 ]]; then
-  echo "usage: $0 [--verify-tag]" >&2
+  echo "usage: $0 [--verify-pin]" >&2
   exit 2
 fi
 
-# The weekly drift task needs GitHub access; the publish-time tag check does not.
-if [[ ${verify_tag_only} -eq 0 ]]; then
+# Only the weekly drift task needs GitHub access. The publish-time check is
+# intentionally offline: it confirms Renovate kept the metadata and SHA pin in
+# sync without making an immutable-SHA build depend on GitHub availability.
+if [[ ${verify_pin_only} -eq 0 ]]; then
   : "${GH_TOKEN:?GITHUB_TOKEN vault secret not provisioned -- rwx vaults secrets set --vault sdk-python-linear GITHUB_TOKEN=...}"
 fi
 
-# Require exactly one publisher-module ref, then validate it as stable SemVer.
+# Require exactly one active publisher-module ref, pinned to an immutable commit
+# SHA. The matching release tag lives in the metadata record below it.
 # Bash parsing avoids GNU-only grep extensions and fails closed if the workflow
 # changes format instead of silently disabling the weekly release check.
 pin_pattern="github\\.com/${repo}@([^[:space:]]+)"
-pins=()
+refs=()
 while IFS= read -r line || [[ -n ${line} ]]; do
   [[ ${line} =~ ^[[:space:]]*# ]] && continue
   if [[ ${line} =~ ${pin_pattern} ]]; then
-    pins+=("${BASH_REMATCH[1]}")
+    refs+=("${BASH_REMATCH[1]}")
   fi
 done <"${pypi_workflow}"
-pin_count=${#pins[@]}
-if [[ ${pin_count} -ne 1 ]]; then
-  echo "expected exactly one stable version-tagged ${repo} ref in ${pypi_workflow}; found ${pin_count} (expected @vMAJOR.MINOR.PATCH)" >&2
+ref_count=${#refs[@]}
+if [[ ${ref_count} -ne 1 ]]; then
+  echo "expected exactly one SHA-pinned ${repo} ref in ${pypi_workflow}; found ${ref_count} (expected @<40-character lowercase SHA>)" >&2
   exit 1
 fi
-pinned=${pins[0]}
-if [[ ! ${pinned} =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-  echo "expected exactly one stable version-tagged ${repo} ref in ${pypi_workflow}; found @${pinned} (expected @vMAJOR.MINOR.PATCH)" >&2
+active_sha=${refs[0]}
+if [[ ! ${active_sha} =~ ^[0-9a-f]{40}$ ]]; then
+  echo "expected exactly one SHA-pinned ${repo} ref in ${pypi_workflow}; found @${active_sha} (expected @<40-character lowercase SHA>)" >&2
   exit 1
 fi
 
-# Keep the human-readable release pin while checking its resolved commit SHA
-# independently before the build and during the weekly drift check.
-expected_shas=$(awk -v version="${pinned}" '$1 == "#" && $2 == "publisher-module-sha:" && $3 == version && NF == 4 { print $4 }' "${pypi_workflow}")
-sha_count=$(printf '%s\n' "${expected_shas}" | awk 'NF { count++ } END { print count+0 }')
+# Keep the release tag and its expected commit SHA together in the Renovate
+# metadata record; the actual Dagger invocation remains pinned by SHA.
+sha_records=$(awk '$1 == "#" && $2 == "publisher-module-sha:" && NF == 4 { print $3 "\t" $4 }' "${pypi_workflow}")
+sha_count=$(printf '%s\n' "${sha_records}" | awk 'NF { count++ } END { print count+0 }')
 if [[ ${sha_count} -ne 1 ]]; then
-  echo "expected exactly one publisher-module-sha record for ${pinned} in ${pypi_workflow}; found ${sha_count}" >&2
+  echo "expected exactly one publisher-module-sha record in ${pypi_workflow}; found ${sha_count}" >&2
   exit 1
 fi
-expected_sha=${expected_shas}
+IFS=$'\t' read -r pinned expected_sha <<<"${sha_records}"
+if [[ ! ${pinned} =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+  echo "publisher-module-sha record in ${pypi_workflow} has invalid release tag ${pinned} (expected vMAJOR.MINOR.PATCH)" >&2
+  exit 1
+fi
 if [[ ! ${expected_sha} =~ ^[0-9a-f]{40}$ ]]; then
   echo "publisher-module-sha for ${pinned} in ${pypi_workflow} must be a 40-character lowercase SHA" >&2
   exit 1
+fi
+if [[ ${active_sha} != "${expected_sha}" ]]; then
+  echo "${repo} is pinned to ${active_sha}, but pypi.yml records ${expected_sha} for ${pinned}" >&2
+  exit 1
+fi
+if [[ ${verify_pin_only} -eq 1 ]]; then
+  echo "verified ${repo}@${pinned} recorded commit_sha=${active_sha}"
+  exit 0
 fi
 
 if ! remote_tags=$(git ls-remote --tags "https://github.com/${repo}" 'refs/tags/v*'); then
@@ -88,12 +103,6 @@ fi
 
 latest=$(tail -n1 <<<"${stable_tags}")
 echo "pinned=${pinned} latest_release=${latest}"
-
-# The PyPI workflow calls this mode immediately before invoking Dagger.
-if [[ ${verify_tag_only} -eq 1 ]]; then
-  echo "checked ${repo}@${pinned} commit_sha=${resolved_sha}"
-  exit 0
-fi
 
 # The pin is known to exist in stable_tags, and latest is its semantic maximum.
 list_open_same_title_issues() {
