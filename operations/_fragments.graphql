@@ -36,6 +36,26 @@ fragment CommentFields on Comment {
   createdAt
 }
 
+fragment AttachmentFields on Attachment {
+  id
+  title
+  subtitle
+  url
+}
+
+fragment IssueRelationFields on IssueRelation {
+  id
+  type
+  issue {
+    id
+    identifier
+  }
+  relatedIssue {
+    id
+    identifier
+  }
+}
+
 fragment IssueFields on Issue {
   id
   identifier

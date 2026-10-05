@@ -16,6 +16,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from ._generated.CreateAttachment import (
+    DOCUMENT as CREATE_ATTACHMENT,
+    AttachmentCreateInput,
+    CreateAttachmentResult,
+)
 from ._generated.CreateComment import (
     DOCUMENT as CREATE_COMMENT,
     CommentCreateInput,
@@ -25,6 +30,12 @@ from ._generated.CreateIssue import (
     DOCUMENT as CREATE_ISSUE,
     CreateIssueResult,
     IssueCreateInput,
+)
+from ._generated.CreateIssueRelation import (
+    DOCUMENT as CREATE_ISSUE_RELATION,
+    CreateIssueRelationResult,
+    IssueRelationCreateInput,
+    IssueRelationType,
 )
 from ._generated.DeleteIssue import (
     DOCUMENT as DELETE_ISSUE,
@@ -37,7 +48,12 @@ from ._generated.UpdateIssue import (
 )
 
 if TYPE_CHECKING:
-    from ._generated.fragments import CommentFields, IssueFields
+    from ._generated.fragments import (
+        AttachmentFields,
+        CommentFields,
+        IssueFields,
+        IssueRelationFields,
+    )
     from .client import LinearClient
 
 
@@ -147,10 +163,50 @@ class LinearMutations:
         )
         return CreateCommentResult.model_validate(data).comment_create.comment
 
+    async def create_attachment(
+        self, input_: AttachmentCreateInput,
+    ) -> AttachmentFields:
+        """Attach an external URL to an issue.
+
+        Args:
+            input_: The issue, URL, title, and optional attachment metadata.
+
+        Returns:
+            The created or updated attachment.
+        """
+        data = await self._client.execute_async(
+            CREATE_ATTACHMENT,
+            {"input": _variables(input_)},
+        )
+        return CreateAttachmentResult.model_validate(data).attachment_create.attachment
+
+    async def create_issue_relation(
+        self,
+        input_: IssueRelationCreateInput,
+    ) -> IssueRelationFields:
+        """Create a supported relation between two issues.
+
+        Args:
+            input_: The source issue, related issue, and relation type.
+
+        Returns:
+            The created issue relation, including both issue identifiers.
+        """
+        data = await self._client.execute_async(
+            CREATE_ISSUE_RELATION,
+            {"input": _variables(input_)},
+        )
+        return CreateIssueRelationResult.model_validate(
+            data,
+        ).issue_relation_create.issue_relation
+
 
 __all__ = [
+    "AttachmentCreateInput",
     "CommentCreateInput",
     "IssueCreateInput",
+    "IssueRelationCreateInput",
+    "IssueRelationType",
     "IssueUpdateInput",
     "LinearMutations",
 ]

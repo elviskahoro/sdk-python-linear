@@ -6,6 +6,15 @@ from typing import Optional
 from gtm_linear.models import LinearModel
 
 
+class AttachmentFields(LinearModel):
+    """GraphQL type: Attachment."""
+
+    id: str
+    title: str
+    subtitle: Optional[str]
+    url: str
+
+
 class CommentFields(LinearModel):
     """GraphQL type: Comment."""
 
@@ -39,6 +48,25 @@ class IssueFields(LinearModel):
     priority: float
     state: IssueFieldsState
     assignee: Optional[IssueFieldsAssignee]
+
+
+class IssueRelationFieldsIssue(LinearModel):
+    id: str
+    identifier: str
+
+
+class IssueRelationFieldsRelatedIssue(LinearModel):
+    id: str
+    identifier: str
+
+
+class IssueRelationFields(LinearModel):
+    """GraphQL type: IssueRelation."""
+
+    id: str
+    type: str
+    issue: IssueRelationFieldsIssue
+    related_issue: IssueRelationFieldsRelatedIssue
 
 
 class TeamFields(LinearModel):

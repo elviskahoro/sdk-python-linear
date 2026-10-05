@@ -16,8 +16,12 @@ import respx
 from pydantic import ValidationError
 
 from gtm_linear import (
+    AttachmentCreateInput,
     IssueCreateInput,
+    IssueRelationCreateInput,
+    IssueRelationType,
     IssueUpdateInput,
+    LinearAPIError,
     LinearClient,
     LinearMutations,
 )
@@ -277,3 +281,200 @@ async def test_create_comment_null_payload_fails_validation_not_a_silent_none() 
         async with LinearClient(api_key="key") as client:
             with pytest.raises(ValidationError):
                 await LinearMutations(client).create_comment("iss-1", "hello")
+
+
+async def test_create_attachment_sends_generated_input_and_returns_typed_result() -> (
+    None
+):
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "attachmentCreate": {
+                            "success": True,
+                            "attachment": {
+                                "id": "att-1",
+                                "title": "PR #42",
+                                "subtitle": "GitHub pull request",
+                                "url": "https://github.com/acme/service/pull/42",
+                            },
+                        },
+                    },
+                },
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            attachment = await LinearMutations(client).create_attachment(
+                AttachmentCreateInput(
+                    issue_id="iss-1",
+                    url="https://github.com/acme/service/pull/42",
+                    title="PR #42",
+                    subtitle="GitHub pull request",
+                ),
+            )
+
+    assert attachment.id == "att-1"
+    assert attachment.url == "https://github.com/acme/service/pull/42"
+    body = json.loads(route.calls.last.request.read())
+    assert body["variables"]["input"] == {
+        "issueId": "iss-1",
+        "url": "https://github.com/acme/service/pull/42",
+        "title": "PR #42",
+        "subtitle": "GitHub pull request",
+    }
+    assert "attachmentCreate" in body["query"]
+
+
+def test_attachment_input_requires_issue_url_and_title() -> None:
+    with pytest.raises(ValidationError):
+        AttachmentCreateInput(issue_id="iss-1", url="https://example.com")
+
+    with pytest.raises(ValidationError):
+        AttachmentCreateInput(title="PR", url="https://example.com")
+
+    with pytest.raises(ValidationError):
+        AttachmentCreateInput(issue_id="iss-1", title="PR")
+
+
+async def test_create_issue_relation_sends_enum_and_returns_typed_result() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "issueRelationCreate": {
+                            "success": True,
+                            "issueRelation": {
+                                "id": "rel-1",
+                                "type": "related",
+                                "issue": {"id": "iss-1", "identifier": "ENG-1"},
+                                "relatedIssue": {
+                                    "id": "iss-2",
+                                    "identifier": "ENG-2",
+                                },
+                            },
+                        },
+                    },
+                },
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            relation = await LinearMutations(client).create_issue_relation(
+                IssueRelationCreateInput(
+                    issue_id="iss-1",
+                    related_issue_id="iss-2",
+                    type=IssueRelationType.related,
+                ),
+            )
+
+    assert relation.id == "rel-1"
+    assert relation.issue.identifier == "ENG-1"
+    assert relation.related_issue.identifier == "ENG-2"
+    body = json.loads(route.calls.last.request.read())
+    assert body["variables"]["input"] == {
+        "issueId": "iss-1",
+        "relatedIssueId": "iss-2",
+        "type": "related",
+    }
+    assert "issueRelationCreate" in body["query"]
+
+
+def test_issue_relation_input_rejects_unsupported_type() -> None:
+    with pytest.raises(ValidationError):
+        IssueRelationCreateInput.model_validate(
+            {
+                "issue_id": "iss-1",
+                "related_issue_id": "iss-2",
+                "type": "unsupported",
+            },
+        )
+
+    with pytest.raises(ValidationError):
+        IssueRelationCreateInput.model_validate(
+            {"issue_id": "iss-1", "type": "related"},
+        )
+
+    with pytest.raises(ValidationError):
+        IssueRelationCreateInput.model_validate(
+            {"related_issue_id": "iss-2", "type": "related"},
+        )
+
+
+@pytest.mark.parametrize(
+    ("operation", "payload"),
+    [
+        ("attachment", None),
+        ("attachment", {"id": "att-1"}),
+        ("relation", None),
+        ("relation", {"id": "rel-1", "type": "related"}),
+    ],
+    ids=[
+        "null-attachment",
+        "malformed-attachment",
+        "null-relation",
+        "malformed-relation",
+    ],
+)
+async def test_new_mutations_reject_missing_or_malformed_payloads(
+    operation: str,
+    payload: object,
+) -> None:
+    if operation == "attachment":
+        root, field = "attachmentCreate", "attachment"
+        input_ = AttachmentCreateInput(
+            issue_id="iss-1",
+            url="https://example.com",
+            title="external link",
+        )
+    else:
+        root, field = "issueRelationCreate", "issueRelation"
+        input_ = IssueRelationCreateInput(
+            issue_id="iss-1",
+            related_issue_id="iss-2",
+            type=IssueRelationType.related,
+        )
+
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={"data": {root: {"success": True, field: payload}}},
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            mutations = LinearMutations(client)
+            method = (
+                mutations.create_attachment
+                if operation == "attachment"
+                else mutations.create_issue_relation
+            )
+            with pytest.raises(ValidationError):
+                await method(input_)
+
+
+@pytest.mark.parametrize("operation", ["attachment", "relation"])
+async def test_new_mutations_preserve_api_error_contract(operation: str) -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(return_value=httpx.Response(401, json={"errors": []}))
+        async with LinearClient(api_key="key") as client:
+            mutations = LinearMutations(client)
+            with pytest.raises(LinearAPIError):
+                if operation == "attachment":
+                    await mutations.create_attachment(
+                        AttachmentCreateInput(
+                            issue_id="iss-1",
+                            url="https://example.com",
+                            title="external link",
+                        ),
+                    )
+                else:
+                    await mutations.create_issue_relation(
+                        IssueRelationCreateInput(
+                            issue_id="iss-1",
+                            related_issue_id="iss-2",
+                            type=IssueRelationType.related,
+                        ),
+                    )

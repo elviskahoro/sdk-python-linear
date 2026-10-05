@@ -13,7 +13,17 @@ TeamFilter = NewType("TeamFilter", object)
 
 WorkflowStateFilter = NewType("WorkflowStateFilter", object)
 
+JSONObject = NewType("JSONObject", object)
+
 TimelessDate = NewType("TimelessDate", object)
+
+
+@strawberry.enum
+class IssueRelationType(Enum):
+    blocks = "blocks"
+    duplicate = "duplicate"
+    related = "related"
+    similar = "similar"
 
 
 @strawberry.enum
@@ -44,6 +54,22 @@ class SLADayCountType(Enum):
 class AssigneeSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
     order: strawberry.Maybe[PaginationSortOrder | None]
+
+
+@strawberry.input
+class AttachmentCreateInput:
+    comment_body: strawberry.Maybe[str | None]
+    comment_body_data: strawberry.Maybe[JSONObject | None]
+    create_as_user: strawberry.Maybe[str | None]
+    display_icon_url: strawberry.Maybe[str | None]
+    group_by_source: strawberry.Maybe[bool | None]
+    icon_url: strawberry.Maybe[str | None]
+    id: strawberry.Maybe[str | None]
+    issue_id: str
+    metadata: strawberry.Maybe[JSONObject | None]
+    subtitle: strawberry.Maybe[str | None]
+    title: str
+    url: str
 
 
 @strawberry.input
@@ -167,6 +193,14 @@ class IssueCreateInput:
     template_id: strawberry.Maybe[str | None]
     title: strawberry.Maybe[str | None]
     use_default_template: strawberry.Maybe[bool | None]
+
+
+@strawberry.input
+class IssueRelationCreateInput:
+    id: strawberry.Maybe[str | None]
+    issue_id: str
+    related_issue_id: str
+    type: IssueRelationType
 
 
 @strawberry.input
@@ -333,6 +367,20 @@ class WorkflowStateSort:
 
 
 @strawberry.type
+class Attachment:
+    id: strawberry.ID
+    subtitle: str | None
+    title: str
+    url: str
+
+
+@strawberry.type
+class AttachmentPayload:
+    attachment: Attachment
+    success: bool
+
+
+@strawberry.type
 class Comment:
     body: str
     created_at: datetime
@@ -376,6 +424,20 @@ class IssuePayload:
 
 
 @strawberry.type
+class IssueRelation:
+    id: strawberry.ID
+    issue: Issue
+    related_issue: Issue
+    type: str
+
+
+@strawberry.type
+class IssueRelationPayload:
+    issue_relation: IssueRelation
+    success: bool
+
+
+@strawberry.type
 class IssueSearchPayload:
     nodes: list[IssueSearchResult]
     page_info: PageInfo
@@ -396,6 +458,13 @@ class IssueSearchResult:
 @strawberry.type
 class Mutation:
     @strawberry.field
+    def attachment_create(
+        self,
+        input: AttachmentCreateInput,
+    ) -> AttachmentPayload:
+        raise NotImplementedError
+
+    @strawberry.field
     def comment_create(
         self,
         input: CommentCreateInput,
@@ -415,6 +484,14 @@ class Mutation:
         id: str,
         permanently_delete: bool | None = None,
     ) -> IssueArchivePayload:
+        raise NotImplementedError
+
+    @strawberry.field
+    def issue_relation_create(
+        self,
+        input: IssueRelationCreateInput,
+        override_created_at: datetime | None = None,
+    ) -> IssueRelationPayload:
         raise NotImplementedError
 
     @strawberry.field
@@ -559,6 +636,9 @@ schema = strawberry.Schema(
             IssueFilter: strawberry.scalar(
                 name="IssueFilter", serialize=lambda v: v, parse_value=lambda v: v
             ),
+            JSONObject: strawberry.scalar(
+                name="JSONObject", serialize=lambda v: v, parse_value=lambda v: v
+            ),
             TeamFilter: strawberry.scalar(
                 name="TeamFilter", serialize=lambda v: v, parse_value=lambda v: v
             ),
@@ -574,6 +654,7 @@ schema = strawberry.Schema(
     ),
     types=[
         AssigneeSort,
+        AttachmentCreateInput,
         CommentCreateInput,
         CompletedAtSort,
         CreatedAtSort,
@@ -587,8 +668,11 @@ schema = strawberry.Schema(
         EstimateSort,
         IssueCreateInput,
         IssueFilter,
+        IssueRelationCreateInput,
+        IssueRelationType,
         IssueSortInput,
         IssueUpdateInput,
+        JSONObject,
         LabelGroupSort,
         LabelSort,
         LinkCountSort,

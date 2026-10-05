@@ -85,6 +85,16 @@ async def test_async_facade_delegates_every_query_and_mutation(
         "create_comment",
         mutation("create_comment", "comment"),
     )
+    monkeypatch.setattr(
+        LinearMutations,
+        "create_attachment",
+        mutation("create_attachment", "attachment"),
+    )
+    monkeypatch.setattr(
+        LinearMutations,
+        "create_issue_relation",
+        mutation("create_issue_relation", "relation"),
+    )
 
     async with LinearWorkflow("key") as linear:
         assert await linear.get_issue_async("i") == "issue"
@@ -101,6 +111,12 @@ async def test_async_facade_delegates_every_query_and_mutation(
         assert await linear.update_issue_async("i", cast("Any", "update")) == "issue"
         assert await linear.delete_issue_async("i") is True
         assert await linear.create_comment_async("i", "body") == "comment"
+        assert await linear.create_attachment_async(
+            cast("Any", "attachment input"),
+        ) == ("attachment")
+        assert await linear.create_issue_relation_async(
+            cast("Any", "relation input"),
+        ) == ("relation")
 
     assert [name for name, _, _ in calls] == [
         "get_issue",
@@ -117,6 +133,8 @@ async def test_async_facade_delegates_every_query_and_mutation(
         "update_issue",
         "delete_issue",
         "create_comment",
+        "create_attachment",
+        "create_issue_relation",
     ]
 
 
@@ -153,11 +171,44 @@ def test_sync_wrappers_inherit_docstrings_without_wraps_binding() -> None:
         (LinearWorkflow.update_issue, LinearMutations.update_issue),
         (LinearWorkflow.delete_issue, LinearMutations.delete_issue),
         (LinearWorkflow.create_comment, LinearMutations.create_comment),
+        (LinearWorkflow.create_attachment, LinearMutations.create_attachment),
+        (LinearWorkflow.create_issue_relation, LinearMutations.create_issue_relation),
     ]
     for sync, source in pairs:
         assert sync.__doc__ == source.__doc__, sync.__name__
         assert not hasattr(sync, "__wrapped__"), sync.__name__
         assert sync.__qualname__.startswith("LinearWorkflow."), sync.__qualname__
+
+
+def test_sync_mutation_facade_delegates_new_operations(monkeypatch: Any) -> None:
+    calls: list[tuple[str, tuple[object, ...]]] = []
+
+    def mutation(name: str, result: object) -> Any:
+        async def method(_self: object, *args: object) -> object:
+            calls.append((name, args))
+            return result
+
+        return method
+
+    monkeypatch.setattr(
+        LinearMutations,
+        "create_attachment",
+        mutation("create_attachment", "attachment"),
+    )
+    monkeypatch.setattr(
+        LinearMutations,
+        "create_issue_relation",
+        mutation("create_issue_relation", "relation"),
+    )
+
+    with LinearWorkflow("key") as linear:
+        assert linear.create_attachment("attachment input") == "attachment"
+        assert linear.create_issue_relation("relation input") == "relation"
+
+    assert calls == [
+        ("create_attachment", ("attachment input",)),
+        ("create_issue_relation", ("relation input",)),
+    ]
 
 
 def test_sync_facade_uses_injected_key_and_closes_async_session() -> None:

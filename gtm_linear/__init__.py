@@ -10,8 +10,10 @@ The generated classes are named after the GraphQL fragments that produce them
 
 from importlib.metadata import PackageNotFoundError, version
 
+from ._generated.CreateAttachment import AttachmentCreateInput
 from ._generated.CreateComment import CommentCreateInput
 from ._generated.CreateIssue import IssueCreateInput
+from ._generated.CreateIssueRelation import IssueRelationCreateInput, IssueRelationType
 from ._generated.ListIssues import (
     ListIssuesResultIssues as IssueConnection,
     PaginationOrderBy,
@@ -24,8 +26,10 @@ from ._generated.SearchIssues import (
 )
 from ._generated.UpdateIssue import IssueUpdateInput
 from ._generated.fragments import (
+    AttachmentFields as Attachment,
     CommentFields as Comment,
     IssueFields as Issue,
+    IssueRelationFields as IssueRelation,
     IssueSearchResultFields as IssueSearchResult,
     PageInfoFields as PageInfo,
     TeamFields as Team,
@@ -45,11 +49,16 @@ except PackageNotFoundError:  # running from a source tree without an install
     __version__ = "0.0.0.dev0"
 
 __all__ = [
+    "Attachment",
+    "AttachmentCreateInput",
     "Comment",
     "CommentCreateInput",
     "Issue",
     "IssueConnection",
     "IssueCreateInput",
+    "IssueRelation",
+    "IssueRelationCreateInput",
+    "IssueRelationType",
     "IssueSearchConnection",
     "IssueSearchResult",
     "IssueUpdateInput",

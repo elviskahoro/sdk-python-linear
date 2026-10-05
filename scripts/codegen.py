@@ -584,6 +584,7 @@ def _python_type(type_: object, *, nullable: bool = True) -> str:
         name = getattr(type_, "name", "Any")
         rendered = {
             "Boolean": "bool",
+            "DateTime": "datetime",
             "Float": "float",
             "ID": "strawberry.ID",
             "Int": "int",

@@ -14,7 +14,7 @@ Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, t
 | Need ad-hoc GraphQL escape hatch alongside typed helpers | Yes — `LinearClient.execute_async(query, variables)` |
 | Building MCP-style tooling against Linear | Yes (low-level), or prefer the official Linear MCP server for higher-level intent |
 | Need full coverage of Linear's GraphQL schema | **No** — only a focused subset of Linear types is wrapped today |
-| Need webhooks, OAuth flow, or attachments | **No** — not implemented |
+| Need webhooks, OAuth flow, or integration-aware attachment operations | **No** — not implemented |
 | Writing a one-off shell command | Yes — the bundled CLI: `uvx gtm-linear issues --team ENG` |
 
 If you only need to *create or read a few issues* from an automation, this is the right tool. If you need broad schema coverage, drop down to `execute_async` with a hand-written query.
@@ -84,7 +84,7 @@ Three classes, all importable from the package root:
 ```text
 LinearClient        # transport + auth + GraphQL execution
   ├── LinearQueries # typed read wrappers (get_issue, list_issues, search_issues, get_team, get_user)
-  └── LinearMutations # typed write wrappers (issues and comments)
+  └── LinearMutations # typed write wrappers (issues, comments, attachments, relations)
 LinearWorkflow      # injected-key CLI facade over every typed read/write helper
 ```
 
@@ -323,6 +323,8 @@ Issue(
 | `update_issue(issue_id, update)` | `str`, `IssueUpdateInput` | `Issue` (full) | `ValueError` if API returns no issue; `LinearAPIError` on transport failure |
 | `delete_issue(issue_id)` | `str` | `bool` (success flag) | `LinearAPIError` on transport failure |
 | `create_comment(issue_id, body)` | `str`, `str` | `Comment` (full) | `ValueError` if API returns no comment; `LinearAPIError` on transport failure |
+| `create_attachment(input_)` | `AttachmentCreateInput` | `Attachment` | `ValidationError` for a malformed response; `LinearAPIError` on transport failure |
+| `create_issue_relation(input_)` | `IssueRelationCreateInput` | `IssueRelation` | `ValidationError` for a malformed response; `LinearAPIError` on transport failure |
 
 ### Mutation pitfalls
 
@@ -330,6 +332,39 @@ Issue(
 - `delete_issue` returns Linear's `success` bool. A `False` return is *not* an exception — check it explicitly if you care.
 - `create_issue` and `update_issue` raise `ValueError`, not `LinearAPIError`, when the API responds 200 but with an empty `issue`. Catch both if you're wrapping.
 - `create_comment` returns a typed `Comment` with `createdAt` parsed as a timezone-aware `datetime` when Linear returns an ISO-8601 timestamp.
+- `AttachmentCreateInput` requires an issue ID, URL, and title; Linear treats a repeated URL for the same issue as an update. `IssueRelationCreateInput` requires both issue IDs and a supported `IssueRelationType` (`blocks`, `duplicate`, `related`, or `similar`).
+
+For example, a workflow can link a pull request and record a relationship between
+issues using the generated input models:
+
+```python
+from gtm_linear import (
+    AttachmentCreateInput,
+    IssueRelationCreateInput,
+    IssueRelationType,
+    LinearWorkflow,
+)
+
+with LinearWorkflow(api_key) as linear:
+    pull_request = linear.create_attachment(
+        AttachmentCreateInput(
+            issue_id="issue-uuid",
+            url="https://github.com/acme/service/pull/42",
+            title="PR #42: Handle retries",
+            subtitle="GitHub pull request",
+        )
+    )
+    relation = linear.create_issue_relation(
+        IssueRelationCreateInput(
+            issue_id="issue-uuid",
+            related_issue_id="related-issue-uuid",
+            type=IssueRelationType.related,
+        )
+    )
+```
+
+The same methods are available as `create_attachment_async` and
+`create_issue_relation_async` for async workflows.
 
 ---
 

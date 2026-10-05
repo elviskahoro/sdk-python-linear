@@ -35,6 +35,17 @@ fields = "all"
 on = "Comment"
 fields = ["id", "body", "url", "createdAt"]
 
+[fragments.AttachmentFields]
+on = "Attachment"
+fields = ["id", "title", "subtitle", "url"]
+
+[fragments.IssueRelationFields]
+on = "IssueRelation"
+fields = ["id", "type"]
+[fragments.IssueRelationFields.expand]
+issue = ["id", "identifier"]
+relatedIssue = ["id", "identifier"]
+
 [fragments.IssueFields]
 on = "Issue"
 fields = ["id", "identifier", "title", "description", "url", "priority"]
@@ -132,4 +143,18 @@ kind = "mutation"
 root = "commentCreate"
 fragment = "CommentFields"
 variables = { input = "CommentCreateInput!" }
+arguments = { input = "$input" }
+
+[operations.CreateAttachment]
+kind = "mutation"
+root = "attachmentCreate"
+fragment = "AttachmentFields"
+variables = { input = "AttachmentCreateInput!" }
+arguments = { input = "$input" }
+
+[operations.CreateIssueRelation]
+kind = "mutation"
+root = "issueRelationCreate"
+fragment = "IssueRelationFields"
+variables = { input = "IssueRelationCreateInput!" }
 arguments = { input = "$input" }

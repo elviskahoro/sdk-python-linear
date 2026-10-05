@@ -128,3 +128,13 @@ def test_unwrap_names_the_wrapped_type_and_returns_none_otherwise() -> None:
     # The two inputs that can never name a type: nothing, and a non-type.
     assert codegen._unwrap(None) is None
     assert codegen._unwrap(object()) is None
+
+
+def test_python_type_maps_linear_datetime_scalar() -> None:
+    """Root mutation arguments use the Python scalar alias in generated schema."""
+    from graphql import GraphQLNonNull, GraphQLScalarType
+
+    date_time = GraphQLScalarType("DateTime")
+
+    assert codegen._python_type(date_time) == "datetime | None"
+    assert codegen._python_type(GraphQLNonNull(date_time)) == "datetime"
