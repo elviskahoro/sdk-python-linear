@@ -22,7 +22,10 @@ jobs:
       # best-effort: a retarget after the check could run a different commit.
       # Upstream tag protection is the normal-operation control. RWX repeats
       # the check weekly.
-      # Checked weekly for newer releases by .rwx/dagger-ref-drift.yml.
+      # Checked weekly for newer releases by .rwx/dagger-ref-drift.yml, which
+      # also opens a ready-to-review bump PR that rewrites this record and the
+      # module ref below together (the stale-ref issue is only the fallback
+      # alert when the PR machinery cannot run).
       # Required format: publisher-module-sha: <tag> <40-character lowercase SHA>.
       # publisher-module-sha: v0.2.2 1cdcc45e2e4fe78768d73def9cbe23a54209f618
       - name: Check publisher module release tag

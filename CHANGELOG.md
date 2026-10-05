@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- The weekly dagger-ref-drift check now automates the pin bump itself: when
+  the latest upstream release outdates `pypi.yml`'s publisher-module pin, the
+  pipeline opens a ready-to-review bump PR from the
+  `automation/dagger-publisher-pin` branch (deduplicated by head and base
+  ref, so a dispatch against another ref never hijacks the weekly main
+  alert) that moves the run-step module ref
+  and the `publisher-module-sha` record together, rebases that branch onto
+  the current base head (so a lingering PR can never revert base-branch
+  changes such as Dependabot's action-SHA bumps), refreshes its title and
+  body while it stays open, closes it once the pin is current again, and
+  supersedes any fallback stale-ref issue. The PR plumbing is stateless
+  (`gh api` git-data/contents calls; the pipeline clone has no `.git`), and
+  the stale-ref issue remains the fallback alert so drift is never silent —
+  in particular while the vault token still lacks the wider scopes.
+  Activating the PR path needs the `sdk-python-linear` vault PAT widened to
+  Contents and Pull requests Read/Write on this repo (Issues stays for the
+  fallback alert): `rwx vaults secrets set --vault sdk-python-linear
+  GITHUB_TOKEN=<pat>`, then validate with `rwx dispatch dagger-ref-drift
+  --ref main`.
+
 ## [0.3.0] - 2026-10-05
 
 First PyPI release that ships the CLI: the `v0.2.2` tag was cut before the

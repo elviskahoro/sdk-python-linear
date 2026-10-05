@@ -8,3 +8,9 @@ line_length: false
 spaces: false
 url: false
 whitespace: false
+# Keep a Changelog repeats its section headings (Added/Changed/...) under
+# every version heading. Those duplicates sit in different parents, which is
+# the intended structure of the format rather than a copy-paste mistake, so
+# only same-parent duplicates stay flagged.
+MD024:
+  siblings_only: true

@@ -19,8 +19,16 @@ ISSUE_REPO = "elviskahoro/sdk-python-linear"
 PINNED_SHA = "a" * 40
 RETAGGED_SHA = "b" * 40
 ANNOTATED_TAG_SHA = "c" * 40
+NEXT_RELEASE_SHA = "d" * 40
+NEWER_RELEASE_SHA = "e" * 40
+BASE_HEAD_SHA = "f" * 40
+STALE_HEAD_SHA = "7" * 40
+BLOB_SHA = "9" * 40
 ISSUE_MARKER = "<!-- sdk-python-linear:dagger-publisher-drift -->"
 ISSUE_TITLE = "Dagger publish module ref is stale"
+PR_MARKER = "<!-- sdk-python-linear:dagger-publisher-bump -->"
+PR_BRANCH = "automation/dagger-publisher-pin"
+PR_CREATE_URL = "https://github.com/elviskahoro/sdk-python-linear/pull/201"
 HAS_JQ = shutil.which("jq") is not None
 requires_jq = pytest.mark.skipif(
     not HAS_JQ and os.environ.get("REQUIRE_JQ") != "1",
@@ -58,29 +66,45 @@ def _run_check(
     other_issues: tuple[tuple[str, str, str], ...] = (),
     extra_args: tuple[str, ...] = (),
     use_real_workflow: bool = False,
+    pr_automation: bool = False,
+    pr_fail_at: str | None = None,
+    pr_number: str = "",
+    pr_title: str = "",
+    pr_body: str = "",
+    pr_head_ref: str = PR_BRANCH,
+    pr_base_ref: str = "main",
+    pr_branch_exists: bool = False,
+    branch_file: str | None = None,
+    branch_head_sha: str | None = None,
+    base_head_sha: str = BASE_HEAD_SHA,
+    blob_sha: str = BLOB_SHA,
+    pr_create_url: str = PR_CREATE_URL,
 ) -> tuple[subprocess.CompletedProcess[str], str, str, str]:
     if run_real_jq and not HAS_JQ:
         pytest.fail("jq is required for these GitHub issue-filter integration tests")
     workflow = tmp_path / ".github/workflows/pypi.yml"
     cwd = REPO_ROOT if use_real_workflow else tmp_path
+    workflow_contents = ""
+    if include_sha_record:
+        trailing_note = " expected" if include_trailing_sha_note else ""
+        workflow_contents += f"# publisher-module-sha: {pin} {sha_record or expected_sha}{trailing_note}\n"
+    if comment_pin is not None:
+        workflow_contents += f"# Example ref: github.com/{REPO}@{comment_pin}\n"
+    workflow_contents += (
+        f"dagger -m github.com/{REPO}@{pin} call build --source .\n"
+    )
+    if second_pin is not None:
+        workflow_contents += (
+            f"dagger -m github.com/{REPO}@{second_pin} call build --source .\n"
+        )
+    if not final_newline:
+        workflow_contents = workflow_contents.rstrip("\n")
     if not use_real_workflow:
         workflow.parent.mkdir(parents=True, exist_ok=True)
-        workflow_contents = ""
-        if include_sha_record:
-            trailing_note = " expected" if include_trailing_sha_note else ""
-            workflow_contents += f"# publisher-module-sha: {pin} {sha_record or expected_sha}{trailing_note}\n"
-        if comment_pin is not None:
-            workflow_contents += f"# Example ref: github.com/{REPO}@{comment_pin}\n"
-        workflow_contents += (
-            f"dagger -m github.com/{REPO}@{pin} call build --source .\n"
-        )
-        if second_pin is not None:
-            workflow_contents += (
-                f"dagger -m github.com/{REPO}@{second_pin} call build --source .\n"
-            )
-        if not final_newline:
-            workflow_contents = workflow_contents.rstrip("\n")
         workflow.write_text(workflow_contents)
+    main_file = (
+        REPO_ROOT / ".github/workflows/pypi.yml" if use_real_workflow else workflow
+    )
 
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
@@ -148,6 +172,98 @@ def _run_check(
         'if [ "$1 $2" = "issue edit" ]; then printf "%s\\n" "$*" >> "$TEST_GH_CAPTURE"; exit 0; fi\n'
         'if [ "$1 $2" = "issue create" ]; then printf "%s\\n" "$*" >> "$TEST_GH_CAPTURE"; exit 0; fi\n'
         'if [ "$1 $2" = "issue close" ]; then printf "%s\\n" "$*" >> "$TEST_GH_CAPTURE"; exit 0; fi\n'
+        # Stateless GitHub git-data / contents API surface for the bump PR.
+        # TEST_PR_FAIL_AT names the single operation that must fail; a
+        # TEST_PR_AUTOMATION of 0 fails every operation (what a vault token
+        # without Contents/Pull-requests scopes produces).
+        'if [ "$1" = "api" ]; then\n'
+        '  shift\n'
+        '  method=GET\n'
+        '  if [ "$1" = "-X" ]; then method="$2"; shift 2; fi\n'
+        '  url="$1"\n'
+        '  op="none"\n'
+        '  case "${method} ${url}" in\n'
+        f'    "GET repos/{ISSUE_REPO}/git/ref/heads/main") op="ref-get-base" ;;\n'
+        f'    "GET repos/{ISSUE_REPO}/git/ref/heads/{PR_BRANCH}") op="ref-get-branch" ;;\n'
+        f'    "POST repos/{ISSUE_REPO}/git/refs") op="ref-create" ;;\n'
+        f'    "PATCH repos/{ISSUE_REPO}/git/refs/heads/{PR_BRANCH}") op="ref-update" ;;\n'
+        f'    "DELETE repos/{ISSUE_REPO}/git/refs/heads/{PR_BRANCH}") op="ref-delete" ;;\n'
+        f'    "GET repos/{ISSUE_REPO}/contents/.github/workflows/pypi.yml"*) op="contents-get" ;;\n'
+        f'    "PUT repos/{ISSUE_REPO}/contents/.github/workflows/pypi.yml") op="contents-put" ;;\n'
+        "  esac\n"
+        '  if [ "$TEST_PR_AUTOMATION" != "1" ] || [ "$TEST_PR_FAIL_AT" = "$op" ]; then\n'
+        '    echo "mock gh api failure ($op)" >&2\n'
+        "    exit 1\n"
+        "  fi\n"
+        '  printf "api %s %s\\n" "$method" "$*" >> "$TEST_GH_CAPTURE"\n'
+        '  case "$op" in\n'
+        '    ref-get-base) printf "%s\\n" "$TEST_BASE_HEAD_SHA" ;;\n'
+        "    ref-get-branch)\n"
+        '      if [ "$TEST_PR_BRANCH_EXISTS" != "1" ]; then echo "mock ref not found" >&2; exit 1; fi\n'
+        # The branch head defaults to the base head (a freshly created
+        # branch); a distinct TEST_BRANCH_HEAD_SHA simulates the automation
+        # commit tip of a previously written branch sitting behind the
+        # current base head.
+        '      if [ -n "$TEST_BRANCH_HEAD_SHA" ]; then printf "%s\\n" "$TEST_BRANCH_HEAD_SHA"; else printf "%s\\n" "$TEST_BASE_HEAD_SHA"; fi\n'
+        "      ;;\n"
+        '    ref-create|ref-update) : > "$TEST_REF_TOUCHED" ;;\n'
+        "    ref-delete) : ;;\n"
+        "    contents-get)\n"
+        '      if [ -e "$TEST_REF_TOUCHED" ]; then\n'
+        '        printf "%s %s\\n" "$TEST_BLOB_SHA" "$(base64 < "$TEST_MAIN_FILE" | tr -d \'\\n\')"\n'
+        "      else\n"
+        '        printf "%s %s\\n" "$TEST_BLOB_SHA" "$TEST_BRANCH_FILE_B64"\n'
+        "      fi\n"
+        "      ;;\n"
+        "    contents-put)\n"
+        '      while [ "$#" -gt 0 ]; do\n'
+        '        case "$1" in\n'
+        '          content=*) printf "%s\\n" "${1#content=}" > "$TEST_PUT_CONTENT_B64_FILE" ;;\n'
+        "        esac\n"
+        "        shift\n"
+        "      done\n"
+        "      ;;\n"
+        "  esac\n"
+        "  exit 0\n"
+        "fi\n"
+        'if [ "$1 $2" = "pr list" ]; then\n'
+        '  printf "%s\\n" "$*" >> "$TEST_GH_QUERIES"\n'
+        '  if [ "$TEST_PR_AUTOMATION" != "1" ] || [ "$TEST_PR_FAIL_AT" = "pr-list" ]; then\n'
+        '    echo "mock pr list failure" >&2\n'
+        "    exit 1\n"
+        "  fi\n"
+        # The script filters by head and base ref inside gh's --jq; the mock
+        # applies the same filters against its fixture before printing rows.
+        '  if [ -n "$TEST_PR_NUMBER" ] && [ "$TEST_PR_HEAD_REF" = "$DAGGER_BUMP_PR_BRANCH" ] && [ "$TEST_PR_BASE_REF" = "$DAGGER_BUMP_PR_BASE" ]; then\n'
+        '    printf "%s\\t%s\\t%s\\n" "$TEST_PR_NUMBER" "$TEST_PR_TITLE" "$TEST_PR_BODY_B64"\n'
+        "  fi\n"
+        "  exit 0\n"
+        "fi\n"
+        'if [ "$1 $2" = "pr create" ]; then\n'
+        '  printf "%s\\n" "$*" >> "$TEST_GH_CAPTURE"\n'
+        '  if [ "$TEST_PR_AUTOMATION" != "1" ] || [ "$TEST_PR_FAIL_AT" = "pr-create" ]; then\n'
+        '    echo "mock pr create failure" >&2\n'
+        "    exit 1\n"
+        "  fi\n"
+        '  printf "%s\\n" "$TEST_PR_CREATE_URL"\n'
+        "  exit 0\n"
+        "fi\n"
+        'if [ "$1 $2" = "pr edit" ]; then\n'
+        '  printf "%s\\n" "$*" >> "$TEST_GH_CAPTURE"\n'
+        '  if [ "$TEST_PR_AUTOMATION" != "1" ] || [ "$TEST_PR_FAIL_AT" = "pr-edit" ]; then\n'
+        '    echo "mock pr edit failure" >&2\n'
+        "    exit 1\n"
+        "  fi\n"
+        "  exit 0\n"
+        "fi\n"
+        'if [ "$1 $2" = "pr close" ]; then\n'
+        '  printf "%s\\n" "$*" >> "$TEST_GH_CAPTURE"\n'
+        '  if [ "$TEST_PR_AUTOMATION" != "1" ] || [ "$TEST_PR_FAIL_AT" = "pr-close" ]; then\n'
+        '    echo "mock pr close failure" >&2\n'
+        "    exit 1\n"
+        "  fi\n"
+        "  exit 0\n"
+        "fi\n"
         "exit 2\n",
     )
     environment = os.environ.copy()
@@ -171,6 +287,24 @@ def _run_check(
             "TEST_TAG_REFS": str(refs_file),
             "TEST_GIT_EXIT_CODE": str(git_exit_code),
             "TEST_GH_LIST_EXIT_CODE": str(gh_issue_list_exit_code),
+            "TEST_PR_AUTOMATION": str(int(pr_automation)),
+            "TEST_PR_FAIL_AT": pr_fail_at or "",
+            "TEST_PR_NUMBER": pr_number,
+            "TEST_PR_TITLE": pr_title,
+            "TEST_PR_BODY_B64": base64.b64encode(pr_body.encode()).decode(),
+            "TEST_PR_HEAD_REF": pr_head_ref,
+            "TEST_PR_BASE_REF": pr_base_ref,
+            "TEST_PR_BRANCH_EXISTS": str(int(pr_branch_exists)),
+            "TEST_BRANCH_HEAD_SHA": branch_head_sha or "",
+            "TEST_BRANCH_FILE_B64": base64.b64encode(
+                (branch_file if branch_file is not None else workflow_contents).encode(),
+            ).decode(),
+            "TEST_BASE_HEAD_SHA": base_head_sha,
+            "TEST_BLOB_SHA": blob_sha,
+            "TEST_MAIN_FILE": str(main_file),
+            "TEST_REF_TOUCHED": str(tmp_path / "ref-touched"),
+            "TEST_PUT_CONTENT_B64_FILE": str(tmp_path / "put-content.b64"),
+            "TEST_PR_CREATE_URL": pr_create_url,
         },
     )
     if gh_token is not None:
@@ -764,3 +898,332 @@ def test_missing_github_token_fails_before_network_lookup(tmp_path: Path) -> Non
     assert git_args == ""
     assert gh_calls == ""
     assert gh_queries == ""
+
+
+def _put_content(tmp_path: Path) -> str:
+    """Decode the workflow content the mock received via the contents PUT."""
+    return base64.b64decode((tmp_path / "put-content.b64").read_bytes()).decode()
+
+
+def test_stale_pin_opens_bump_pr_with_both_pin_lines_bumped(tmp_path: Path) -> None:
+    result, gh_calls, _, _ = _run_check(
+        tmp_path,
+        refs=(
+            f"{PINNED_SHA} refs/tags/v0.2.2",
+            f"{NEXT_RELEASE_SHA} refs/tags/v0.2.3",
+        ),
+        pr_automation=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert f"pr create -R {ISSUE_REPO}" in gh_calls
+    assert f"--head {PR_BRANCH}" in gh_calls
+    assert "--base main" in gh_calls
+    assert "--title Bump dagger publisher pin to v0.2.3" in gh_calls
+    assert PR_MARKER in gh_calls
+    assert f"latest upstream release is v0.2.3 ({NEXT_RELEASE_SHA})" in gh_calls
+    assert f"api POST repos/{ISSUE_REPO}/git/refs" in gh_calls
+    assert (
+        f"api PUT repos/{ISSUE_REPO}/contents/.github/workflows/pypi.yml" in gh_calls
+    )
+    assert "chore(deps): bump dagger publisher module to v0.2.3" in gh_calls
+    assert "issue create" not in gh_calls
+    assert "issue edit" not in gh_calls
+    assert _put_content(tmp_path) == (
+        f"# publisher-module-sha: v0.2.3 {NEXT_RELEASE_SHA}\n"
+        f"dagger -m github.com/{REPO}@v0.2.3 call build --source .\n"
+    )
+
+
+def test_real_pypi_workflow_bump_rewrites_only_the_pin_lines(tmp_path: Path) -> None:
+    workflow_contents = (REPO_ROOT / ".github/workflows/pypi.yml").read_text()
+    pin_match = re.search(
+        rf"github\.com/{re.escape(REPO)}@(v\d+\.\d+\.\d+)", workflow_contents,
+    )
+    sha_match = re.search(
+        r"^\s*# publisher-module-sha: (v\d+\.\d+\.\d+) ([0-9a-f]{40})$",
+        workflow_contents,
+        re.MULTILINE,
+    )
+    assert pin_match is not None
+    assert sha_match is not None
+    assert sha_match.group(1) == pin_match.group(1)
+    pin = pin_match.group(1)
+    pinned_sha = sha_match.group(2)
+    result, gh_calls, _, _ = _run_check(
+        tmp_path,
+        pin=pin,
+        expected_sha=pinned_sha,
+        refs=(
+            f"{pinned_sha} refs/tags/{pin}",
+            f"{NEXT_RELEASE_SHA} refs/tags/v0.3.0",
+        ),
+        use_real_workflow=True,
+        pr_automation=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "pr create" in gh_calls
+    expected = workflow_contents.replace(
+        f"# publisher-module-sha: {pin} {pinned_sha}",
+        f"# publisher-module-sha: v0.3.0 {NEXT_RELEASE_SHA}",
+    ).replace(
+        f"github.com/{REPO}@{pin}",
+        f"github.com/{REPO}@v0.3.0",
+    )
+    assert _put_content(tmp_path) == expected
+
+
+def test_open_bump_pr_is_refreshed_in_place(tmp_path: Path) -> None:
+    result, gh_calls, _, _ = _run_check(
+        tmp_path,
+        refs=(
+            f"{PINNED_SHA} refs/tags/v0.2.2",
+            f"{NEXT_RELEASE_SHA} refs/tags/v0.2.3",
+            f"{NEWER_RELEASE_SHA} refs/tags/v0.2.4",
+        ),
+        pr_automation=True,
+        pr_number="201",
+        pr_title="Bump dagger publisher pin to v0.2.3",
+        pr_body=(
+            "Previous automation body for v0.2.3. "
+            f"{PR_MARKER}\nOperator note that must survive the refresh."
+        ),
+        pr_branch_exists=True,
+        branch_head_sha=STALE_HEAD_SHA,
+        branch_file=(
+            f"# publisher-module-sha: v0.2.3 {NEXT_RELEASE_SHA}\n"
+            f"dagger -m github.com/{REPO}@v0.2.3 call build --source .\n"
+        ),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "pr create" not in gh_calls
+    assert "pr edit 201" in gh_calls
+    assert "--title Bump dagger publisher pin to v0.2.4" in gh_calls
+    assert "Operator note that must survive the refresh." in gh_calls
+    assert f"api PATCH repos/{ISSUE_REPO}/git/refs/heads/{PR_BRANCH}" in gh_calls
+    assert _put_content(tmp_path) == (
+        f"# publisher-module-sha: v0.2.4 {NEWER_RELEASE_SHA}\n"
+        f"dagger -m github.com/{REPO}@v0.2.4 call build --source .\n"
+    )
+
+
+def test_open_bump_pr_behind_base_is_rebased_despite_current_content(
+    tmp_path: Path,
+) -> None:
+    # The branch already carries this week's target content, but its tip
+    # (the previous bump commit) sits behind the current base head -- say
+    # Dependabot bumped action SHAs in pypi.yml after the PR was opened.
+    # Merging as-is would revert those base changes, so the refresh must
+    # reset onto the base head and re-commit even though the pin lines are
+    # already current.
+    result, gh_calls, _, _ = _run_check(
+        tmp_path,
+        refs=(
+            f"{PINNED_SHA} refs/tags/v0.2.2",
+            f"{NEXT_RELEASE_SHA} refs/tags/v0.2.3",
+        ),
+        pr_automation=True,
+        pr_number="201",
+        pr_title="Bump dagger publisher pin to v0.2.3",
+        pr_body=f"automation body {PR_MARKER}",
+        pr_branch_exists=True,
+        branch_head_sha=STALE_HEAD_SHA,
+        branch_file=(
+            f"# publisher-module-sha: v0.2.3 {NEXT_RELEASE_SHA}\n"
+            f"dagger -m github.com/{REPO}@v0.2.3 call build --source .\n"
+        ),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert f"api PATCH repos/{ISSUE_REPO}/git/refs/heads/{PR_BRANCH}" in gh_calls
+    assert f"-F sha={BASE_HEAD_SHA}" in gh_calls
+    assert (
+        f"api PUT repos/{ISSUE_REPO}/contents/.github/workflows/pypi.yml" in gh_calls
+    )
+    assert _put_content(tmp_path) == (
+        f"# publisher-module-sha: v0.2.3 {NEXT_RELEASE_SHA}\n"
+        f"dagger -m github.com/{REPO}@v0.2.3 call build --source .\n"
+    )
+
+
+def test_recovered_pin_closes_open_bump_pr(tmp_path: Path) -> None:
+    result, gh_calls, _, _ = _run_check(
+        tmp_path,
+        pin="v0.2.3",
+        refs=(
+            f"{PINNED_SHA} refs/tags/v0.2.2",
+            f"{PINNED_SHA} refs/tags/v0.2.3",
+        ),
+        pr_automation=True,
+        pr_number="201",
+        pr_body=f"old bump alert {PR_MARKER}",
+        pr_branch_exists=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "pr close 201" in gh_calls
+    assert "publisher pin is current at v0.2.3" in gh_calls
+    assert f"api DELETE repos/{ISSUE_REPO}/git/refs/heads/{PR_BRANCH}" in gh_calls
+
+
+def test_bump_pr_supersedes_open_stale_ref_issue(tmp_path: Path) -> None:
+    result, gh_calls, _, _ = _run_check(
+        tmp_path,
+        refs=(
+            f"{PINNED_SHA} refs/tags/v0.2.2",
+            f"{NEXT_RELEASE_SHA} refs/tags/v0.2.3",
+        ),
+        pr_automation=True,
+        open_issues="1",
+        open_issue_body=f"old stale-ref alert {ISSUE_MARKER}",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "pr create" in gh_calls
+    assert "issue close 123" in gh_calls
+    assert "Superseded by the automated bump PR (#201)." in gh_calls
+
+
+def test_pr_create_failure_falls_back_to_issue_alert(tmp_path: Path) -> None:
+    result, gh_calls, _, _ = _run_check(
+        tmp_path,
+        refs=(
+            f"{PINNED_SHA} refs/tags/v0.2.2",
+            f"{NEXT_RELEASE_SHA} refs/tags/v0.2.3",
+        ),
+        pr_automation=True,
+        pr_fail_at="pr-create",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert f"issue create -R {ISSUE_REPO}" in gh_calls
+    assert "falling back to the stale-ref issue alert" in result.stderr
+
+
+def test_pr_refresh_failure_surfaces_without_issue_fallback(tmp_path: Path) -> None:
+    result, gh_calls, _, _ = _run_check(
+        tmp_path,
+        refs=(
+            f"{PINNED_SHA} refs/tags/v0.2.2",
+            f"{NEXT_RELEASE_SHA} refs/tags/v0.2.3",
+        ),
+        pr_automation=True,
+        pr_fail_at="ref-update",
+        pr_number="201",
+        pr_title="Bump dagger publisher pin to v0.2.2",
+        pr_body=f"old bump alert {PR_MARKER}",
+        pr_branch_exists=True,
+        branch_head_sha=STALE_HEAD_SHA,
+        branch_file=(
+            f"# publisher-module-sha: v0.2.2 {PINNED_SHA}\n"
+            f"dagger -m github.com/{REPO}@v0.2.2 call build --source .\n"
+        ),
+    )
+
+    assert result.returncode != 0
+    assert "could not be refreshed" in result.stderr
+    assert "issue create" not in gh_calls
+    assert "issue edit" not in gh_calls
+
+
+def test_unmarked_open_bump_pr_body_is_left_untouched(tmp_path: Path) -> None:
+    result, gh_calls, _, _ = _run_check(
+        tmp_path,
+        refs=(
+            f"{PINNED_SHA} refs/tags/v0.2.2",
+            f"{NEXT_RELEASE_SHA} refs/tags/v0.2.3",
+        ),
+        pr_automation=True,
+        pr_number="201",
+        pr_title="Bump dagger publisher pin to v0.2.2",
+        pr_body="An operator-rewritten body without a marker.",
+        pr_branch_exists=True,
+        branch_file=(
+            f"# publisher-module-sha: v0.2.3 {NEXT_RELEASE_SHA}\n"
+            f"dagger -m github.com/{REPO}@v0.2.3 call build --source .\n"
+        ),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "pr edit" not in gh_calls
+    assert "leaving its body untouched" in result.stderr
+
+
+def test_pr_automation_disabled_falls_back_to_issue_alert(tmp_path: Path) -> None:
+    result, gh_calls, _, _ = _run_check(
+        tmp_path,
+        refs=(
+            f"{PINNED_SHA} refs/tags/v0.2.2",
+            f"{NEXT_RELEASE_SHA} refs/tags/v0.2.3",
+        ),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert f"issue create -R {ISSUE_REPO}" in gh_calls
+    assert "pr create" not in gh_calls
+    assert "falling back to the stale-ref issue alert" in result.stderr
+
+
+def test_publish_mode_makes_no_github_api_or_pr_calls(tmp_path: Path) -> None:
+    result, gh_calls, _, gh_queries = _run_check(
+        tmp_path,
+        verify_tag_only=True,
+        gh_token=None,
+        pr_automation=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert gh_calls == ""
+    assert gh_queries == ""
+
+
+def test_human_pr_from_another_branch_does_not_block_bump_pr(tmp_path: Path) -> None:
+    result, gh_calls, _, _ = _run_check(
+        tmp_path,
+        refs=(
+            f"{PINNED_SHA} refs/tags/v0.2.2",
+            f"{NEXT_RELEASE_SHA} refs/tags/v0.2.3",
+        ),
+        pr_automation=True,
+        pr_number="199",
+        pr_title="Bump dagger publisher pin to v0.2.3",
+        pr_body="A human-authored PR from a feature branch.",
+        pr_head_ref="feature/hand-bump",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "pr create" in gh_calls
+
+
+def test_bump_pr_targeting_another_base_is_not_adopted(tmp_path: Path) -> None:
+    # A dispatch against a non-main ref opens its own PR from the shared
+    # automation branch. The weekly main run filters PRs by base ref, so it
+    # neither edits nor closes that PR and instead opens a fresh, correctly
+    # based PR for main's own drift rather than adopting the other base's
+    # alert.
+    result, gh_calls, _, _ = _run_check(
+        tmp_path,
+        refs=(
+            f"{PINNED_SHA} refs/tags/v0.2.2",
+            f"{NEXT_RELEASE_SHA} refs/tags/v0.2.3",
+        ),
+        pr_automation=True,
+        pr_number="205",
+        pr_title="Bump dagger publisher pin to v0.2.3",
+        pr_body=f"dispatch-opened bump alert {PR_MARKER}",
+        pr_base_ref="feature/dispatch-ref",
+        pr_branch_exists=True,
+        branch_head_sha=STALE_HEAD_SHA,
+        branch_file=(
+            f"# publisher-module-sha: v0.2.3 {NEXT_RELEASE_SHA}\n"
+            f"dagger -m github.com/{REPO}@v0.2.3 call build --source .\n"
+        ),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "pr edit 205" not in gh_calls
+    assert "pr close 205" not in gh_calls
+    assert "pr create" in gh_calls
+    assert "--base main" in gh_calls

@@ -1,7 +1,8 @@
 version: 2
 updates:
   # Bumps the SHA-pinned `uses:` refs. The dagger module ref in pypi.yml's
-  # `run:` step is not visible to Dependabot and is bumped by hand.
+  # `run:` step is invisible to Dependabot; the weekly RWX drift pipeline
+  # (.rwx/dagger-ref-drift.yml) opens a ready-to-review bump PR for it.
   - package-ecosystem: github-actions
     directory: /
     schedule:

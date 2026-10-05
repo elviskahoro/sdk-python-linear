@@ -61,28 +61,40 @@ tasks:
     call: github/install-cli 1.1.0
     cache: false
 
-  # Ports the source workflow's `check` job.
+  # Ports the source workflow's `check` job. When the pinned ref is stale,
+  # the script now opens (or refreshes) a ready-to-review bump PR from the
+  # `automation/dagger-publisher-pin` branch via the stateless GitHub API
+  # (the clone has no .git directory); the stale-ref issue remains as the
+  # fallback alert whenever the PR machinery cannot run.
   # cache: false is required, not cosmetic: the result depends on the
-  # upstream repo's release tags and on which GitHub issues are open, neither
-  # of which is part of this repo's file contents -- a cache hit would skip
-  # the very drift this pipeline exists to detect.
+  # upstream repo's release tags and on which GitHub issues/PRs are open,
+  # neither of which is part of this repo's file contents -- a cache hit
+  # would skip the very drift this pipeline exists to detect.
   # The source relied on GHA's implicit `github.token` scoped by
   # `permissions: issues: write`; RWX has no implicit token (probed live
   # 2026-10-03: the `${{ github.token }}` expression is not available in
   # task env, so the App installation token can't be used here). GH_TOKEN
   # therefore comes from a locked, repo-scoped custom vault
-  # (`sdk-python-linear`) as a fine-grained PAT with Issues: Read/Write on
-  # exactly this repo. Vault access is granted for repository runs on main
+  # (`sdk-python-linear`) as a fine-grained PAT on exactly this repo with
+  # Contents (branch + workflow-file commit), Pull requests (create, edit,
+  # close), and Issues (fallback alert + superseded-issue close)
+  # Read/Write. Vault access is granted for repository runs on main
   # (the weekly cron's ref) and for the account user (cli dispatches); a
   # bare `*` branch pattern was tried and does NOT match -- glob `*` does
   # not cross `/`, so multi-segment branch names like conductor/* never
   # matched. The repo-scoped vault also keeps the secret away from fork-PR
   # runs (a fork's runs carry a different repository slug and never match).
+  # While the vault still holds the old Issues-only PAT, the PR path fails
+  # closed and the script falls back to the issue alert, so drift is never
+  # silent during the token swap.
   # Provision with:
   #   rwx vaults secrets set --vault sdk-python-linear GITHUB_TOKEN=<pat>
   # cache-key: excluded keeps the PAT out of the task's cache key (moot
   # while cache: false, but kept so re-enabling caching later can't pin the
   # key to a token value).
+  # DRIFT_BASE_BRANCH anchors the bump branch to the ref this pipeline run
+  # checked (main for the weekly cron), so a dispatch against another ref
+  # cannot open a PR against an unrelated base.
   # `-R` is explicit (the source relied on gh's git-remote inference):
   # git/clone strips the .git directory by default, so there is no origin
   # remote for gh to infer the repository from.
@@ -90,6 +102,8 @@ tasks:
     use: [gh-install]
     cache: false
     env:
+      DRIFT_BASE_BRANCH:
+        value: ${{ init.branch }}
       GH_TOKEN:
         # trunk-ignore(semgrep/yaml.github-actions.security.gha-workflow-env-secret.gha-workflow-env-secret): task-scoped `env:` in an RWX run definition, not a GHA workflow-level env block — this secret is only visible to this task's own steps, not every job/step in a workflow.
         value: ${{ vaults.sdk-python-linear.secrets.GITHUB_TOKEN }}
