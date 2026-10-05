@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- The PyPI `Development Status` classifier now reads `3 - Alpha` (#69),
+  matching the status the README and changelog have claimed since the 0.2.x
+  line. PyPI serves classifiers from the published wheel's metadata, so the
+  mismatch stays visible on the 0.3.0 page (which cannot be re-served) until
+  the next version publishes.
+
 ## [0.3.0] - 2026-10-05
 
 First PyPI release that ships the CLI: the `v0.2.2` tag was cut before the
