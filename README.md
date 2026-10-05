@@ -58,9 +58,17 @@ uv run gtm-linear viewer
 # one-off, no local install (PyPI >= 0.3.0 ships the executable)
 uvx gtm-linear issues --team ENG --limit 10
 
+# Fetch every matching issue (or cap a paginated read at a limit)
+gtm-linear issues --team ENG --all
+gtm-linear issues --team ENG --all --limit 100
+
+# Combine triage filters in one JSON object
+gtm-linear issues --team ENG --filter-json '{"status":"started","priority":1}'
+
 # or install it as a tool
 uv tool install gtm-linear
 gtm-linear search "onboarding"
+gtm-linear search onboarding --all --json
 ```
 
 Auth uses the SDK's `LinearSettings` resolution: `LINEAR_API_KEY` (`lin_api_...`) from the environment or a `.env` / `.env.local` file in the working directory. Endpoint overrides (`LINEAR_BASE_URL`, `LINEAR_TIMEOUT`) are honored from the real environment only — a dotenv file may supply the key, but never redirect where it is sent. Real environment variables also take precedence over dotenv for the key itself; note that a dotenv file in the current directory is trusted for auth, so run the CLI from directories you control.
@@ -69,11 +77,11 @@ Auth uses the SDK's `LinearSettings` resolution: `LINEAR_API_KEY` (`lin_api_...`
 | --- | --- |
 | `gtm-linear viewer` | Auth check: print the user the API key belongs to |
 | `gtm-linear teams` | List teams (key, name, id) |
-| `gtm-linear issues --team ENG [--state open\|all] [--limit N] [-v]` | List a team's issues, newest updated first (team key is case-insensitive; default state: open, limit: 25) |
+| `gtm-linear issues --team ENG [--state open\|all] [--filter-json JSON] [--all] [--limit N] [-v]` | List a team's issues, newest updated first (team key is case-insensitive; default state: open, limit: 25). Filter JSON accepts `status` (`triage`, `backlog`, `unstarted`, `started`, `completed`, `canceled`, or `duplicate`), `priority` (integer 0–4), and `assignee`/`label` (Linear IDs). Filters compose, so use `--state all` to include completed/canceled states. |
 | `gtm-linear issue ENG-123` | Fetch one issue by identifier (any casing) or Linear UUID |
-| `gtm-linear search "term" [--limit N] [-v]` | Free-text issue search across the workspace (multi-word terms may be unquoted — words are joined; dash-prefixed values are searched as-is, so a mistyped flag becomes the term) |
+| `gtm-linear search "term" [--all] [--limit N] [-v]` | Free-text issue search across the workspace (multi-word terms may be unquoted — words are joined; dash-prefixed values are searched as-is, so a mistyped flag becomes the term) |
 
-Every command accepts `--json` for machine-readable output. `--limit` is validated to 1–100 at parse time; a full page prints a stderr note that more results exist. Exit codes: `0` success, `1` runtime failure (auth, API, not-found, network, a malformed `LINEAR_BASE_URL`, or an unexpected response shape — each printed as a single red `error: …` line on stderr, never a traceback; a closed output pipe, as in `| head`, exits 1 without printing an error), `130` Ctrl-C, `2` usage error. The CLI is deliberately read-only; writes stay in the SDK (`LinearMutations`) so a shell typo can never mutate Linear.
+Every command accepts `--json` for machine-readable output. `--limit` is validated to 1–100 at parse time; without `--all` it keeps the existing bounded one-page behavior. `--all` follows cursors to completion, using pages of up to 100; if `--limit` is also supplied, it caps the result count. Human output reports whether more results remain. Existing bounded JSON stays an array; `--all --json` returns an object with `issues`, `complete`, and `truncated` fields. Exit codes: `0` success, `1` runtime failure (auth, API, not-found, network, a malformed `LINEAR_BASE_URL`, or an unexpected response shape — each printed as a single red `error: …` line on stderr, never a traceback; a closed output pipe, as in `| head`, exits 1 without printing an error), `130` Ctrl-C, `2` usage error. The CLI is deliberately read-only; writes stay in the SDK (`LinearMutations`) so a shell typo can never mutate Linear.
 
 ---
 

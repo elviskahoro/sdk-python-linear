@@ -35,6 +35,7 @@ from gtm_linear.cli import (
     app,
     main,
 )
+from gtm_linear.exceptions import LinearPaginationError
 from tests.conftest import API_URL, issue_payload, page_info_payload, user_payload
 
 
@@ -46,6 +47,7 @@ def _plain(output: str) -> str:
     plain-text assertions on styled tokens must run against de-styled output.
     """
     return _ANSI_SEQUENCES.sub("", output)
+
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -63,7 +65,9 @@ runner = CliRunner()
 # need the real environment and the repository's own dotenv files.
 @pytest.fixture(autouse=True)
 def _isolated_linear_env(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, request: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    request: Any,
 ) -> None:
     if request.node.get_closest_marker("network"):  # pragma: no cover - marker gate
         return
@@ -99,7 +103,9 @@ def _graphql_router(
     resolved_issues = [issue_payload("iss-1")] if issues is None else issues
 
     def respond(request: httpx.Request) -> httpx.Response:
-        query = json.loads(request.content)["query"]
+        request_body = json.loads(request.content)
+        query = request_body["query"]
+        after = request_body.get("variables", {}).get("after")
         if _named(query, "GetViewer"):
             data: dict[str, Any] = {"viewer": user_payload()}
         elif _named(query, "GetTeamByKey"):
@@ -107,17 +113,31 @@ def _graphql_router(
         elif _named(query, "GetIssue"):
             data = {"issue": issue_payload("iss-1")}
         elif _named(query, "ListIssues"):
+            nodes = [issue_payload("iss-2")] if after == "cursor-1" else resolved_issues
+            has_next = more and after != "cursor-1"
             data = {
                 "issues": {
-                    "nodes": resolved_issues,
-                    "pageInfo": page_info_payload(has_next=more),
+                    "nodes": nodes,
+                    "pageInfo": page_info_payload(
+                        has_next=has_next,
+                        end="cursor-1" if has_next else None,
+                    ),
                 },
             }
         elif _named(query, "SearchIssues"):
+            nodes = (
+                [issue_payload("iss-2")]
+                if after == "cursor-1"
+                else [issue_payload("iss-1")]
+            )
+            has_next = more and after != "cursor-1"
             data = {
                 "searchIssues": {
-                    "nodes": [issue_payload("iss-1")],
-                    "pageInfo": page_info_payload(has_next=more),
+                    "nodes": nodes,
+                    "pageInfo": page_info_payload(
+                        has_next=has_next,
+                        end="cursor-1" if has_next else None,
+                    ),
                 },
             }
         elif query.startswith("query { teams"):
@@ -148,6 +168,13 @@ def test_help_lists_every_command() -> None:
     assert result.exit_code == 0  # noqa: S101
     for command in ("viewer", "teams", "issues", "issue", "search"):
         assert command in result.output  # noqa: S101
+    assert (
+        "--filter-json"
+        in runner.invoke(  # noqa: S101
+            app,
+            ["issues", "--help"],
+        ).output
+    )
 
 
 def test_bare_invocation_prints_help() -> None:
@@ -332,6 +359,7 @@ def test_issues_open_by_default_filters_and_sorts() -> None:
         "includeArchived": False,
         "orderBy": "updatedAt",
     }
+    assert "complete: fetched 1 issues" in result.output  # noqa: S101
 
 
 def test_issues_notes_when_more_results_exist() -> None:
@@ -339,7 +367,9 @@ def test_issues_notes_when_more_results_exist() -> None:
     with respx.mock:
         respx.post(API_URL).mock(side_effect=_graphql_router(more=True))
         result = runner.invoke(
-            app, ["issues", "--team", "ENG", "--limit", "1"], env=AUTH,
+            app,
+            ["issues", "--team", "ENG", "--limit", "1"],
+            env=AUTH,
         )
     assert result.exit_code == 0  # noqa: S101
     assert "note: showing the first 1; more issues may exist" in result.output  # noqa: S101
@@ -365,6 +395,144 @@ def test_search_notes_when_more_results_exist() -> None:
         result = runner.invoke(app, ["search", "zotero", "--limit", "1"], env=AUTH)
     assert result.exit_code == 0  # noqa: S101
     assert "note: showing the first 1; more results may exist" in result.output  # noqa: S101
+
+
+@pytest.mark.parametrize("command", ["issues", "search"])
+def test_all_fetches_multiple_pages_and_emits_completion_metadata(command: str) -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router(more=True))
+        args = (
+            ["issues", "--team", "ENG", "--all", "--json"]
+            if command == "issues"
+            else ["search", "zotero", "--all", "--json"]
+        )
+        result = runner.invoke(app, args, env=AUTH)
+
+    assert result.exit_code == 0  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert [issue["id"] for issue in payload["issues"]] == [  # noqa: S101
+        "iss-1",
+        "iss-2",
+    ]
+    assert payload["complete"] is True  # noqa: S101
+    assert payload["truncated"] is False  # noqa: S101
+    bodies = [json.loads(call.request.content) for call in route.calls]
+    operation = "ListIssues" if command == "issues" else "SearchIssues"
+    page_requests = [body for body in bodies if _named(body["query"], operation)]
+    assert len(page_requests) == 2  # noqa: S101
+    assert page_requests[0]["variables"]["after"] is None  # noqa: S101
+    assert page_requests[1]["variables"]["after"] == "cursor-1"  # noqa: S101
+
+
+@pytest.mark.parametrize("command", ["issues", "search"])
+def test_all_with_limit_stops_at_limit_and_marks_truncation(command: str) -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router(more=True))
+        args = (
+            ["issues", "--team", "ENG", "--all", "--limit", "1", "--json"]
+            if command == "issues"
+            else ["search", "zotero", "--all", "--limit", "1", "--json"]
+        )
+        result = runner.invoke(app, args, env=AUTH)
+
+    assert result.exit_code == 0  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert [issue["id"] for issue in payload["issues"]] == ["iss-1"]  # noqa: S101
+    assert payload["complete"] is False  # noqa: S101
+    assert payload["truncated"] is True  # noqa: S101
+    bodies = [json.loads(call.request.content) for call in route.calls]
+    operation = "ListIssues" if command == "issues" else "SearchIssues"
+    page_requests = [body for body in bodies if _named(body["query"], operation)]
+    assert len(page_requests) == 2  # noqa: S101
+    assert page_requests[0]["variables"]["first"] == 2  # noqa: S101
+
+
+def test_issues_filters_compose_and_forward_typed_filter_values() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            [
+                "issues",
+                "--team",
+                "ENG",
+                "--filter-json",
+                '{"status":"completed","priority":2,"assignee":" user-1 ","label":"label-1"}',
+            ],
+            env=AUTH,
+        )
+
+    assert result.exit_code == 0  # noqa: S101
+    assert _sent_variables(route, "ListIssues")["filter"] == {  # noqa: S101
+        "team": {"id": {"eq": "team-1"}},
+        "state": {
+            "type": {"nin": ["completed", "canceled"], "eq": "completed"},
+        },
+        "priority": {"eq": 2},
+        "assignee": {"id": {"eq": "user-1"}},
+        "labels": {"some": {"id": {"eq": "label-1"}}},
+    }
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["--filter-json", "not-json"],
+        ["--filter-json", "[]"],
+        ["--filter-json", '{"status":"unknown"}'],
+        ["--filter-json", '{"status":[]}'],
+        ["--filter-json", '{"status":null}'],
+        ["--filter-json", '{"priority":true}'],
+        ["--filter-json", '{"priority":null}'],
+        ["--filter-json", '{"priority":5}'],
+        ["--filter-json", '{"assignee":" "}'],
+        ["--filter-json", '{"label":4}'],
+        ["--filter-json", '{"other":1}'],
+    ],
+)
+def test_invalid_issue_filters_are_usage_errors_before_request(args: list[str]) -> None:
+    with respx.mock:
+        route = respx.post(API_URL)
+        result = runner.invoke(app, ["issues", "--team", "ENG", *args], env=AUTH)
+
+    assert result.exit_code == 2  # noqa: S101
+    assert len(route.calls) == 0  # noqa: S101
+
+
+def test_all_reports_stalled_cursor_from_sdk_pagination_guard() -> None:
+    def stalled(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        query = body["query"]
+        if _named(query, "GetTeamByKey"):
+            data = {"teams": {"nodes": [TEAM_PAYLOAD]}}
+        else:
+            after = body["variables"].get("after")
+            page_number = 1 if after is None else int(after.removeprefix("cursor-")) + 1
+            data = {
+                "issues": {
+                    "nodes": [issue_payload("iss-1")] if page_number == 1 else [],
+                    "pageInfo": page_info_payload(
+                        has_next=True,
+                        end=f"cursor-{page_number}",
+                    ),
+                },
+            }
+        return httpx.Response(
+            200,
+            json={"data": data},
+        )
+
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=stalled)
+        result = runner.invoke(app, ["issues", "--team", "ENG", "--all"], env=AUTH)
+
+    assert isinstance(result.exception, LinearPaginationError)  # noqa: S101
+    issue_calls = [
+        call
+        for call in route.calls
+        if _named(json.loads(call.request.content)["query"], "ListIssues")
+    ]
+    assert len(issue_calls) == 4  # noqa: S101
 
 
 def test_issues_normalizes_lowercase_team_keys() -> None:

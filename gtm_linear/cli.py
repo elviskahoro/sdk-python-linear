@@ -17,9 +17,9 @@ Usage:
 
     gtm-linear viewer
     gtm-linear teams
-    gtm-linear issues --team ENG [--state all] [--limit 25]
+    gtm-linear issues --team ENG [--state all] [--filter-json JSON] [--all]
     gtm-linear issue ENG-123
-    gtm-linear search "onboarding" [--limit 10]
+    gtm-linear search "onboarding" [--all | --limit 10]
 
 Append ``--json`` to any command for machine-readable output. All commands are
 read-only. Options are validated at parse time: ``--limit`` accepts 1-100 and
@@ -84,6 +84,7 @@ TEAM_KEY_WIDTH = 10
 # Linear's numeric priority convention: 0 = no priority set. The API sends
 # priorities as floats (2.0 == High), so normalize before the label lookup.
 PRIORITY_LABELS = {1: "Urgent", 2: "High", 3: "Medium", 4: "Low"}
+MAX_PRIORITY_LEVEL = 4
 
 
 class State(enum.Enum):
@@ -91,6 +92,18 @@ class State(enum.Enum):
 
     open = "open"
     all = "all"
+
+
+class StatusType(enum.Enum):
+    """Linear workflow-state categories accepted by ``issues --status``."""
+
+    triage = "triage"
+    backlog = "backlog"
+    unstarted = "unstarted"
+    started = "started"
+    completed = "completed"
+    canceled = "canceled"
+    duplicate = "duplicate"
 
 
 # Shared option annotations: one definition per flag so its help text stays
@@ -212,6 +225,11 @@ def _note_more_results(kind: str, shown: int) -> None:
     )
 
 
+def _note_complete_results(kind: str, shown: int) -> None:
+    """Say explicitly that a listing reached the end of its connection."""
+    typer.secho(f"complete: fetched {shown} {kind}; no more results remain", err=True)
+
+
 def _issue_dict(issue: IssueLike) -> dict[str, object]:
     """Flatten one issue into the dict shape used by ``--json`` output."""
     return {
@@ -272,6 +290,50 @@ def _normalize_team_key(value: str) -> str:
         error_msg = "team key must not be empty"
         raise typer.BadParameter(error_msg)
     return normalized
+
+
+def _parse_issue_filter_json(value: str | None) -> dict[str, object]:
+    """Parse and validate the CLI's compact issue-filter JSON object."""
+    if value is None:
+        return {}
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError as exc:
+        error_msg = "must be valid JSON"
+        raise typer.BadParameter(error_msg) from exc
+    if not isinstance(parsed, dict):
+        error_msg = "must be a JSON object"
+        raise typer.BadParameter(error_msg)
+
+    supported = {"status", "priority", "assignee", "label"}
+    unknown = parsed.keys() - supported
+    if unknown:
+        error_msg = f"unsupported filter key(s): {', '.join(sorted(unknown))}"
+        raise typer.BadParameter(error_msg)
+
+    status_types = {item.value for item in StatusType}
+    status = parsed.get("status")
+    if "status" in parsed and (
+        not isinstance(status, str) or status not in status_types
+    ):
+        error_msg = f"status must be one of: {', '.join(sorted(status_types))}"
+        raise typer.BadParameter(error_msg)
+
+    priority = parsed.get("priority")
+    if "priority" in parsed and (
+        type(priority) is not int or not 0 <= priority <= MAX_PRIORITY_LEVEL
+    ):
+        error_msg = "priority must be an integer from 0 to 4"
+        raise typer.BadParameter(error_msg)
+
+    for key in ("assignee", "label"):
+        identifier = parsed.get(key)
+        if key in parsed:
+            if not isinstance(identifier, str) or not identifier.strip():
+                error_msg = f"{key} must be a non-empty Linear ID string"
+                raise typer.BadParameter(error_msg)
+            parsed[key] = identifier.strip()
+    return parsed
 
 
 # Terminal escape sequences and C0/C1 control characters (except tab and
@@ -367,56 +429,70 @@ def _print_issues(
     *,
     as_json: bool,
     verbose: bool = False,
+    complete: bool | None = None,
+    all_pages: bool = False,
+    kind: str = "issues",
 ) -> None:
     """Render an issue list as JSON or an aligned table."""
     if as_json:
-        typer.echo(json.dumps([_issue_dict(i) for i in issues], indent=2))
-        return
-
-    if not issues:
-        typer.echo("no issues found")
-        return
-
-    columns = ("IDENTIFIER", "STATE", "PRIORITY", "ASSIGNEE", "TITLE")
-    rows = [
-        (
-            _cell(i.identifier),
-            _cell(i.state.name),
-            _priority_label(i.priority),
-            _cell(i.assignee.name) if i.assignee else "-",
-            _cell(i.title),
+        rows = [_issue_dict(issue) for issue in issues]
+        payload: object = (
+            {"issues": rows, "complete": complete, "truncated": complete is False}
+            if all_pages
+            else rows
         )
-        for i in issues
-    ]
-    # rows is non-empty (guarded above), so every column has at least one cell.
-    # Widths are display columns, not code points, so CJK and emoji titles
-    # keep the columns after them aligned.
-    widths = [
-        max(_display_width(header), *(_display_width(row[n]) for row in rows))
-        for n, header in enumerate(columns)
-    ]
+        typer.echo(json.dumps(payload, indent=2))
+    elif not issues:
+        typer.echo("no issues found")
+    else:
+        columns = ("IDENTIFIER", "STATE", "PRIORITY", "ASSIGNEE", "TITLE")
+        rows = [
+            (
+                _cell(i.identifier),
+                _cell(i.state.name),
+                _priority_label(i.priority),
+                _cell(i.assignee.name) if i.assignee else "-",
+                _cell(i.title),
+            )
+            for i in issues
+        ]
+        # rows is non-empty (guarded above), so every column has at least one cell.
+        # Widths are display columns, not code points, so CJK and emoji titles
+        # keep the columns after them aligned.
+        widths = [
+            max(_display_width(header), *(_display_width(row[n]) for row in rows))
+            for n, header in enumerate(columns)
+        ]
 
-    def _row(cells: Sequence[str]) -> str:
-        return " ".join(
-            cell + " " * (widths[n] - _display_width(cell))
-            for n, cell in enumerate(cells)
-        ).rstrip()
+        def _row(cells: Sequence[str]) -> str:
+            return " ".join(
+                cell + " " * (widths[n] - _display_width(cell))
+                for n, cell in enumerate(cells)
+            ).rstrip()
 
-    typer.echo(_row(columns))
-    typer.echo(" ".join("-" * w for w in widths).rstrip())
-    for row in rows:
-        typer.echo(_row(row))
-    if verbose:
-        for issue in issues:
-            # _cell flattens to one line, so an identifier or URL carrying a
-            # newline cannot forge extra rows in the verbose block.
-            typer.echo(f"\n{_cell(issue.identifier)} {_cell(issue.url)}")
-            typer.echo(" description:")
-            # Indent every line, like the `issue` command, so a multi-line
-            # description cannot inject text that impersonates a header or a
-            # table row.
-            for line in (_clean(issue.description) or "-").splitlines():
-                typer.echo(f"   {line}")
+        typer.echo(_row(columns))
+        typer.echo(" ".join("-" * w for w in widths).rstrip())
+        for row in rows:
+            typer.echo(_row(row))
+        if verbose:
+            for issue in issues:
+                # _cell flattens to one line, so an identifier or URL carrying a
+                # newline cannot forge extra rows in the verbose block.
+                typer.echo(f"\n{_cell(issue.identifier)} {_cell(issue.url)}")
+                typer.echo(" description:")
+                # Indent every line, like the `issue` command, so a multi-line
+                # description cannot inject text that impersonates a header or a
+                # table row.
+                for line in (_clean(issue.description) or "-").splitlines():
+                    typer.echo(f"   {line}")
+
+    # Legacy JSON arrays remain unchanged; completeness is reported on stderr.
+    # The --all JSON envelope carries the same information in-band.
+    if complete is not None and not (as_json and all_pages):
+        if complete:
+            _note_complete_results(kind, len(issues))
+        else:
+            _note_more_results(kind, len(issues))
 
 
 # --- commands ---
@@ -529,18 +605,36 @@ def issues(
         State,
         typer.Option(help="Open (default) excludes completed and canceled issues."),
     ] = State.open,
+    filter_json: Annotated[
+        str | None,
+        typer.Option(
+            "--filter-json",
+            help=(
+                "JSON object with optional status, priority, assignee, and label "
+                "filters."
+            ),
+        ),
+    ] = None,
+    all_pages: Annotated[
+        bool,
+        typer.Option(
+            "--all",
+            help="Fetch every matching issue; --limit caps results.",
+        ),
+    ] = False,
     limit: Annotated[
-        int,
+        int | None,
         typer.Option(
             min=1,
             max=MAX_PAGE_SIZE,
-            help=f"Max issues to fetch (1-{MAX_PAGE_SIZE}, default 25).",
+            help=f"Max issues to fetch (1-{MAX_PAGE_SIZE}, default 25; omit with --all for no cap).",
         ),
-    ] = 25,
+    ] = None,
     verbose: VerboseOpt = False,
     as_json: JsonOpt = False,
 ) -> None:
     """List a team's issues, newest updated first."""
+    filters = _parse_issue_filter_json(filter_json)
     # The --team option callback already trimmed, uppercased, and confirmed
     # the key is non-empty (mirroring the `issue` command's identifier
     # normalization).
@@ -554,14 +648,53 @@ def issues(
         issue_filter: dict[str, Any] = {"team": {"id": {"eq": resolved.id}}}
         if state is State.open:
             issue_filter["state"] = {"type": {"nin": ["completed", "canceled"]}}
-        page = linear.list_issues_page(
-            issue_filter,
-            first=limit,
-            order_by=PaginationOrderBy.updatedAt,
-        )
-    if page.page_info.has_next_page:
-        _note_more_results("issues", limit)
-    _print_issues(list(page.nodes), as_json=as_json, verbose=verbose)
+        status = filters.get("status")
+        if status is not None:
+            issue_filter.setdefault("state", {}).setdefault("type", {})["eq"] = status
+        priority = filters.get("priority")
+        if priority is not None:
+            issue_filter["priority"] = {"eq": priority}
+        assignee = filters.get("assignee")
+        if assignee is not None:
+            issue_filter["assignee"] = {"id": {"eq": assignee}}
+        label = filters.get("label")
+        if label is not None:
+            issue_filter["labels"] = {"some": {"id": {"eq": label}}}
+
+        if all_pages:
+            # A one-row lookahead distinguishes a genuinely complete bounded
+            # result from a truncated one without returning the extra row.
+            cap = None if limit is None else limit + 1
+            page_size = min(MAX_PAGE_SIZE, cap or MAX_PAGE_SIZE)
+            fetched = list(
+                linear.iter_issues(
+                    issue_filter,
+                    page_size=page_size,
+                    limit=cap,
+                    order_by=PaginationOrderBy.updatedAt,
+                ),
+            )
+            truncated = limit is not None and len(fetched) > limit
+            if truncated:
+                fetched = fetched[:limit]
+            issues_to_print = fetched
+            complete = not truncated
+        else:
+            bounded_limit = 25 if limit is None else limit
+            page = linear.list_issues_page(
+                issue_filter,
+                first=bounded_limit,
+                order_by=PaginationOrderBy.updatedAt,
+            )
+            issues_to_print = list(page.nodes)
+            complete = not page.page_info.has_next_page
+    _print_issues(
+        issues_to_print,
+        as_json=as_json,
+        verbose=verbose,
+        complete=complete,
+        all_pages=all_pages,
+    )
 
 
 @app.command()
@@ -625,14 +758,21 @@ def search(
         ),
     ],
     *,
+    all_pages: Annotated[
+        bool,
+        typer.Option(
+            "--all",
+            help="Fetch every matching result; --limit caps results.",
+        ),
+    ] = False,
     limit: Annotated[
-        int,
+        int | None,
         typer.Option(
             min=1,
             max=MAX_PAGE_SIZE,
-            help=f"Max results (1-{MAX_PAGE_SIZE}, default 10).",
+            help=f"Max results (1-{MAX_PAGE_SIZE}, default 10; omit with --all for no cap).",
         ),
-    ] = 10,
+    ] = None,
     verbose: VerboseOpt = False,
     as_json: JsonOpt = False,
 ) -> None:
@@ -644,10 +784,30 @@ def search(
         error_msg = "search term must not be empty"
         raise typer.BadParameter(error_msg)
     with _workflow() as linear:
-        result = linear.search_issues(term, first=limit)
-    if result.page_info.has_next_page:
-        _note_more_results("results", limit)
-    _print_issues(list(result.nodes), as_json=as_json, verbose=verbose)
+        if all_pages:
+            cap = None if limit is None else limit + 1
+            page_size = min(MAX_PAGE_SIZE, cap or MAX_PAGE_SIZE)
+            fetched = list(
+                linear.iter_search_issues(term, page_size=page_size, limit=cap),
+            )
+            truncated = limit is not None and len(fetched) > limit
+            if truncated:
+                fetched = fetched[:limit]
+            issues_to_print = fetched
+            complete = not truncated
+        else:
+            bounded_limit = 10 if limit is None else limit
+            result = linear.search_issues(term, first=bounded_limit)
+            issues_to_print = list(result.nodes)
+            complete = not result.page_info.has_next_page
+    _print_issues(
+        issues_to_print,
+        as_json=as_json,
+        verbose=verbose,
+        complete=complete,
+        all_pages=all_pages,
+        kind="results",
+    )
 
 
 def main() -> None:
