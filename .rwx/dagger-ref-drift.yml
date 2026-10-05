@@ -44,9 +44,9 @@ tasks:
     with:
       repository: ${{ init.repository }}
       ref: ${{ init.commit-sha }}
-      # Shallow clone (git/clone's default) is enough: the check greps the
-      # current contents of .github/workflows/pypi.yml, it never reads
-      # history. Public repo, so no github-token is needed.
+      # Shallow clone (git/clone's default) is enough: the check reads the
+      # current workflow and script, never history. Public repo, so no
+      # github-token is needed.
 
   # Packaged leaf for gh (verified via `rwx packages list` 2026-10-03) --
   # installs the latest gh from cli.github.com's apt repo. The package sets
@@ -63,9 +63,9 @@ tasks:
 
   # Ports the source workflow's `check` job.
   # cache: false is required, not cosmetic: the result depends on the
-  # upstream repo's HEAD and on which GitHub issues are open, neither of
-  # which is part of this repo's file contents -- a cache hit would skip the
-  # very drift this pipeline exists to detect.
+  # upstream repo's release tags and on which GitHub issues are open, neither
+  # of which is part of this repo's file contents -- a cache hit would skip
+  # the very drift this pipeline exists to detect.
   # The source relied on GHA's implicit `github.token` scoped by
   # `permissions: issues: write`; RWX has no implicit token (probed live
   # 2026-10-03: the `${{ github.token }}` expression is not available in
@@ -94,24 +94,4 @@ tasks:
         # trunk-ignore(semgrep/yaml.github-actions.security.gha-workflow-env-secret.gha-workflow-env-secret): task-scoped `env:` in an RWX run definition, not a GHA workflow-level env block — this secret is only visible to this task's own steps, not every job/step in a workflow.
         value: ${{ vaults.sdk-python-linear.secrets.GITHUB_TOKEN }}
         cache-key: excluded
-    run: |
-      set -euo pipefail
-      # Fail loudly and specifically when the vault secret is missing, rather
-      # than at the first gh call with a confusing auth error that reads like
-      # a drift-check failure.
-      : "${GH_TOKEN:?GITHUB_TOKEN vault secret not provisioned -- rwx vaults secrets set --vault sdk-python-linear GITHUB_TOKEN=...}"
-      repo=elviskahoro/sdk-python-publish-to-pypi
-      # No match (pypi.yml stops pinning the module, or the format changes)
-      # exits grep 1 and would kill the task bare under `set -e` -- fail with
-      # a message naming the cause instead.
-      pinned=$(grep -oP "${repo}@\K[0-9a-f]{40}" .github/workflows/pypi.yml || true)
-      [ -n "${pinned}" ] || { echo "no pinned ${repo} ref found in .github/workflows/pypi.yml -- did the pin format change?"; exit 1; }
-      head=$(git ls-remote "https://github.com/${repo}" HEAD | cut -f1)
-      echo "pinned=${pinned} upstream=${head}"
-      if [ "${pinned}" = "${head}" ]; then exit 0; fi
-      title="Dagger publish module ref is stale"
-      open=$(gh issue list -R elviskahoro/sdk-python-linear --state open --search "\"${title}\" in:title" --json number --jq length)
-      if [ "${open}" = "0" ]; then
-        gh issue create -R elviskahoro/sdk-python-linear --title "${title}" \
-          --body "pypi.yml pins ${repo}@${pinned}, but upstream HEAD is ${head}. Review and re-pin. See #45."
-      fi
+    run: bash scripts/dagger_ref_drift.sh
