@@ -2,7 +2,7 @@
 
 Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, typed wrapper around `httpx` with optional sync support, Strawberry-typed models, explicit error semantics, and a bundled read-only CLI.
 
-> **Status:** Alpha (`0.2.2`, see `pyproject.toml` and `CHANGELOG.md`). API surface is small but incomplete — fall back to raw `LinearClient.execute_async` for anything not yet wrapped.
+> **Status:** Alpha (`0.3.0`, see `pyproject.toml` and `CHANGELOG.md`). API surface is small but incomplete — fall back to raw `LinearClient.execute_async` for anything not yet wrapped.
 
 ---
 
@@ -24,7 +24,7 @@ If you only need to *create or read a few issues* from an automation, this is th
 ## Install
 
 ```bash
-uv pip install gtm-linear        # once published
+uv pip install gtm-linear        # from PyPI (>= 0.3.0)
 # or, in this repo:
 uv sync
 ```
@@ -55,7 +55,7 @@ The package ships a read-only CLI as the `gtm-linear` console command. It wraps 
 # from a checkout
 uv run gtm-linear viewer
 
-# one-off, no local install (once published to PyPI)
+# one-off, no local install (PyPI >= 0.3.0 ships the executable)
 uvx gtm-linear issues --team ENG --limit 10
 
 # or install it as a tool
