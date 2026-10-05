@@ -8,6 +8,7 @@ the hand-rolled `_parse_issue`/`_parse_user` helpers are gone.
 
 from __future__ import annotations
 
+from contextlib import aclosing
 from typing import TYPE_CHECKING, Any
 
 from ._generated.GetIssue import (
@@ -47,10 +48,11 @@ from ._generated.SearchIssues import (
     SearchIssuesResultSearchIssues,
 )
 from ._generated.fragments import IssueSearchResultFields, WorkflowStateFields
-from .pagination import paginate
+from .exceptions import LinearWorkflowStateLookupError
+from .pagination import _validate_pagination_options, paginate
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncGenerator, AsyncIterator
 
     from ._generated.fragments import (
         IssueFields,
@@ -178,8 +180,91 @@ class LinearQueries:
         team_id: str,
         first: int = 50,
     ) -> list[WorkflowStateFields]:
-        """List the first page of workflow states belonging to a team."""
+        """List the first page of workflow states belonging to a team.
+
+        Use :meth:`iter_workflow_states` to follow every page automatically.
+        """
         return (await self.list_workflow_states_page(team_id, first=first)).nodes
+
+    def iter_workflow_states(
+        self,
+        team_id: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        include_archived: bool = False,
+        order_by: PaginationOrderBy | None = None,
+    ) -> AsyncGenerator[WorkflowStateFields, None]:
+        """Iterate every workflow state belonging to a team, following cursors.
+
+        Args:
+            team_id: The Linear team ID.
+            page_size: How many states to request per round trip.
+            limit: Stop after this many states. None fetches every state.
+            include_archived: Whether to include archived workflow states.
+            order_by: Sort field.
+
+        Returns:
+            An async iterator over the team's workflow states.
+        """
+        _validate_pagination_options(page_size, limit)
+
+        async def fetch(cursor: str | None) -> ListWorkflowStatesResultWorkflowStates:
+            return await self.list_workflow_states_page(
+                team_id,
+                first=page_size,
+                after=cursor,
+                include_archived=include_archived,
+                order_by=order_by,
+            )
+
+        return paginate(fetch, limit=limit)
+
+    async def get_workflow_state_by_type(
+        self,
+        team_id: str,
+        state_type: str,
+        *,
+        include_archived: bool = False,
+    ) -> WorkflowStateFields:
+        """Return the unique state of ``state_type`` for a team.
+
+        Common types are ``triage``, ``backlog``, ``unstarted``, ``started``,
+        ``completed``, and ``canceled``. Linear exposes state types as strings, so
+        this method does not restrict values to a client-side list. Types are not
+        guaranteed to be unique within a team; in particular, teams may have
+        multiple ``canceled`` states such as Canceled and Duplicate. This method
+        searches all pages and raises :class:`LinearWorkflowStateLookupError` when
+        there is no unique match.
+
+        Raises:
+            LinearWorkflowStateLookupError: No state or multiple states match.
+            LinearAPIError: Linear rejects the query or the request fails.
+            LinearPaginationError: The workflow-state connection stalls.
+        """
+        matches: list[WorkflowStateFields] = []
+        states = self.iter_workflow_states(
+            team_id,
+            include_archived=include_archived,
+        )
+        async with aclosing(states):
+            async for state in states:
+                if state.type == state_type:
+                    matches.append(state)
+                    if len(matches) > 1:
+                        raise LinearWorkflowStateLookupError.for_result(
+                            team_id,
+                            state_type,
+                            multiple=True,
+                        )
+
+        if not matches:
+            raise LinearWorkflowStateLookupError.for_result(
+                team_id,
+                state_type,
+                multiple=False,
+            )
+        return matches[0]
 
     async def get_team(self, team_id: str) -> TeamFields | None:
         """Fetch a single team by ID.
@@ -282,6 +367,7 @@ class LinearQueries:
             >>> async for issue in queries.iter_issues({"team": {"id": {"eq": tid}}}):
             ...     print(issue.identifier)
         """
+        _validate_pagination_options(page_size, limit)
 
         async def fetch(cursor: str | None) -> ListIssuesResultIssues:
             return await self.list_issues_page(
@@ -334,6 +420,7 @@ class LinearQueries:
         Returns:
             An async iterator over search results.
         """
+        _validate_pagination_options(page_size, limit)
 
         async def fetch(cursor: str | None) -> SearchIssuesResultSearchIssues:
             return await self.search_issues(term, first=page_size, after=cursor)

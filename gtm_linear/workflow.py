@@ -177,6 +177,71 @@ class LinearWorkflow:
     ) -> list[WorkflowStateFields]:
         return self._run(self.list_workflow_states_async(team_id, first=first))
 
+    def iter_workflow_states_async(
+        self,
+        team_id: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        include_archived: bool = False,
+        order_by: PaginationOrderBy | None = None,
+    ) -> AsyncIterator[WorkflowStateFields]:
+        return self._queries.iter_workflow_states(
+            team_id,
+            page_size=page_size,
+            limit=limit,
+            include_archived=include_archived,
+            order_by=order_by,
+        )
+
+    def iter_workflow_states(
+        self,
+        team_id: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        include_archived: bool = False,
+        order_by: PaginationOrderBy | None = None,
+    ) -> Iterator[WorkflowStateFields]:
+        """Sync iterator over all states; materializes every page before yielding."""
+        async_iterator = self.iter_workflow_states_async(
+            team_id,
+            page_size=page_size,
+            limit=limit,
+            include_archived=include_archived,
+            order_by=order_by,
+        )
+        return iter(self._run(self._collect(async_iterator)))
+
+    async def get_workflow_state_by_type_async(
+        self,
+        team_id: str,
+        state_type: str,
+        *,
+        include_archived: bool = False,
+    ) -> WorkflowStateFields:
+        return await self._queries.get_workflow_state_by_type(
+            team_id,
+            state_type,
+            include_archived=include_archived,
+        )
+
+    @_sync_doc(LinearQueries.get_workflow_state_by_type)
+    def get_workflow_state_by_type(
+        self,
+        team_id: str,
+        state_type: str,
+        *,
+        include_archived: bool = False,
+    ) -> WorkflowStateFields:
+        return self._run(
+            self.get_workflow_state_by_type_async(
+                team_id,
+                state_type,
+                include_archived=include_archived,
+            ),
+        )
+
     async def list_issues_page_async(
         self,
         filter: dict[str, Any] | None = None,  # noqa: A002

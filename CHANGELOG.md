@@ -6,7 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `LinearQueries.iter_workflow_states` and matching `LinearWorkflow` methods now
+  follow workflow-state cursors automatically. `get_workflow_state_by_type`
+  resolves a unique state across all pages and raises
+  `LinearWorkflowStateLookupError` when no unique match exists.
+
 ### Changed
+
+- `LinearQueries` and `LinearWorkflow` issue, search, and workflow-state iterators
+  now reject non-positive `page_size` and negative `limit` eagerly. `limit=0`
+  remains valid and yields no results.
 
 - Dependabot version updates now observe a 7-day cooldown
   (`cooldown.default-days: 7`) before proposing updates for newly published

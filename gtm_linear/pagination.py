@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Protocol, TypeVar
 from .exceptions import LinearPaginationError
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Awaitable, Callable
+    from collections.abc import AsyncGenerator, Awaitable, Callable
 
 T = TypeVar("T")
 
@@ -54,11 +54,21 @@ class _Connection(Protocol[T]):
 MAX_CONSECUTIVE_EMPTY_PAGES = 3
 
 
+def _validate_pagination_options(page_size: int, limit: int | None) -> None:
+    """Reject invalid iterator bounds before any page request is made."""
+    if page_size <= 0:
+        message = "page_size must be greater than zero"
+        raise ValueError(message)
+    if limit is not None and limit < 0:
+        message = "limit must be greater than or equal to zero"
+        raise ValueError(message)
+
+
 async def paginate(
     fetch: Callable[[str | None], Awaitable[_Connection[T]]],
     *,
     limit: int | None = None,
-) -> AsyncIterator[T]:
+) -> AsyncGenerator[T, None]:
     """Yield every node across pages, following cursors until exhausted.
 
     Iteration ends without error when the connection stops claiming another

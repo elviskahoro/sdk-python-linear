@@ -10,7 +10,7 @@ import httpx
 import pytest
 import respx
 
-from gtm_linear import LinearClient, LinearWorkflow, PaginationOrderBy
+from gtm_linear import LinearClient, LinearWorkflow, PaginationOrderBy, WorkflowState
 from gtm_linear.mutations import LinearMutations
 from gtm_linear.queries import LinearQueries
 from tests.conftest import API_URL, issue_payload, page_info_payload
@@ -243,6 +243,105 @@ def test_sync_iterator_materializes_in_one_event_loop(monkeypatch: Any) -> None:
 
     monkeypatch.setattr(LinearQueries, "iter_issues", issues)
     assert list(LinearWorkflow("key").iter_issues()) == ["one", "two"]
+
+
+async def test_workflow_state_facade_delegates_async_lookup_and_iterator(
+    monkeypatch: Any,
+) -> None:
+    state = WorkflowState(
+        id="done",
+        name="Done",
+        type="completed",
+        color="#ffffff",
+        position=1,
+    )
+    calls: list[tuple[str, tuple[object, ...], dict[str, object]]] = []
+
+    async def iter_states(
+        _self: object,
+        *args: object,
+        **kwargs: object,
+    ) -> AsyncIterator[WorkflowState]:
+        calls.append(("iter", args, kwargs))
+        yield state
+
+    async def get_state(
+        _self: object,
+        *args: object,
+        **kwargs: object,
+    ) -> WorkflowState:
+        calls.append(("get", args, kwargs))
+        return state
+
+    monkeypatch.setattr(LinearQueries, "iter_workflow_states", iter_states)
+    monkeypatch.setattr(LinearQueries, "get_workflow_state_by_type", get_state)
+    async with LinearWorkflow("key") as linear:
+        assert [
+            item
+            async for item in linear.iter_workflow_states_async(
+                "team-1",
+                page_size=10,
+                include_archived=True,
+            )
+        ] == [state]
+        assert (
+            await linear.get_workflow_state_by_type_async(
+                "team-1",
+                "completed",
+                include_archived=True,
+            )
+            == state
+        )
+
+    assert calls == [
+        (
+            "iter",
+            ("team-1",),
+            {
+                "page_size": 10,
+                "limit": None,
+                "include_archived": True,
+                "order_by": None,
+            },
+        ),
+        (
+            "get",
+            ("team-1", "completed"),
+            {"include_archived": True},
+        ),
+    ]
+
+
+def test_workflow_state_sync_wrappers_materialize_and_resolve(
+    monkeypatch: Any,
+) -> None:
+    state = WorkflowState(
+        id="done",
+        name="Done",
+        type="completed",
+        color="#ffffff",
+        position=1,
+    )
+
+    async def iter_states(
+        _self: object,
+        *_args: object,
+        **_kwargs: object,
+    ) -> AsyncIterator[WorkflowState]:
+        yield state
+
+    async def get_state(
+        _self: object,
+        *_args: object,
+        **_kwargs: object,
+    ) -> WorkflowState:
+        return state
+
+    monkeypatch.setattr(LinearQueries, "iter_workflow_states", iter_states)
+    monkeypatch.setattr(LinearQueries, "get_workflow_state_by_type", get_state)
+    linear = LinearWorkflow("key")
+    assert list(linear.iter_workflow_states("team-1")) == [state]
+    assert linear.get_workflow_state_by_type("team-1", "completed") == state
 
 
 async def test_sync_method_in_running_loop_emits_no_coroutine_warning(

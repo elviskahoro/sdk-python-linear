@@ -90,6 +90,10 @@ LinearWorkflow      # injected-key CLI facade over every typed read/write helper
 
 `LinearQueries` and `LinearMutations` are **stateless facades** over a `LinearClient`. They do not own the client; they borrow it. Construct one client and pass it to both.
 
+The low-level query and mutation methods are async-only: await each operation, or
+use `async for` with an `iter_*` method. For synchronous scripts, use the
+`LinearWorkflow` facade shown below.
+
 Pydantic models validate Linear response payloads and mutation inputs internally. Strawberry's Pydantic integration exposes those validated models as the public GraphQL types and inputs.
 
 ```python
@@ -159,6 +163,7 @@ Importable from `gtm_linear`:
 | `LinearWorkflow` | class | Injected-key sync/async facade for CLI workflows |
 | `LinearAPIError` | exception | Raised on HTTP non-200 OR GraphQL `errors` field present |
 | `LinearPaginationError` | exception | Raised by `iter_*` when a connection stalls: several consecutive empty pages while `hasNextPage` stays true |
+| `LinearWorkflowStateLookupError` | exception | Raised when a state-type lookup finds zero or multiple matching workflow states |
 | `Issue` | model | Linear issue |
 | `Comment` | model | Linear issue comment |
 | `IssueConnection` | model | Paginated issue list (`nodes`, `pageInfo`) |
@@ -227,7 +232,8 @@ The methods **strip the outer `{"data": ...}` envelope** and return the inner di
 
 ## `LinearQueries` reference
 
-All methods are `async`. All accept Linear UUIDs unless noted.
+Coroutine methods are `async`; `iter_*` methods return async iterators and are
+consumed with `async for`. All accept Linear UUIDs unless noted.
 
 | Method | Args | Returns | Notes |
 | --- | --- | --- | --- |
@@ -238,13 +244,43 @@ All methods are `async`. All accept Linear UUIDs unless noted.
 | `get_team(team_id)` | `str` | `Team \| None` | UUID only; use `get_team_by_key` for `ENG`-style keys |
 | `get_team_by_key(key)` | `str` | `Team \| None` | Resolves a human team key such as `ENG` |
 | `get_user(user_id)` | `str` | `User \| None` | — |
-| `list_workflow_states(team_id, first=50)` | `str`, `int` | `list[WorkflowState]` | Convenience helper for a team's first workflow-state page |
+| `list_workflow_states(team_id, first=50)` | `str`, `int` | `list[WorkflowState]` | Convenience helper for a team's first workflow-state page; use `iter_workflow_states` for all pages |
 | `list_workflow_states_page(team_id, first=50, after=None, include_archived=False, order_by=None)` | `str`, `int`, `str \| None`, `bool`, `PaginationOrderBy \| None` | `WorkflowStateConnection` | Team-scoped workflow-state connection with cursor pagination |
+| `iter_workflow_states(team_id, page_size=50, limit=None, include_archived=False, order_by=None)` | `str`, `int`, `int \| None`, `bool`, `PaginationOrderBy \| None` | `AsyncIterator[WorkflowState]` | Follows all pages automatically |
+| `get_workflow_state_by_type(team_id, state_type, include_archived=False)` | `str`, `str`, `bool` | `WorkflowState` | Returns the unique state of that type; raises `LinearWorkflowStateLookupError` for zero or multiple matches |
 
 ### Team workflow states
 
 Workflow states are queried directly from Linear's `workflowStates` connection and
-filtered by team ID. Use the page method when you need cursor metadata:
+filtered by team ID. `list_workflow_states` returns only the first page; use the
+iterator when you want every state:
+
+```python
+async for state in queries.iter_workflow_states(team.id):
+    print(state.id, state.name, state.type)
+```
+
+For an operation such as completing an issue, resolve the state by type. This
+searches all pages and succeeds only when exactly one state matches:
+
+```python
+done = await queries.get_workflow_state_by_type(team.id, "completed")
+await mutations.update_issue(issue.id, IssueUpdateInput(state_id=done.id))
+```
+
+If zero or multiple states have that type, the method raises
+`LinearWorkflowStateLookupError`; it does not guess. Archived states are excluded
+by default. Pass `include_archived=True` to include them. Unrecognized types are
+treated as no matches and raise `LinearWorkflowStateLookupError` with
+`multiple=False`. API failures propagate as `LinearAPIError`; a stalled state
+connection propagates as `LinearPaginationError`.
+
+Valid state types are `triage`, `backlog`, `unstarted`, `started`, `completed`,
+and `canceled`. A team may have multiple states with the same type—especially
+`canceled` states such as Canceled and Duplicate—so the lookup can raise for
+ambiguity even when that type is valid.
+
+Use the page method when you need explicit cursor metadata:
 
 ```python
 states = await queries.list_workflow_states_page(team.id, first=50)
