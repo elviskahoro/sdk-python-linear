@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   line. PyPI serves classifiers from the published wheel's metadata, so the
   mismatch stays visible on the 0.3.0 page (which cannot be re-served) until
   the next version publishes.
+- Renovate now updates the PyPI publisher module's SemVer release and commit
+  SHA together while the build remains pinned to the immutable SHA. The
+  publish-time consistency check is offline; the weekly RWX drift check still
+  verifies upstream tags and reports stale releases.
 
 ## [0.3.0] - 2026-10-05
 

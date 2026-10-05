@@ -1,0 +1,20 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "automerge": false,
+  "enabledManagers": ["custom.regex"],
+  "autoReplaceGlobalMatch": true,
+  "schedule": ["before 9am on monday"],
+  "timezone": "Etc/UTC",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/.github\\/workflows\\/pypi\\.yml$/"],
+      "matchStrings": [
+        "# publisher-module-sha: (?<currentValue>v\\d+\\.\\d+\\.\\d+) (?<currentDigest>[0-9a-f]{40})(?:[^\\n]*\\n){1,8}?[ \\t]*dagger -m github.com/(?<packageName>elviskahoro/sdk-python-publish-to-pypi)@[0-9a-f]{40}"
+      ],
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "semver"
+    }
+  ]
+}

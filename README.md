@@ -423,7 +423,7 @@ sdk-python-linear/
 ├── pyrightconfig.json        # pyright config (repo-local)
 ├── pyrefly.toml              # type-checker config
 ├── .github/workflows/        # pypi.yml (publish), pullfrog.yml (agent harness)
-├── .rwx/                     # RWX pipelines — ci.yml + dagger-ref-drift.yml (canonical CI)
+├── .rwx/                     # RWX pipeline — ci.yml (canonical CI) + dagger-ref-drift.yml (weekly fallback)
 └── .trunk/                   # lint config (trunk.io)
 ```
 
@@ -443,7 +443,7 @@ trunk check --all             # lint + type check (local; run uv sync first)
 trunk fmt                     # autoformat
 ```
 
-CI runs on RWX: `.rwx/ci.yml` runs `pytest`, the two `--check` scripts, a lean-install task (the wheel must import without the `[strawberry]` extra), and a weekly scheduled schema-drift cron (`pytest -m network`); `.rwx/dagger-ref-drift.yml` checks the pinned Dagger publish-module ref weekly. GitHub Actions remains only for the tag-triggered PyPI publish (`pypi.yml`) and the Pullfrog agent harness (`pullfrog.yml`) — see `.rwx/.migration-inventory.md` for the port inventory and flip status. `trunk check` is **not** a CI gate.
+CI runs on RWX: `.rwx/ci.yml` runs `pytest`, the two `--check` scripts, a lean-install task (the wheel must import without the `[strawberry]` extra), and a weekly scheduled schema-drift cron (`pytest -m network`). `.rwx/dagger-ref-drift.yml` remains a weekly fallback that verifies the publisher tag/SHA pair and reports stale releases. GitHub Actions remains for the tag-triggered PyPI publish (`pypi.yml`) and the Pullfrog agent harness (`pullfrog.yml`) — see `.rwx/.migration-inventory.md` for the port inventory and flip status. Renovate updates the paired SemVer tag and immutable SHA in the PyPI workflow; its custom regex manager is intentionally the only enabled Renovate manager because Dependabot handles GitHub Actions. `trunk check` is **not** a CI gate.
 
 Tests use `respx` to mock `httpx` — no network access required. `pytest-asyncio` is in `auto` mode, so async test functions don't need decoration.
 

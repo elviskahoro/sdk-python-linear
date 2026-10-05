@@ -1,7 +1,7 @@
 version: 2
 updates:
-  # Bumps the SHA-pinned `uses:` refs. The dagger module ref in pypi.yml's
-  # `run:` step is not visible to Dependabot and is bumped by hand.
+  # Bumps the SHA-pinned `uses:` refs. Renovate manages the Dagger module's
+  # paired SemVer tag and immutable commit SHA in pypi.yml.
   - package-ecosystem: github-actions
     directory: /
     schedule:
