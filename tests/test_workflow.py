@@ -47,6 +47,14 @@ async def test_async_facade_delegates_every_query_and_mutation(
 
         return method
 
+    async def workflow_states(
+        _self: object,
+        *args: object,
+        **kwargs: object,
+    ) -> AsyncIterator[str]:
+        calls.append(("iter_workflow_states", args, kwargs))
+        yield "state"
+
     monkeypatch.setattr(LinearQueries, "get_issue", query("get_issue", "issue"))
     monkeypatch.setattr(LinearQueries, "list_issues", query("list_issues", ["issue"]))
     monkeypatch.setattr(
@@ -63,6 +71,16 @@ async def test_async_facade_delegates_every_query_and_mutation(
         LinearQueries,
         "list_workflow_states",
         query("list_workflow_states", ["state"]),
+    )
+    monkeypatch.setattr(
+        LinearQueries,
+        "iter_workflow_states",
+        workflow_states,
+    )
+    monkeypatch.setattr(
+        LinearQueries,
+        "get_workflow_state_by_type",
+        query("get_workflow_state_by_type", "state"),
     )
     monkeypatch.setattr(LinearQueries, "get_team", query("get_team", "team"))
     monkeypatch.setattr(
@@ -110,6 +128,14 @@ async def test_async_facade_delegates_every_query_and_mutation(
         assert await linear.list_issues_page_async() == "page"
         assert await linear.list_workflow_states_page_async("t") == "state_page"
         assert await linear.list_workflow_states_async("t") == ["state"]
+        assert [
+            state
+            async for state in linear.iter_workflow_states_async("t", page_size=10)
+        ] == ["state"]
+        assert (
+            await linear.get_workflow_state_by_type_async("t", "completed")
+            == "state"
+        )
         assert await linear.get_team_async("t") == "team"
         assert await linear.get_team_by_key_async("ENG") == "team"
         assert await linear.search_issues_async("term") == "search"
@@ -152,6 +178,8 @@ async def test_async_facade_delegates_every_query_and_mutation(
         "list_issues_page",
         "list_workflow_states_page",
         "list_workflow_states",
+        "iter_workflow_states",
+        "get_workflow_state_by_type",
         "get_team",
         "get_team_by_key",
         "search_issues",
@@ -190,6 +218,10 @@ def test_sync_wrappers_inherit_docstrings_without_wraps_binding() -> None:
             LinearWorkflow.list_workflow_states_page,
             LinearQueries.list_workflow_states_page,
         ),
+        (
+            LinearWorkflow.get_workflow_state_by_type,
+            LinearQueries.get_workflow_state_by_type,
+        ),
         (LinearWorkflow.get_team, LinearQueries.get_team),
         (LinearWorkflow.get_team_by_key, LinearQueries.get_team_by_key),
         (LinearWorkflow.search_issues, LinearQueries.search_issues),
@@ -206,6 +238,15 @@ def test_sync_wrappers_inherit_docstrings_without_wraps_binding() -> None:
         assert sync.__doc__ == source.__doc__, sync.__name__
         assert not hasattr(sync, "__wrapped__"), sync.__name__
         assert sync.__qualname__.startswith("LinearWorkflow."), sync.__qualname__
+
+
+def test_sync_workflow_state_iterator_documents_materialization() -> None:
+    sync_iterator = LinearWorkflow.iter_workflow_states
+
+    assert sync_iterator.__doc__ == (
+        "Sync iterator over all states; materializes every page before yielding."
+    )
+    assert not hasattr(sync_iterator, "__wrapped__")
 
 
 def test_sync_facade_uses_injected_key_and_closes_async_session() -> None:

@@ -300,8 +300,8 @@ await mutations.update_issue(issue.id, IssueUpdateInput(state_id=done.id))
 
 If zero or multiple states have that type, the method raises
 `LinearWorkflowStateLookupError`; it does not guess. Archived states are excluded
-by default. Pass `include_archived=True` to include them. Unrecognized types are
-treated as no matches and raise `LinearWorkflowStateLookupError` with
+by default. Pass `include_archived=True` to include them. A type string that does
+not match any state of this team raises `LinearWorkflowStateLookupError` with
 `multiple=False`. API failures propagate as `LinearAPIError`; a stalled state
 connection propagates as `LinearPaginationError`.
 
