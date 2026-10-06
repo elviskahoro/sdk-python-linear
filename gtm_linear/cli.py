@@ -54,7 +54,11 @@ from . import __version__
 from ._generated.CreateIssue import IssueCreateInput
 from ._generated.ListIssues import PaginationOrderBy
 from ._generated.UpdateIssue import IssueUpdateInput
-from .exceptions import GraphQLError, LinearAPIError, LinearPaginationError
+from .exceptions import (
+    LinearAPIError,
+    LinearPaginationError,
+    _looks_like_not_found,  # pyright: ignore[reportPrivateUsage]
+)
 from .pagination import paginate
 from .settings import LinearSettings
 from .workflow import LinearWorkflow
@@ -314,23 +318,6 @@ def _priority_label(priority: float | None) -> str:
     if level == 0:
         return "-"
     return PRIORITY_LABELS.get(level, str(level))
-
-
-def _looks_like_not_found(error: GraphQLError) -> bool:
-    """Best-effort issue-not-found detection for Linear's GraphQL errors.
-
-    Linear sends no dedicated code (``INPUT_ERROR`` is shared with genuine
-    input errors), so match its wording — the message names the Issue entity
-    specifically, so a not-found for some other referenced entity (a team, a
-    user) falls through to main()'s generic error line instead.
-    """
-    if "entity not found: issue" in error.message.lower():
-        return True
-    presentable = error.extensions.get("userPresentableMessage")
-    return (
-        isinstance(presentable, str)
-        and "could not find referenced issue" in presentable.lower()
-    )
 
 
 def _normalize_team_key(value: str) -> str:
