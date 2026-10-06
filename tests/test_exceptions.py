@@ -16,10 +16,12 @@ import pickle  # nosec B403 - fixtures serialize self-built exceptions, never un
 import pytest
 
 from gtm_linear.exceptions import (
+    GraphQLError,
     LinearAPIError,
     LinearGraphQLError,
     LinearHTTPError,
     LinearResponseError,
+    _looks_like_not_found,
 )
 
 
@@ -112,3 +114,72 @@ def test_all_api_error_subclasses_constructible_with_message_only() -> None:
         # Reconstructing through the default ``__reduce__`` tuple must not raise.
         rebuilt = type(instance)(*instance.args)
         assert isinstance(rebuilt, cls)
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        # Live-captured Linear wording for an unknown issue identifier
+        # (tests/test_cli.py:830 pins this 2026-10-02 capture): the message
+        # alone is enough to match (the title-case input also pins the
+        # matcher's ``.lower()``, since the comparison lowercases both sides).
+        (
+            GraphQLError(
+                message="Entity not found: Issue",
+                extensions={"code": "INPUT_ERROR"},
+            ),
+            True,
+        ),
+        # Reworded top-level message, presentable message still names the
+        # Issue entity (mirrors tests/test_cli.py:863, where Linear rewrote
+        # the message but kept the presentable text).
+        (
+            GraphQLError(
+                message="Look-up failed",
+                extensions={
+                    "userPresentableMessage": "Could not find referenced Issue.",
+                },
+            ),
+            True,
+        ),
+        # A not-found for a *different* referenced entity is NOT an issue
+        # not-found (mirrors tests/test_cli.py:886). This is the discrimination
+        # contract that lets get_issue re-raise genuine errors while honoring
+        # its not-found contract for the issue path.
+        (GraphQLError(message="Entity not found: Team"), False),
+        (
+            GraphQLError(
+                message="Entity not found: User",
+                extensions={
+                    "userPresentableMessage": "Could not find referenced User.",
+                },
+            ),
+            False,
+        ),
+        # A presentable message that is not a string (Linear drift) must not
+        # raise — the heuristic degrades to False, so the error propagates
+        # rather than being silently dropped.
+        (
+            GraphQLError(
+                message="Look-up failed",
+                extensions={"userPresentableMessage": {"not": "a string"}},
+            ),
+            False,
+        ),
+    ],
+)
+def test_looks_like_not_found_matches_only_issue_not_found_wording(
+    error: GraphQLError,
+    *,
+    expected: bool,
+) -> None:
+    """Pin the matcher reused by ``get_issue`` and the CLI ``issue`` command.
+
+    The shared heuristic lives in :mod:`gtm_linear.exceptions` (next to
+    :class:`GraphQLError`) so :mod:`gtm_linear.queries` and :mod:`gtm_linear.cli`
+    cannot drift apart: loosening it would make ``get_issue`` swallow real
+    errors as ``None``, and tightening it would make ``get_issue`` raise again
+    on Linear's current wording. Both regressions break the documented
+    ``-> IssueFields | None`` contract.
+    """
+    assert _looks_like_not_found(error) is expected
