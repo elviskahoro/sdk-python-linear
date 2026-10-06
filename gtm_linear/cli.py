@@ -144,9 +144,18 @@ class _RealEnvSettings(LinearSettings):
     so only ``env_file`` needs overriding — dotenv off is the trust boundary.
     The key is pinned from pass 1 via an init kwarg so it cannot be
     re-resolved.
+
+    ``env_ignore_empty`` mirrors pass 1's contract: an exported-but-empty
+    real-env value (``export LINEAR_TIMEOUT=$UNSET_VAR`` in a CI template)
+    falls through to the field default instead of being fed to the parser as
+    ``""`` — so an empty ``LINEAR_TIMEOUT`` resolves to ``30.0`` rather than
+    raising a ``ValidationError`` that would shadow the missing-key guidance.
+    A future field where the empty string is itself meaningful would need to
+    opt out of this on that field, since no current ``_RealEnvSettings`` field
+    distinguishes ``""`` from unset.
     """
 
-    model_config = SettingsConfigDict(env_file=None)
+    model_config = SettingsConfigDict(env_file=None, env_ignore_empty=True)
 
 
 def _workflow() -> LinearWorkflow:
