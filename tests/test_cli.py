@@ -53,6 +53,7 @@ def _plain(output: str) -> str:
     """
     return _ANSI_SEQUENCES.sub("", output)
 
+
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
@@ -69,7 +70,9 @@ runner = CliRunner()
 # need the real environment and the repository's own dotenv files.
 @pytest.fixture(autouse=True)
 def _isolated_linear_env(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, request: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    request: Any,
 ) -> None:
     if request.node.get_closest_marker("network"):  # pragma: no cover - marker gate
         return
@@ -388,7 +391,9 @@ def test_issues_notes_when_more_results_exist() -> None:
     with respx.mock:
         respx.post(API_URL).mock(side_effect=_graphql_router(more=True))
         result = runner.invoke(
-            app, ["issues", "--team", "ENG", "--limit", "1"], env=AUTH,
+            app,
+            ["issues", "--team", "ENG", "--limit", "1"],
+            env=AUTH,
         )
     assert result.exit_code == 0  # noqa: S101
     assert "note: showing the first 1; more issues may exist" in result.output  # noqa: S101
@@ -466,7 +471,9 @@ def test_bounded_issue_limit_stops_mid_page_after_following_cursor() -> None:
             ids = ["iss-3", "iss-4"] if second_page else ["iss-1", "iss-2"]
             nodes = [issue_payload(issue_id) for issue_id in ids]
             for offset, issue in enumerate(nodes):
-                issue["identifier"] = f"ENG-{3 + offset}" if second_page else f"ENG-{1 + offset}"
+                issue["identifier"] = (
+                    f"ENG-{3 + offset}" if second_page else f"ENG-{1 + offset}"
+                )
             return httpx.Response(
                 200,
                 json={
@@ -531,7 +538,9 @@ def test_search_all_fetches_pages_and_emits_completion_metadata() -> None:
                             "nodes": [issue],
                             "pageInfo": page_info_payload(
                                 has_next=not second_page,
-                                end="search-cursor-2" if second_page else "search-cursor-1",
+                                end="search-cursor-2"
+                                if second_page
+                                else "search-cursor-1",
                             ),
                         },
                     },
@@ -642,12 +651,65 @@ def test_search_all_surfaces_stalled_pagination_error() -> None:
         respx.post(API_URL).mock(side_effect=respond)
         result = runner.invoke(
             app,
-            ["search", "term", "--all", "--json"],
+            ["search", "term", "--all"],
             env=AUTH,
         )
     assert result.exit_code == 1  # noqa: S101
     assert isinstance(result.exception, LinearPaginationError)  # noqa: S101
     assert calls == 3  # noqa: S101
+
+
+@pytest.mark.parametrize(
+    ("args", "operation", "connection"),
+    [
+        (["issues", "--team", "ENG", "--all", "--json"], "ListIssues", "issues"),
+        (["search", "term", "--all", "--json"], "SearchIssues", "searchIssues"),
+    ],
+)
+def test_all_json_stall_emits_partial_results_and_error(
+    args: list[str],
+    operation: str,
+    connection: str,
+) -> None:
+    base = _graphql_router()
+    calls = 0
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        query = json.loads(request.content)["query"]
+        if not _named(query, operation):
+            return base(request)
+        calls += 1
+        nodes = [issue_payload("iss-1")] if calls == 1 else []
+        if nodes:
+            nodes[0]["identifier"] = "ENG-1"
+        return httpx.Response(
+            200,
+            json={
+                "data": {
+                    connection: {
+                        "nodes": nodes,
+                        "pageInfo": page_info_payload(
+                            has_next=True,
+                            end=f"cursor-{calls}",
+                        ),
+                    },
+                },
+            },
+        )
+
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=respond)
+        result = runner.invoke(app, args, env=AUTH)
+
+    assert result.exit_code == 1  # noqa: S101
+    assert result.stderr == ""  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert [issue["identifier"] for issue in payload["results"]] == ["ENG-1"]  # noqa: S101
+    assert payload["complete"] is False  # noqa: S101
+    assert payload["truncated"] is True  # noqa: S101
+    assert "hasnextpage stayed true" in payload["error"].casefold()  # noqa: S101
+    assert calls == 4  # noqa: S101
 
 
 def test_issues_normalizes_lowercase_team_keys() -> None:
@@ -982,6 +1044,126 @@ def test_issue_create_apply_returns_resource_and_mutates() -> None:
     assert variables == {  # noqa: S101
         "input": {"teamId": "team-1", "title": "Create me"},
     }
+
+
+@pytest.mark.parametrize(
+    ("args", "api_operation", "operation", "target"),
+    [
+        (
+            ["issue", "create", "--team", "ENG", "--title", "x", "--apply", "--json"],
+            "CreateIssue",
+            "issue.create",
+            {"teamKey": "ENG", "teamName": "Engineering", "teamId": "team-1"},
+        ),
+        (
+            ["issue", "update", "ENG-1", "--priority", "2", "--apply", "--json"],
+            "UpdateIssue",
+            "issue.update",
+            {"identifier": "ENG-1", "id": "iss-1"},
+        ),
+        (
+            ["issue", "comment", "ENG-1", "--body", "x", "--apply", "--json"],
+            "CreateComment",
+            "issue.comment",
+            {"identifier": "ENG-1", "id": "iss-1"},
+        ),
+    ],
+)
+def test_issue_apply_json_graphql_failure_emits_error_envelope(
+    args: list[str],
+    api_operation: str,
+    operation: str,
+    target: dict[str, str],
+) -> None:
+    base = _graphql_router()
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        query = json.loads(request.content)["query"]
+        if _named(query, api_operation):
+            return httpx.Response(
+                200,
+                json={
+                    "errors": [
+                        {
+                            "message": "Authentication required",
+                            "extensions": {"code": "AUTHENTICATION_ERROR"},
+                        },
+                    ],
+                },
+            )
+        return base(request)
+
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=respond)
+        result = runner.invoke(app, args, env=AUTH)
+
+    assert result.exit_code == 1  # noqa: S101
+    assert result.stderr == ""  # noqa: S101
+    assert json.loads(result.stdout) == {  # noqa: S101
+        "applied": False,
+        "operation": operation,
+        "target": target,
+        "error": "GraphQL error: Authentication required",
+    }
+
+
+def test_issue_comment_json_validation_failure_emits_error_envelope() -> None:
+    base = _graphql_router()
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        query = json.loads(request.content)["query"]
+        if _named(query, "CreateComment"):
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "commentCreate": {"success": True, "comment": None},
+                    },
+                },
+            )
+        return base(request)
+
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=respond)
+        result = runner.invoke(
+            app,
+            ["issue", "comment", "ENG-1", "--body", "x", "--apply", "--json"],
+            env=AUTH,
+        )
+
+    assert result.exit_code == 1  # noqa: S101
+    assert result.stderr == ""  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert payload["applied"] is False  # noqa: S101
+    assert payload["operation"] == "issue.comment"  # noqa: S101
+    assert payload["target"] == {"identifier": "ENG-1", "id": "iss-1"}  # noqa: S101
+    assert "unexpected response shape from Linear" in payload["error"]  # noqa: S101
+
+
+def test_issue_update_json_http_failure_emits_error_envelope() -> None:
+    base = _graphql_router()
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        query = json.loads(request.content)["query"]
+        if _named(query, "UpdateIssue"):
+            return httpx.Response(503, text="service unavailable")
+        return base(request)
+
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=respond)
+        result = runner.invoke(
+            app,
+            ["issue", "update", "ENG-1", "--priority", "2", "--apply", "--json"],
+            env=AUTH,
+        )
+
+    assert result.exit_code == 1  # noqa: S101
+    assert result.stderr == ""  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert payload["applied"] is False  # noqa: S101
+    assert payload["operation"] == "issue.update"  # noqa: S101
+    assert payload["target"] == {"identifier": "ENG-1", "id": "iss-1"}  # noqa: S101
+    assert payload["error"] == "HTTP error: 503"  # noqa: S101
 
 
 def test_issue_update_json_preview_supports_explicit_clear() -> None:
@@ -1420,7 +1602,10 @@ def test_state_rejects_unknown_values() -> None:
         )
     assert result.exit_code == 2  # noqa: S101
     assert "--state" in _plain(result.output)  # noqa: S101
-    assert not any(_named(json.loads(call.request.content)["query"], "ListIssues") for call in route.calls)  # noqa: S101
+    assert not any(
+        _named(json.loads(call.request.content)["query"], "ListIssues")
+        for call in route.calls
+    )  # noqa: S101
 
 
 def test_issue_normalizes_and_fetches_by_identifier() -> None:

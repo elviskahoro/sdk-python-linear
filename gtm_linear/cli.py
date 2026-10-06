@@ -54,7 +54,7 @@ from . import __version__
 from ._generated.CreateIssue import IssueCreateInput
 from ._generated.ListIssues import PaginationOrderBy
 from ._generated.UpdateIssue import IssueUpdateInput
-from .exceptions import GraphQLError, LinearAPIError
+from .exceptions import GraphQLError, LinearAPIError, LinearPaginationError
 from .pagination import paginate
 from .settings import LinearSettings
 from .workflow import LinearWorkflow
@@ -392,7 +392,7 @@ async def _collect_paginated(
     fetch: Callable[[str | None], Awaitable[_ConnectionLike[_NodeT]]],
     *,
     limit: int | None = None,
-) -> tuple[list[_NodeT], bool]:
+) -> tuple[list[_NodeT], bool, LinearPaginationError | None]:
     """Collect typed pages through the SDK paginator and report terminal state.
 
     ``paginate`` owns cursor advancement and stall safeguards. Retaining the
@@ -408,11 +408,18 @@ async def _collect_paginated(
         received += len(last_page.nodes)
         return last_page
 
-    items = [item async for item in paginate(tracked_fetch, limit=limit)]
-    complete = last_page is None or (
-        not last_page.page_info.has_next_page and received == len(items)
+    items: list[_NodeT] = []
+    pagination_error: LinearPaginationError | None = None
+    try:
+        async for item in paginate(tracked_fetch, limit=limit):
+            items.append(item)
+    except LinearPaginationError as exc:
+        pagination_error = exc
+    complete = pagination_error is None and (
+        last_page is None
+        or (not last_page.page_info.has_next_page and received == len(items))
     )
-    return items, complete
+    return items, complete, pagination_error
 
 
 def _collect_paginated_sync(
@@ -420,10 +427,14 @@ def _collect_paginated_sync(
     fetch: Callable[[str | None], Awaitable[_ConnectionLike[_NodeT]]],
     *,
     limit: int | None = None,
-) -> tuple[list[_NodeT], bool]:
+) -> tuple[list[_NodeT], bool, LinearPaginationError | None]:
     """Run the collector and close the workflow's async transport afterward."""
 
-    async def collect_and_close() -> tuple[list[_NodeT], bool]:
+    async def collect_and_close() -> tuple[
+        list[_NodeT],
+        bool,
+        LinearPaginationError | None,
+    ]:
         try:
             return await _collect_paginated(fetch, limit=limit)
         finally:
@@ -476,7 +487,7 @@ def _read_team_issue_results(
     *,
     fetch_all: bool,
     limit: int | None,
-) -> tuple[Sequence[IssueLike], bool]:
+) -> tuple[Sequence[IssueLike], bool, LinearPaginationError | None]:
     page_size = MAX_PAGE_SIZE if fetch_all else (limit if limit is not None else 25)
 
     async def fetch_page(cursor: str | None) -> ListIssuesResultIssues:
@@ -500,7 +511,7 @@ def _read_search_results(
     *,
     fetch_all: bool,
     limit: int | None,
-) -> tuple[Sequence[IssueLike], bool]:
+) -> tuple[Sequence[IssueLike], bool, LinearPaginationError | None]:
     page_size = MAX_PAGE_SIZE if fetch_all else (limit if limit is not None else 10)
 
     async def fetch_page(cursor: str | None) -> SearchIssuesResultSearchIssues:
@@ -847,12 +858,14 @@ def issues(
             assignee=assignee_value,
             label=label_value,
         )
-        issues_found, complete = _read_team_issue_results(
+        issues_found, complete, pagination_error = _read_team_issue_results(
             linear,
             issue_filter,
             fetch_all=fetch_all,
             limit=limit,
         )
+    if pagination_error is not None:
+        _render_pagination_failure(issues_found, pagination_error, as_json=as_json)
     if not complete:
         _note_more_results("issues", len(issues_found))
     _print_issues(
@@ -914,6 +927,73 @@ def _render_preview(
     typer.echo(f"operation: {operation}")
     typer.echo(f"target: {json.dumps(target, indent=2)}")
     typer.echo(f"payload: {json.dumps(payload, indent=2)}")
+
+
+def _cli_error_message(exc: Exception) -> str:
+    """Return a one-line, sanitized error summary without response payloads."""
+    if isinstance(exc, ValidationError):
+        first = exc.errors()[0]
+        field = ".".join(str(part) for part in first["loc"])
+        return (
+            f"unexpected response shape from Linear: {_cell(field)}: "
+            f"{_cell(str(first['msg']))} ({exc.error_count()} validation error(s))"
+        )
+    if isinstance(exc, httpx.InvalidURL):
+        return f"invalid URL: {_cell(str(exc))}"
+    if isinstance(exc, httpx.HTTPError):
+        return f"could not reach Linear: {_cell(str(exc))}"
+    return _cell(str(exc))
+
+
+def _render_write_failure(
+    operation: str,
+    target: dict[str, str],
+    exc: Exception,
+    *,
+    as_json: bool,
+    error_prefix: str | None = None,
+) -> NoReturn:
+    """Render a failed applied write as JSON or use the human error contract."""
+    error = _cli_error_message(exc)
+    if error_prefix is not None:
+        error = f"{error_prefix}: {error}"
+    if as_json:
+        typer.echo(
+            json.dumps(
+                {
+                    "applied": False,
+                    "operation": operation,
+                    "target": target,
+                    "error": error,
+                },
+                indent=2,
+            ),
+        )
+        raise typer.Exit(code=1)
+    _fail(error)
+
+
+def _render_pagination_failure(
+    results: Sequence[IssueLike],
+    exc: LinearPaginationError,
+    *,
+    as_json: bool,
+) -> NoReturn:
+    """Keep JSON parseable and preserve partial results when pagination stalls."""
+    if as_json:
+        typer.echo(
+            json.dumps(
+                {
+                    "results": [_issue_dict(issue) for issue in results],
+                    "complete": False,
+                    "truncated": True,
+                    "error": _cli_error_message(exc),
+                },
+                indent=2,
+            ),
+        )
+        raise typer.Exit(code=1)
+    raise exc
 
 
 def _render_issue_result(issue: IssueFields, *, as_json: bool, verb: str) -> None:
@@ -1051,8 +1131,26 @@ def create(
             return
         try:
             created = linear.create_issue(issue_input)
+        except (
+            LinearAPIError,
+            httpx.InvalidURL,
+            httpx.HTTPError,
+            ValidationError,
+        ) as exc:
+            _render_write_failure(
+                "issue.create",
+                target,
+                exc,
+                as_json=as_json,
+            )
         except ValueError as exc:
-            _fail(f"Linear did not return the created issue: {_cell(str(exc))}")
+            _render_write_failure(
+                "issue.create",
+                target,
+                exc,
+                as_json=as_json,
+                error_prefix="Linear did not return the created issue",
+            )
     _render_issue_result(created, as_json=as_json, verb="Created")
 
 
@@ -1162,8 +1260,26 @@ def update(
             return
         try:
             updated = linear.update_issue(resolved.id, update_input)
+        except (
+            LinearAPIError,
+            httpx.InvalidURL,
+            httpx.HTTPError,
+            ValidationError,
+        ) as exc:
+            _render_write_failure(
+                "issue.update",
+                target,
+                exc,
+                as_json=as_json,
+            )
         except ValueError as exc:
-            _fail(f"Linear did not return the updated issue: {_cell(str(exc))}")
+            _render_write_failure(
+                "issue.update",
+                target,
+                exc,
+                as_json=as_json,
+                error_prefix="Linear did not return the updated issue",
+            )
     _render_issue_result(updated, as_json=as_json, verb="Updated")
 
 
@@ -1187,7 +1303,21 @@ def comment(
         if not apply:
             _render_preview("issue.comment", target, payload, as_json=as_json)
             return
-        created = linear.create_comment(resolved.id, body)
+        try:
+            created = linear.create_comment(resolved.id, body)
+        except (
+            LinearAPIError,
+            httpx.InvalidURL,
+            httpx.HTTPError,
+            ValidationError,
+            ValueError,
+        ) as exc:
+            _render_write_failure(
+                "issue.comment",
+                target,
+                exc,
+                as_json=as_json,
+            )
     _render_comment_result(created, resolved.identifier, as_json=as_json)
 
 
@@ -1234,12 +1364,14 @@ def search(
         error_msg = "--all cannot be combined with --limit"
         raise typer.BadParameter(error_msg, param_hint="--limit")
     with _workflow() as linear:
-        results_found, complete = _read_search_results(
+        results_found, complete, pagination_error = _read_search_results(
             linear,
             term,
             fetch_all=fetch_all,
             limit=limit,
         )
+    if pagination_error is not None:
+        _render_pagination_failure(results_found, pagination_error, as_json=as_json)
     if not complete:
         _note_more_results("results", len(results_found))
     _print_issues(

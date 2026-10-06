@@ -13,9 +13,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   first-page convenience method. `get_workflow_state_by_type` resolves a unique
   state across all pages and raises
   `LinearWorkflowStateLookupError` when no unique match exists.
+- `LinearQueries` and `LinearWorkflow` now expose paginated issue comments,
+  attachments, outgoing relations, and incoming relations.
+- `LinearMutations` and `LinearWorkflow` now support creating issue attachments
+  and issue relations.
+- The CLI now supports issue creation, updates, and comments (previewed unless
+  `--apply` is provided), plus `--priority`, `--assignee`, `--label`, and
+  `--state` issue-list filters and `--all` for issue listings and search.
 
 ### Changed
 
+- JSON-mode write failures and stalled paginated reads now emit structured error
+  envelopes on stdout while retaining exit code 1.
 - `LinearQueries` and `LinearWorkflow` issue, search, and workflow-state iterators
   now reject non-positive `page_size` and negative `limit` eagerly. `limit=0`
   remains valid and yields no results.
