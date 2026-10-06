@@ -45,6 +45,29 @@ class GraphQLError(BaseModel):
         return code if isinstance(code, str) else None
 
 
+def _looks_like_not_found(error: GraphQLError) -> bool:  # pyright: ignore[reportUnusedFunction]
+    """Best-effort issue-not-found detection for Linear's GraphQL errors.
+
+    Linear sends no dedicated code (``INPUT_ERROR`` is shared with genuine
+    input errors), so match its wording — the message names the Issue entity
+    specifically, so a not-found for some other referenced entity (a team, a
+    user) falls through to the caller's non-not-found handling instead. Used
+    by :meth:`gtm_linear.queries.LinearQueries.get_issue` to honor its
+    ``-> Issue | None`` contract for the ``errors``-array shape Linear returns
+    for unknown identifiers, and by the CLI for the same wording caveat;
+    kept here so the two layers cannot drift apart. The leading underscore is
+    a "shared SDK internal" marker, not a same-module-private one, so the
+    cross-module importers below carry a ``reportPrivateUsage`` ignore.
+    """
+    if "entity not found: issue" in error.message.lower():
+        return True
+    presentable = error.extensions.get("userPresentableMessage")
+    return (
+        isinstance(presentable, str)
+        and "could not find referenced issue" in presentable.lower()
+    )
+
+
 class LinearError(Exception):
     """Base class for every error this SDK raises."""
 
