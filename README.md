@@ -49,7 +49,9 @@ The SDK does not read env vars on its own. Caller is responsible for passing `ap
 
 ## CLI
 
-The package ships a read-only CLI as the `gtm-linear` console command. It wraps `LinearWorkflow`, so the SDK's typed reads are available without writing any Python:
+The package ships a CLI as the `gtm-linear` console command. It wraps
+`LinearWorkflow`, so typed reads and opt-in writes are available without writing
+Python:
 
 ```bash
 # from a checkout
@@ -58,9 +60,13 @@ uv run gtm-linear viewer
 # one-off, no local install (PyPI >= 0.3.0 ships the executable)
 uvx gtm-linear issues --team ENG --limit 10
 
+# fetch every matching issue, with useful triage filters
+uvx gtm-linear issues --team ENG --all --priority High --assignee me
+
 # or install it as a tool
 uv tool install gtm-linear
 gtm-linear search "onboarding"
+gtm-linear search onboarding --all
 ```
 
 Auth uses the SDK's `LinearSettings` resolution: `LINEAR_API_KEY` (`lin_api_...`) from the environment or a `.env` / `.env.local` file in the working directory. Endpoint overrides (`LINEAR_BASE_URL`, `LINEAR_TIMEOUT`) are honored from the real environment only — a dotenv file may supply the key, but never redirect where it is sent. Real environment variables also take precedence over dotenv for the key itself; note that a dotenv file in the current directory is trusted for auth, so run the CLI from directories you control.
@@ -69,11 +75,16 @@ Auth uses the SDK's `LinearSettings` resolution: `LINEAR_API_KEY` (`lin_api_...`
 | --- | --- |
 | `gtm-linear viewer` | Auth check: print the user the API key belongs to |
 | `gtm-linear teams` | List teams (key, name, id) |
-| `gtm-linear issues --team ENG [--state open\|all] [--limit N] [-v]` | List a team's issues, newest updated first (team key is case-insensitive; default state: open, limit: 25) |
+| `gtm-linear issues --team ENG [--state open\|all\|NAME] [--priority VALUE] [--assignee NAME\|me] [--label NAME] [--limit N] [--all] [-v]` | List a team's issues, newest updated first (team key is case-insensitive; default state: open, limit: 25). State names, assignees, and labels match exactly; priority accepts Urgent/High/Medium/Low or 0–4. |
 | `gtm-linear issue ENG-123` | Fetch one issue by identifier (any casing) or Linear UUID |
-| `gtm-linear search "term" [--limit N] [-v]` | Free-text issue search across the workspace (multi-word terms may be unquoted — words are joined; dash-prefixed values are searched as-is, so a mistyped flag becomes the term) |
+| `gtm-linear issue create --team ENG --title "..." [--description ...] [--priority 0-4] [--assignee-id UUID] [--project-id UUID] [--state-id UUID]` | Preview an issue creation; resolve the team key and show the typed mutation payload |
+| `gtm-linear issue update ENG-123 [fields...]` | Preview changes to title, description, priority, assignee, project, or state; use `--clear-description`, `--clear-priority`, `--clear-assignee`, `--clear-project`, or `--clear-state` to clear nullable fields |
+| `gtm-linear issue comment ENG-123 --body "..."` | Preview a Markdown comment on an issue |
+| `gtm-linear search "term" [--limit N] [--all] [-v]` | Free-text issue search across the workspace (multi-word terms may be unquoted — words are joined; dash-prefixed values are searched as-is, so a mistyped flag becomes the term) |
 
-Every command accepts `--json` for machine-readable output. `--limit` is validated to 1–100 at parse time; a full page prints a stderr note that more results exist. Exit codes: `0` success, `1` runtime failure (auth, API, not-found, network, a malformed `LINEAR_BASE_URL`, or an unexpected response shape — each printed as a single red `error: …` line on stderr, never a traceback; a closed output pipe, as in `| head`, exits 1 without printing an error), `130` Ctrl-C, `2` usage error. The CLI is deliberately read-only; writes stay in the SDK (`LinearMutations`) so a shell typo can never mutate Linear.
+Write commands are non-interactive and **preview by default**: target resolution may issue read queries, but no mutation is sent unless `--apply` is present. Add `--apply` to any create, update, or comment command to execute it. Creation requires a team key and title; updates require at least one field or clear flag. Assignee, project, and workflow-state options take Linear IDs. `--json` previews return an envelope with `applied: false`, operation, target, and payload; successful applied writes return the created or updated resource. If a mutation call fails, JSON mode emits an error envelope with `applied: false`, operation, target, and error, then exits 1. No write command reads stdin or prompts for confirmation.
+
+Every command accepts `--json` for machine-readable output. `issues` and `search` default to 25 and 10 results respectively; `--limit` accepts 1–100, and `--all` cannot be combined with `--limit`. Human-readable listings say whether all matching results were fetched or more may remain. Existing bounded JSON output remains an array; successful `--all --json` emits a `results` array with `complete` and `truncated` booleans. If pagination stalls in JSON mode, the CLI emits an error envelope containing any results fetched so far, `complete: false`, `truncated: true`, and the error, then exits 1. Without JSON mode, runtime failures use a single red `error: …` line on stderr and never a traceback; a closed output pipe, as in `| head`, exits 1 without printing an error. Exit codes: `0` success, `1` runtime failure, `130` Ctrl-C, `2` usage error.
 
 ---
 
@@ -89,6 +100,10 @@ LinearWorkflow      # injected-key CLI facade over every typed read/write helper
 ```
 
 `LinearQueries` and `LinearMutations` are **stateless facades** over a `LinearClient`. They do not own the client; they borrow it. Construct one client and pass it to both.
+
+The low-level query and mutation methods are async-only: await each operation, or
+use `async for` with an `iter_*` method. For synchronous scripts, use the
+`LinearWorkflow` facade shown below.
 
 Pydantic models validate Linear response payloads and mutation inputs internally. Strawberry's Pydantic integration exposes those validated models as the public GraphQL types and inputs.
 
@@ -159,11 +174,22 @@ Importable from `gtm_linear`:
 | `LinearWorkflow` | class | Injected-key sync/async facade for CLI workflows |
 | `LinearAPIError` | exception | Raised on HTTP non-200 OR GraphQL `errors` field present |
 | `LinearPaginationError` | exception | Raised by `iter_*` when a connection stalls: several consecutive empty pages while `hasNextPage` stays true |
+| `LinearWorkflowStateLookupError` | exception | Raised when a state-type lookup finds zero or multiple matching workflow states |
 | `Issue` | model | Linear issue |
+| `Attachment` | model | Issue attachment linking an external URL |
 | `Comment` | model | Linear issue comment |
+| `IssueRelation` | model | Relationship between two issues |
+| `IssueContextComment` | model | Comment body, author(s), URL, and creation time |
+| `IssueContextAttachment` | model | Attachment title, URL, source, and metadata |
+| `IssueContextRelation` | model | Relation type and both issue endpoints |
 | `IssueConnection` | model | Paginated issue list (`nodes`, `pageInfo`) |
+| `IssueCommentConnection`, `IssueAttachmentConnection` | model | Paginated issue context collections |
+| `IssueRelationConnection`, `IssueInverseRelationConnection` | model | Paginated outgoing and incoming issue relations |
 | `IssueCreateInput` | input | `title`, `teamId`, optional `description`, `labelIds`, `priority`, `assigneeId`, `projectId`, `stateId` |
 | `IssueUpdateInput` | input | Optional `title`, `description`, `labelIds`, `priority`, `assigneeId`, `projectId`, `stateId` |
+| `AttachmentCreateInput` | input | Required `issueId`, `url`, `title`; optional `subtitle` and schema-supported metadata |
+| `IssueRelationCreateInput` | input | Required `issueId`, `relatedIssueId`, `type` (`IssueRelationType`) |
+| `IssueRelationType` | enum | Supported relation values: `blocks`, `duplicate`, `related`, `similar` |
 | Issue filter mapping | `dict[str, Any]` | Linear-shaped nested issue filter passed through to GraphQL |
 | `PaginationOrderBy` | enum | Supported issue connection ordering (`createdAt`, `updatedAt`) |
 | `Team` | model | `id`, `name`, `key` |
@@ -227,24 +253,64 @@ The methods **strip the outer `{"data": ...}` envelope** and return the inner di
 
 ## `LinearQueries` reference
 
-All methods are `async`. All accept Linear UUIDs unless noted.
+Coroutine methods are `async`; `iter_*` methods return async iterators and are
+consumed with `async for`. All accept Linear UUIDs unless noted; issue-context
+methods also accept human-readable issue identifiers.
 
 | Method | Args | Returns | Notes |
 | --- | --- | --- | --- |
 | `get_issue(issue_id)` | `str` | `Issue \| None` | Returns `None` on not-found (not an error) |
+| `list_issue_comments_page(issue_id, first=50, after=None, include_archived=False)` | `str`, `int`, `str \| None`, `bool` | `IssueCommentConnection` | One typed comment page, including workspace or external author |
+| `iter_issue_comments(issue_id, page_size=50, limit=None, include_archived=False)` | `str`, `int`, `int \| None`, `bool` | `AsyncIterator[IssueContextComment]` | Follows every comment page automatically |
+| `list_issue_attachments_page(issue_id, first=50, after=None, include_archived=False)` | `str`, `int`, `str \| None`, `bool` | `IssueAttachmentConnection` | One typed attachment page with source metadata |
+| `iter_issue_attachments(issue_id, page_size=50, limit=None, include_archived=False)` | `str`, `int`, `int \| None`, `bool` | `AsyncIterator[IssueContextAttachment]` | Follows every attachment page automatically |
+| `list_issue_relations_page(issue_id, first=50, after=None, include_archived=False)` | `str`, `int`, `str \| None`, `bool` | `IssueRelationConnection` | One page of outgoing relations |
+| `iter_issue_relations(issue_id, page_size=50, limit=None, include_archived=False)` | `str`, `int`, `int \| None`, `bool` | `AsyncIterator[IssueContextRelation]` | Follows every outgoing relation page |
+| `list_issue_inverse_relations_page(issue_id, first=50, after=None, include_archived=False)` | `str`, `int`, `str \| None`, `bool` | `IssueInverseRelationConnection` | One page of incoming relations |
+| `iter_issue_inverse_relations(issue_id, page_size=50, limit=None, include_archived=False)` | `str`, `int`, `int \| None`, `bool` | `AsyncIterator[IssueContextRelation]` | Follows every incoming relation page |
 | `list_issues(team_id, first=50)` | `str`, `int` | `list[Issue]` | Compatibility helper for a team's first issue page |
 | `list_issues_page(filter=None, first=50, after=None, order_by=None, include_archived=False)` | `dict[str, Any] \| None`, `int`, `str \| None`, `PaginationOrderBy \| None`, `bool` | `IssueConnection` | Root issue connection with cursor pagination |
 | `search_issues(term)` | `str` | `list[Issue]` | Backed by Linear's `searchIssues` GraphQL field |
 | `get_team(team_id)` | `str` | `Team \| None` | UUID only; use `get_team_by_key` for `ENG`-style keys |
 | `get_team_by_key(key)` | `str` | `Team \| None` | Resolves a human team key such as `ENG` |
 | `get_user(user_id)` | `str` | `User \| None` | — |
-| `list_workflow_states(team_id, first=50)` | `str`, `int` | `list[WorkflowState]` | Convenience helper for a team's first workflow-state page |
+| `list_workflow_states(team_id, first=50)` | `str`, `int` | `list[WorkflowState]` | Convenience helper for a team's first workflow-state page; use `iter_workflow_states` for all pages |
 | `list_workflow_states_page(team_id, first=50, after=None, include_archived=False, order_by=None)` | `str`, `int`, `str \| None`, `bool`, `PaginationOrderBy \| None` | `WorkflowStateConnection` | Team-scoped workflow-state connection with cursor pagination |
+| `iter_workflow_states(team_id, page_size=50, limit=None, include_archived=False, order_by=None)` | `str`, `int`, `int \| None`, `bool`, `PaginationOrderBy \| None` | `AsyncIterator[WorkflowState]` | Follows all pages automatically |
+| `get_workflow_state_by_type(team_id, state_type, include_archived=False)` | `str`, `str`, `bool` | `WorkflowState` | Returns the unique state of that type; raises `LinearWorkflowStateLookupError` for zero or multiple matches |
 
 ### Team workflow states
 
 Workflow states are queried directly from Linear's `workflowStates` connection and
-filtered by team ID. Use the page method when you need cursor metadata:
+filtered by team ID. `list_workflow_states` returns only the first page; use the
+iterator when you want every state:
+
+```python
+async for state in queries.iter_workflow_states(team.id):
+    print(state.id, state.name, state.type)
+```
+
+For an operation such as completing an issue, resolve the state by type. This
+searches all pages and succeeds only when exactly one state matches:
+
+```python
+done = await queries.get_workflow_state_by_type(team.id, "completed")
+await mutations.update_issue(issue.id, IssueUpdateInput(state_id=done.id))
+```
+
+If zero or multiple states have that type, the method raises
+`LinearWorkflowStateLookupError`; it does not guess. Archived states are excluded
+by default. Pass `include_archived=True` to include them. A type string that does
+not match any state of this team raises `LinearWorkflowStateLookupError` with
+`multiple=False`. API failures propagate as `LinearAPIError`; a stalled state
+connection propagates as `LinearPaginationError`.
+
+Valid state types are `triage`, `backlog`, `unstarted`, `started`, `completed`,
+and `canceled`. A team may have multiple states with the same type—especially
+`canceled` states such as Canceled and Duplicate—so the lookup can raise for
+ambiguity even when that type is valid.
+
+Use the page method when you need explicit cursor metadata:
 
 ```python
 states = await queries.list_workflow_states_page(team.id, first=50)
@@ -296,7 +362,7 @@ if issues.page_info.has_next_page:
 
 ### Issue shape returned by queries
 
-Every issue method returns this projection:
+`get_issue` and issue list/search methods return this projection:
 
 ```python
 Issue(
@@ -313,6 +379,46 @@ Issue(
 
 `status` is a **flattened string** (the state's `name`), not the full Linear `WorkflowState` object. If you need state ID or color, use `execute_async` directly.
 
+### Issue comments, attachments, and relations
+
+`get_issue` intentionally remains a lightweight projection. Use the issue-context
+page methods when a caller needs associated records, or the iterators to retrieve
+all pages without managing cursors. Each connection has an independent cursor;
+incoming and outgoing relations are exposed separately. Archived records are
+excluded by default and can be included with `include_archived=True`.
+
+```python
+comments = await queries.list_issue_comments_page("ENG-123", first=50)
+if comments.page_info.has_next_page:
+    next_comments = await queries.list_issue_comments_page(
+        "ENG-123",
+        first=50,
+        after=comments.page_info.end_cursor,
+    )
+
+async for comment in queries.iter_issue_comments("ENG-123"):
+    if comment.user is not None:
+        author_name = comment.user.name
+    elif comment.external_user is not None:
+        author_name = comment.external_user.display_name
+    else:
+        author_name = None
+    print(comment.created_at, author_name, comment.body)
+
+async for attachment in queries.iter_issue_attachments("ENG-123"):
+    print(attachment.title, attachment.url, attachment.source_type)
+
+async for relation in queries.iter_issue_relations("ENG-123"):
+    print(relation.type, relation.related_issue.identifier)
+
+async for relation in queries.iter_issue_inverse_relations("ENG-123"):
+    print(relation.type, relation.issue.identifier)
+```
+
+An issue that does not exist returns a valid empty context page. Empty connections
+also retain their page metadata, and malformed response shapes continue to raise
+Pydantic validation errors.
+
 ---
 
 ## `LinearMutations` reference
@@ -323,6 +429,8 @@ Issue(
 | `update_issue(issue_id, update)` | `str`, `IssueUpdateInput` | `Issue` (full) | `ValueError` if API returns no issue; `LinearAPIError` on transport failure |
 | `delete_issue(issue_id)` | `str` | `bool` (success flag) | `LinearAPIError` on transport failure |
 | `create_comment(issue_id, body)` | `str`, `str` | `Comment` (full) | `ValueError` if API returns no comment; `LinearAPIError` on transport failure |
+| `create_attachment(input_)` | `AttachmentCreateInput` | `Attachment` (typed projection) | Pydantic validation error for malformed response; `LinearAPIError` on API failure |
+| `create_issue_relation(input_)` | `IssueRelationCreateInput` | `IssueRelation` (both issue identifiers included) | Pydantic validation error for malformed response; `LinearAPIError` on API failure |
 
 ### Mutation pitfalls
 
@@ -330,6 +438,44 @@ Issue(
 - `delete_issue` returns Linear's `success` bool. A `False` return is *not* an exception — check it explicitly if you care.
 - `create_issue` and `update_issue` raise `ValueError`, not `LinearAPIError`, when the API responds 200 but with an empty `issue`. Catch both if you're wrapping.
 - `create_comment` returns a typed `Comment` with `createdAt` parsed as a timezone-aware `datetime` when Linear returns an ISO-8601 timestamp.
+- `create_attachment` returns Linear's existing attachment when the same URL is already linked to that issue; Linear updates that attachment rather than creating a duplicate.
+- Generated attachment and relation inputs validate required IDs, URLs, and relation types before sending the request.
+
+### Linking external work and relating issues
+
+Use `create_attachment` to link an external resource such as a GitHub pull request.
+Linear identifies an attachment by its issue and URL, updating it if that URL is
+already linked. Use `create_issue_relation` for supported relationships:
+
+```python
+from gtm_linear import (
+    AttachmentCreateInput,
+    IssueRelationCreateInput,
+    IssueRelationType,
+    LinearMutations,
+)
+
+async def link_work(mutations: LinearMutations) -> None:
+    attachment = await mutations.create_attachment(
+        AttachmentCreateInput(
+            issue_id="ENG-123",
+            url="https://github.com/acme/service/pull/456",
+            title="Implement service change",
+            subtitle="Pull request #456",
+        ),
+    )
+    relation = await mutations.create_issue_relation(
+        IssueRelationCreateInput(
+            issue_id="ENG-123",
+            related_issue_id="ENG-124",
+            type=IssueRelationType.blocks,
+        ),
+    )
+```
+
+`LinearWorkflow` exposes the same methods as `create_attachment_async` /
+`create_attachment` and `create_issue_relation_async` /
+`create_issue_relation` for async and synchronous workflows.
 
 ---
 

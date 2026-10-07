@@ -1,10 +1,9 @@
-"""Read-only command-line interface shipped with the gtm-linear SDK.
+"""Command-line interface shipped with the gtm-linear SDK.
 
 Installed as the ``gtm-linear`` console script; from a checkout it also runs
 as ``uv run gtm-linear ...``. The SDK's
-typed reads are wrapped as plain shell commands so fetching Linear issues never
-requires writing Python — for writes, use the SDK directly
-(:class:`~gtm_linear.LinearMutations`).
+typed reads and opt-in writes are wrapped as plain shell commands so common
+Linear workflows never require writing Python.
 
 Auth: ``LINEAR_API_KEY`` (``lin_api_...``) resolved from the environment or a
 ``.env`` / ``.env.local`` file in the working directory — the same resolution
@@ -17,17 +16,24 @@ Usage:
 
     gtm-linear viewer
     gtm-linear teams
-    gtm-linear issues --team ENG [--state all] [--limit 25]
+    gtm-linear issues --team ENG [--state open|all|NAME] [--limit 25]
+    gtm-linear issues --team ENG --all --priority High --assignee me
     gtm-linear issue ENG-123
+    gtm-linear issue create --team ENG --title "Investigate alert"
+    gtm-linear issue update ENG-123 --priority 2 --apply
+    gtm-linear issue comment ENG-123 --body "I am looking into this"
     gtm-linear search "onboarding" [--limit 10]
+    gtm-linear search onboarding --all
 
-Append ``--json`` to any command for machine-readable output. All commands are
-read-only. Options are validated at parse time: ``--limit`` accepts 1-100 and
-out-of-range values exit with a usage error (code 2) rather than being clamped.
+Append ``--json`` to any command for machine-readable output. Write commands
+show a preview and send no mutation unless ``--apply`` is supplied. Options are
+validated before requests: ``--limit`` accepts 1-100, ``--all`` cannot be
+combined with ``--limit``, and invalid values exit with a usage error (code 2).
 """
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import enum
 import json
@@ -36,31 +42,60 @@ import os
 import re
 import sys
 import unicodedata
-from typing import TYPE_CHECKING, Annotated, Any, NoReturn
+from typing import TYPE_CHECKING, Annotated, Any, NoReturn, Protocol, TypeVar
 
 import httpx
 import typer
 from pydantic import SecretStr, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typer.core import TyperGroup, _click
 
 from . import __version__
+from ._generated.CreateIssue import IssueCreateInput
 from ._generated.ListIssues import PaginationOrderBy
-from .exceptions import GraphQLError, LinearAPIError
+from ._generated.UpdateIssue import IssueUpdateInput
+from .exceptions import GraphQLError, LinearAPIError, LinearPaginationError
+from .pagination import paginate
 from .settings import LinearSettings
 from .workflow import LinearWorkflow
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Awaitable, Callable, Sequence
 
-    from ._generated.fragments import IssueFields, IssueSearchResultFields
+    from ._generated.ListIssues import ListIssuesResultIssues
+    from ._generated.SearchIssues import SearchIssuesResultSearchIssues
+    from ._generated.fragments import (
+        CommentFields,
+        IssueFields,
+        IssueSearchResultFields,
+    )
 
     # The list and search read paths return different generated projections,
     # but with identical field spellings, so the CLI treats them alike.
     IssueLike = IssueFields | IssueSearchResultFields
 
 
+_NodeT = TypeVar("_NodeT")
+
+
+class _PageInfoLike(Protocol):
+    @property
+    def has_next_page(self) -> bool: ...
+
+    @property
+    def end_cursor(self) -> str | None: ...
+
+
+class _ConnectionLike(Protocol[_NodeT]):
+    @property
+    def nodes(self) -> list[_NodeT]: ...
+
+    @property
+    def page_info(self) -> _PageInfoLike: ...
+
+
 app = typer.Typer(
-    help="Fetch Linear issues via the gtm-linear SDK (read-only).",
+    help="Read Linear issues and opt in to writes with --apply.",
     no_args_is_help=True,
     # `--version` must work without a subcommand. Normally a group fails with
     # "Missing command." before its callback body runs; invoke_without_command
@@ -70,6 +105,38 @@ app = typer.Typer(
     # This is a non-interactive console script: unexpected exceptions must
     # print a plain traceback, never Typer's default Rich traceback with local
     # variables — those frames hold the settings object and its API key.
+    pretty_exceptions_show_locals=False,
+    pretty_exceptions_enable=False,
+)
+
+
+class _IssueCommandGroup(TyperGroup):
+    """Support legacy ``issue IDENTIFIER`` alongside nested issue commands."""
+
+    def resolve_command(
+        self,
+        ctx: _click.Context,
+        args: list[str],
+    ) -> tuple[str | None, _click.Command | None, list[str]]:
+        # A Click group normally interprets the first token after ``issue`` as
+        # a subcommand. Preserve the historical read syntax for Linear issue
+        # identifiers and UUIDs by rewriting those invocations to a hidden
+        # child command. Unknown words remain proper command usage errors.
+        if args and args[0] not in self.commands:
+            identifier = args[0]
+            if re.fullmatch(r"[A-Za-z0-9]+-\d+", identifier) or re.fullmatch(
+                r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+                identifier,
+            ):
+                args = ["_read", *args]
+        return super().resolve_command(ctx, args)
+
+
+issue_app = typer.Typer(
+    cls=_IssueCommandGroup,
+    help="Read, create, update, or comment on Linear issues.",
+    invoke_without_command=True,
+    no_args_is_help=True,
     pretty_exceptions_show_locals=False,
     pretty_exceptions_enable=False,
 )
@@ -99,9 +166,17 @@ JsonOpt = Annotated[
     bool,
     typer.Option("--json", help="Emit JSON instead of human-readable output."),
 ]
+ApplyOpt = Annotated[
+    bool,
+    typer.Option("--apply", help="Execute this mutation; otherwise show a preview."),
+]
 VerboseOpt = Annotated[
     bool,
     typer.Option("--verbose", "-v", help="Also print URLs and descriptions."),
+]
+AllOpt = Annotated[
+    bool,
+    typer.Option("--all", help="Fetch every matching result across pages."),
 ]
 
 
@@ -200,11 +275,9 @@ def _workflow() -> LinearWorkflow:
 
 
 def _note_more_results(kind: str, shown: int) -> None:
-    """Warn on stderr that a single-page listing stopped at the requested size.
+    """Warn on stderr when a listing may omit matching results.
 
-    Parallel to the `teams` note: a full page means more results exist behind a
-    cursor the command does not follow. stderr so `--json` stdout stays
-    parseable.
+    stderr keeps the note separate so bounded `--json` stdout stays parseable.
     """
     typer.secho(
         f"note: showing the first {shown}; more {kind} may exist",
@@ -272,6 +345,187 @@ def _normalize_team_key(value: str) -> str:
         error_msg = "team key must not be empty"
         raise typer.BadParameter(error_msg)
     return normalized
+
+
+def _non_empty_filter(value: str | None, option: str) -> str | None:
+    """Trim a free-form filter value and reject empty values as usage errors."""
+    if value is None:
+        return None
+    normalized = value.strip()
+    if not normalized:
+        error_msg = f"{option} must not be empty"
+        raise typer.BadParameter(error_msg, param_hint=option)
+    return normalized
+
+
+def _parse_priority(value: str | None) -> int | None:
+    """Accept Linear priority labels or their numeric values."""
+    if value is None:
+        return None
+    normalized = value.strip().casefold()
+    levels = {
+        "urgent": 1,
+        "high": 2,
+        "medium": 3,
+        "low": 4,
+    }
+    if normalized in levels:
+        return levels[normalized]
+    if normalized in {"0", "1", "2", "3", "4"}:
+        return int(normalized)
+    error_msg = "priority must be Urgent, High, Medium, Low, or a number from 0 to 4"
+    raise typer.BadParameter(error_msg, param_hint="--priority")
+
+
+def _normalize_state(value: str) -> str:
+    """Normalize the built-in state choices and validate non-empty names."""
+    normalized = value.strip()
+    if not normalized:
+        error_msg = "--state must not be empty"
+        raise typer.BadParameter(error_msg, param_hint="--state")
+    if normalized.casefold() in {"open", "all"}:
+        return normalized.casefold()
+    return normalized
+
+
+async def _collect_paginated(
+    fetch: Callable[[str | None], Awaitable[_ConnectionLike[_NodeT]]],
+    *,
+    limit: int | None = None,
+) -> tuple[list[_NodeT], bool, LinearPaginationError | None]:
+    """Collect typed pages through the SDK paginator and report terminal state.
+
+    ``paginate`` owns cursor advancement and stall safeguards. Retaining the
+    final page's ``has_next_page`` also lets the CLI distinguish a normal end
+    from the paginator's safe stop on an unusable missing/repeated cursor.
+    """
+    last_page: _ConnectionLike[_NodeT] | None = None
+    received = 0
+
+    async def tracked_fetch(cursor: str | None) -> _ConnectionLike[_NodeT]:
+        nonlocal last_page, received
+        last_page = await fetch(cursor)
+        received += len(last_page.nodes)
+        return last_page
+
+    items: list[_NodeT] = []
+    pagination_error: LinearPaginationError | None = None
+    try:
+        async for item in paginate(tracked_fetch, limit=limit):
+            items.append(item)
+    except LinearPaginationError as exc:
+        pagination_error = exc
+    complete = pagination_error is None and (
+        last_page is None
+        or (not last_page.page_info.has_next_page and received == len(items))
+    )
+    return items, complete, pagination_error
+
+
+def _collect_paginated_sync(
+    linear: LinearWorkflow,
+    fetch: Callable[[str | None], Awaitable[_ConnectionLike[_NodeT]]],
+    *,
+    limit: int | None = None,
+) -> tuple[list[_NodeT], bool, LinearPaginationError | None]:
+    """Run the collector and close the workflow's async transport afterward."""
+
+    async def collect_and_close() -> tuple[
+        list[_NodeT],
+        bool,
+        LinearPaginationError | None,
+    ]:
+        try:
+            return await _collect_paginated(fetch, limit=limit)
+        finally:
+            await linear.client.aclose()
+
+    return asyncio.run(collect_and_close())
+
+
+def _build_team_issue_filter(
+    linear: LinearWorkflow,
+    team_id: str,
+    team_key: str,
+    *,
+    state: str,
+    priority: int | None,
+    assignee: str | None,
+    label: str | None,
+) -> dict[str, Any]:
+    """Build and validate a Linear IssueFilter for the CLI's team listing."""
+    issue_filter: dict[str, Any] = {"team": {"id": {"eq": team_id}}}
+    if state == State.open.value:
+        issue_filter["state"] = {"type": {"nin": ["completed", "canceled"]}}
+    elif state != State.all.value:
+        state_names = {
+            workflow_state.name
+            for workflow_state in linear.iter_workflow_states(
+                team_id,
+                page_size=MAX_PAGE_SIZE,
+            )
+        }
+        if state not in state_names:
+            error_msg = f"unknown workflow state {state!r} for team {team_key}"
+            raise typer.BadParameter(error_msg, param_hint="--state")
+        issue_filter["state"] = {"name": {"eq": state}}
+    if priority is not None:
+        issue_filter["priority"] = {"eq": priority}
+    if assignee is not None:
+        if assignee.casefold() == "me":
+            issue_filter["assignee"] = {"isMe": {"eq": True}}
+        else:
+            issue_filter["assignee"] = {"displayName": {"eq": assignee}}
+    if label is not None:
+        issue_filter["labels"] = {"some": {"name": {"eq": label}}}
+    return issue_filter
+
+
+def _read_team_issue_results(
+    linear: LinearWorkflow,
+    issue_filter: dict[str, Any],
+    *,
+    fetch_all: bool,
+    limit: int | None,
+) -> tuple[Sequence[IssueLike], bool, LinearPaginationError | None]:
+    page_size = MAX_PAGE_SIZE if fetch_all else (limit if limit is not None else 25)
+
+    async def fetch_page(cursor: str | None) -> ListIssuesResultIssues:
+        return await linear.list_issues_page_async(
+            issue_filter,
+            first=page_size,
+            after=cursor,
+            order_by=PaginationOrderBy.updatedAt,
+        )
+
+    return _collect_paginated_sync(
+        linear,
+        fetch_page,
+        limit=None if fetch_all else page_size,
+    )
+
+
+def _read_search_results(
+    linear: LinearWorkflow,
+    term: str,
+    *,
+    fetch_all: bool,
+    limit: int | None,
+) -> tuple[Sequence[IssueLike], bool, LinearPaginationError | None]:
+    page_size = MAX_PAGE_SIZE if fetch_all else (limit if limit is not None else 10)
+
+    async def fetch_page(cursor: str | None) -> SearchIssuesResultSearchIssues:
+        return await linear.search_issues_async(
+            term,
+            first=page_size,
+            after=cursor,
+        )
+
+    return _collect_paginated_sync(
+        linear,
+        fetch_page,
+        limit=None if fetch_all else page_size,
+    )
 
 
 # Terminal escape sequences and C0/C1 control characters (except tab and
@@ -367,14 +621,34 @@ def _print_issues(
     *,
     as_json: bool,
     verbose: bool = False,
+    all_results: bool = False,
+    complete: bool = True,
+    kind: str = "issues",
 ) -> None:
-    """Render an issue list as JSON or an aligned table."""
+    """Render issues and, when requested, explicit pagination metadata."""
     if as_json:
-        typer.echo(json.dumps([_issue_dict(i) for i in issues], indent=2))
+        results = [_issue_dict(i) for i in issues]
+        if all_results:
+            typer.echo(
+                json.dumps(
+                    {
+                        "results": results,
+                        "complete": complete,
+                        "truncated": not complete,
+                    },
+                    indent=2,
+                ),
+            )
+        else:
+            typer.echo(json.dumps(results, indent=2))
         return
 
     if not issues:
         typer.echo("no issues found")
+        if complete:
+            typer.echo(f"complete: all matching {kind} fetched")
+        else:
+            typer.echo(f"incomplete: more {kind} may remain")
         return
 
     columns = ("IDENTIFIER", "STATE", "PRIORITY", "ASSIGNEE", "TITLE")
@@ -417,6 +691,10 @@ def _print_issues(
             # table row.
             for line in (_clean(issue.description) or "-").splitlines():
                 typer.echo(f"   {line}")
+    if complete:
+        typer.echo(f"complete: all matching {kind} fetched")
+    else:
+        typer.echo(f"incomplete: more {kind} may remain")
 
 
 # --- commands ---
@@ -438,7 +716,7 @@ def _root(
         ),
     ] = False,
 ) -> None:
-    """Fetch Linear issues via the gtm-linear SDK (read-only)."""
+    """Read Linear issues or opt in to writes with --apply."""
     if version:
         typer.echo(f"gtm-linear {__version__}")
         raise typer.Exit
@@ -526,21 +804,44 @@ def issues(
         ),
     ],
     state: Annotated[
-        State,
-        typer.Option(help="Open (default) excludes completed and canceled issues."),
-    ] = State.open,
+        str,
+        typer.Option(
+            help="State: open, all, or an exact workflow-state name (default: open).",
+        ),
+    ] = State.open.value,
+    priority: Annotated[
+        str | None,
+        typer.Option(help="Priority: Urgent, High, Medium, Low, or 0-4."),
+    ] = None,
+    assignee: Annotated[
+        str | None,
+        typer.Option(help="Exact assignee display name, or 'me'."),
+    ] = None,
+    label: Annotated[
+        str | None,
+        typer.Option(help="Exact issue label name."),
+    ] = None,
     limit: Annotated[
-        int,
+        int | None,
         typer.Option(
             min=1,
             max=MAX_PAGE_SIZE,
             help=f"Max issues to fetch (1-{MAX_PAGE_SIZE}, default 25).",
         ),
-    ] = 25,
+    ] = None,
+    fetch_all: AllOpt = False,
     verbose: VerboseOpt = False,
     as_json: JsonOpt = False,
 ) -> None:
     """List a team's issues, newest updated first."""
+    if fetch_all and limit is not None:
+        error_msg = "--all cannot be combined with --limit"
+        raise typer.BadParameter(error_msg, param_hint="--limit")
+    state_value = _normalize_state(state)
+    priority_value = _parse_priority(priority)
+    assignee_value = _non_empty_filter(assignee, "--assignee")
+    label_value = _non_empty_filter(label, "--label")
+
     # The --team option callback already trimmed, uppercased, and confirmed
     # the key is non-empty (mirroring the `issue` command's identifier
     # normalization).
@@ -548,24 +849,191 @@ def issues(
         resolved = linear.get_team_by_key(team)
         if resolved is None:
             _fail(f"no Linear team with key {team!r}")
-        # One code path for both states so page_info survives: the open-state
-        # filter mirrors LinearWorkflow.list_open_team_issues (unfinished
-        # states excluded), newest update first.
-        issue_filter: dict[str, Any] = {"team": {"id": {"eq": resolved.id}}}
-        if state is State.open:
-            issue_filter["state"] = {"type": {"nin": ["completed", "canceled"]}}
-        page = linear.list_issues_page(
-            issue_filter,
-            first=limit,
-            order_by=PaginationOrderBy.updatedAt,
+        issue_filter = _build_team_issue_filter(
+            linear,
+            resolved.id,
+            team,
+            state=state_value,
+            priority=priority_value,
+            assignee=assignee_value,
+            label=label_value,
         )
-    if page.page_info.has_next_page:
-        _note_more_results("issues", limit)
-    _print_issues(list(page.nodes), as_json=as_json, verbose=verbose)
+        issues_found, complete, pagination_error = _read_team_issue_results(
+            linear,
+            issue_filter,
+            fetch_all=fetch_all,
+            limit=limit,
+        )
+    if pagination_error is not None:
+        _render_pagination_failure(issues_found, pagination_error, as_json=as_json)
+    if not complete:
+        _note_more_results("issues", len(issues_found))
+    _print_issues(
+        issues_found,
+        as_json=as_json,
+        verbose=verbose,
+        all_results=fetch_all,
+        complete=complete,
+    )
 
 
-@app.command()
-def issue(
+def _normalize_issue_identifier(identifier: str) -> str:
+    """Normalize human issue identifiers while leaving UUIDs unchanged."""
+    if re.fullmatch(r"[A-Za-z0-9]+-\d+", identifier):
+        return identifier.upper()
+    return identifier
+
+
+def _resolve_issue(linear: LinearWorkflow, identifier: str) -> IssueFields:
+    """Resolve an issue reference or report a clean CLI not-found error."""
+    normalized = _normalize_issue_identifier(identifier)
+    try:
+        match = linear.get_issue(normalized)
+    except LinearAPIError as exc:
+        if any(_looks_like_not_found(error) for error in exc.errors):
+            _fail(f"no issue found with identifier {normalized}")
+        raise
+    if match is None:
+        _fail(f"no issue found with identifier {normalized}")
+    return match
+
+
+def _validate_text(value: str | None, option: str) -> str | None:
+    """Reject explicitly supplied blank text without changing its contents."""
+    if value is not None and not value.strip():
+        message = f"{option} must not be empty"
+        raise typer.BadParameter(message, param_hint=option)
+    return value
+
+
+def _render_preview(
+    operation: str,
+    target: dict[str, str],
+    payload: dict[str, Any],
+    *,
+    as_json: bool,
+) -> None:
+    """Show a mutation preview without sending a mutation request."""
+    preview = {
+        "applied": False,
+        "operation": operation,
+        "target": target,
+        "payload": payload,
+    }
+    if as_json:
+        typer.echo(json.dumps(preview, indent=2))
+        return
+    typer.echo("DRY RUN: no mutation sent (use --apply to execute)")
+    typer.echo(f"operation: {operation}")
+    typer.echo(f"target: {json.dumps(target, indent=2)}")
+    typer.echo(f"payload: {json.dumps(payload, indent=2)}")
+
+
+def _cli_error_message(exc: Exception) -> str:
+    """Return a one-line, sanitized error summary without response payloads."""
+    if isinstance(exc, ValidationError):
+        first = exc.errors()[0]
+        field = ".".join(str(part) for part in first["loc"])
+        return (
+            f"unexpected response shape from Linear: {_cell(field)}: "
+            f"{_cell(str(first['msg']))} ({exc.error_count()} validation error(s))"
+        )
+    if isinstance(exc, httpx.InvalidURL):
+        return f"invalid URL: {_cell(str(exc))}"
+    if isinstance(exc, httpx.HTTPError):
+        return f"could not reach Linear: {_cell(str(exc))}"
+    return _cell(str(exc))
+
+
+def _render_write_failure(
+    operation: str,
+    target: dict[str, str],
+    exc: Exception,
+    *,
+    as_json: bool,
+    error_prefix: str | None = None,
+) -> NoReturn:
+    """Render a failed applied write as JSON or use the human error contract."""
+    error = _cli_error_message(exc)
+    if error_prefix is not None:
+        error = f"{error_prefix}: {error}"
+    if as_json:
+        typer.echo(
+            json.dumps(
+                {
+                    "applied": False,
+                    "operation": operation,
+                    "target": target,
+                    "error": error,
+                },
+                indent=2,
+            ),
+        )
+        raise typer.Exit(code=1)
+    _fail(error)
+
+
+def _render_pagination_failure(
+    results: Sequence[IssueLike],
+    exc: LinearPaginationError,
+    *,
+    as_json: bool,
+) -> NoReturn:
+    """Keep JSON parseable and preserve partial results when pagination stalls."""
+    if as_json:
+        typer.echo(
+            json.dumps(
+                {
+                    "results": [_issue_dict(issue) for issue in results],
+                    "complete": False,
+                    "truncated": True,
+                    "error": _cli_error_message(exc),
+                },
+                indent=2,
+            ),
+        )
+        raise typer.Exit(code=1)
+    raise exc
+
+
+def _render_issue_result(issue: IssueFields, *, as_json: bool, verb: str) -> None:
+    """Render a mutation's returned issue using the established CLI shape."""
+    if as_json:
+        typer.echo(json.dumps(_issue_dict(issue), indent=2))
+        return
+    typer.echo(f"{verb} {_cell(issue.identifier)}: {_cell(issue.title)}")
+    typer.echo(f" url: {_cell(issue.url)}")
+    typer.echo(f" id: {_cell(issue.id)}")
+
+
+def _render_comment_result(
+    comment: CommentFields,
+    issue_identifier: str,
+    *,
+    as_json: bool,
+) -> None:
+    """Render a created comment as JSON or concise terminal output."""
+    if as_json:
+        typer.echo(
+            json.dumps(
+                {
+                    "id": comment.id,
+                    "body": comment.body,
+                    "url": comment.url,
+                    "createdAt": comment.created_at.isoformat(),
+                },
+                indent=2,
+            ),
+        )
+        return
+    typer.echo(
+        f"Comment added to {_cell(issue_identifier)} "
+        f"(id: {_cell(comment.id)}, url: {_cell(comment.url)})",
+    )
+
+
+@issue_app.command(name="_read", hidden=True)
+def _read(
     identifier: Annotated[
         str,
         typer.Argument(help="Issue identifier, e.g. ENG-123."),
@@ -574,25 +1042,9 @@ def issue(
     as_json: JsonOpt = False,
 ) -> None:
     """Fetch one issue by its identifier or Linear UUID."""
-    # Human identifiers are team-key + number ("ENG-123") and arrive in any
-    # casing, so normalize those — but pass UUIDs through untouched, since
-    # uppercasing a lowercase UUID would break the lookup.
-    if re.fullmatch(r"[A-Za-z0-9]+-\d+", identifier):
-        identifier = identifier.upper()
+    identifier = _normalize_issue_identifier(identifier)
     with _workflow() as linear:
-        # get_issue accepts Linear UUIDs and human identifiers alike.
-        try:
-            match = linear.get_issue(identifier)
-        except LinearAPIError as exc:
-            # Linear reports an unknown id as a GraphQL error rather than a
-            # null issue; anything not matching its not-found wording (auth,
-            # rate limit) propagates to main()'s error mapping, where the
-            # user sees Linear's own text.
-            if any(_looks_like_not_found(error) for error in exc.errors):
-                _fail(f"no issue found with identifier {identifier}")
-            raise
-        if match is None:
-            _fail(f"no issue found with identifier {identifier}")
+        match = _resolve_issue(linear, identifier)
     if as_json:
         typer.echo(json.dumps(_issue_dict(match), indent=2))
         return
@@ -606,6 +1058,270 @@ def issue(
         typer.echo(" description:")
         for line in _clean(match.description).splitlines():
             typer.echo(f"   {line}")
+
+
+@issue_app.command()
+def create(
+    *,
+    team: Annotated[
+        str,
+        typer.Option(
+            callback=_normalize_team_key,
+            help="Team key, e.g. ENG (any casing).",
+        ),
+    ],
+    title: Annotated[str, typer.Option(help="New issue title.")],
+    description: Annotated[
+        str | None,
+        typer.Option(help="Issue description in Markdown."),
+    ] = None,
+    priority: Annotated[
+        int | None,
+        typer.Option(min=0, max=4, help="Priority 0-4; 0 means no priority."),
+    ] = None,
+    assignee_id: Annotated[
+        str | None,
+        typer.Option("--assignee-id", help="Linear user UUID."),
+    ] = None,
+    project_id: Annotated[
+        str | None,
+        typer.Option("--project-id", help="Linear project UUID."),
+    ] = None,
+    state_id: Annotated[
+        str | None,
+        typer.Option("--state-id", help="Linear workflow-state UUID."),
+    ] = None,
+    apply: ApplyOpt = False,
+    as_json: JsonOpt = False,
+) -> None:
+    """Create an issue; preview by default, execute with --apply."""
+    title = _validate_text(title, "--title") or ""
+    description = _validate_text(description, "--description")
+    assignee_id = _validate_text(assignee_id, "--assignee-id")
+    project_id = _validate_text(project_id, "--project-id")
+    state_id = _validate_text(state_id, "--state-id")
+    input_values: dict[str, Any] = {"title": title}
+    for name, value in (
+        ("description", description),
+        ("priority", priority),
+        ("assignee_id", assignee_id),
+        ("project_id", project_id),
+        ("state_id", state_id),
+    ):
+        if value is not None:
+            input_values[name] = value
+
+    with _workflow() as linear:
+        resolved_team = linear.get_team_by_key(team)
+        if resolved_team is None:
+            _fail(f"no Linear team with key {team!r}")
+        issue_input = IssueCreateInput(team_id=resolved_team.id, **input_values)
+        payload = issue_input.model_dump(
+            mode="json",
+            by_alias=True,
+            exclude_unset=True,
+        )
+        target = {
+            "teamKey": resolved_team.key,
+            "teamName": resolved_team.name,
+            "teamId": resolved_team.id,
+        }
+        if not apply:
+            _render_preview("issue.create", target, payload, as_json=as_json)
+            return
+        try:
+            created = linear.create_issue(issue_input)
+        except (
+            LinearAPIError,
+            httpx.InvalidURL,
+            httpx.HTTPError,
+            ValidationError,
+        ) as exc:
+            _render_write_failure(
+                "issue.create",
+                target,
+                exc,
+                as_json=as_json,
+            )
+        except ValueError as exc:
+            _render_write_failure(
+                "issue.create",
+                target,
+                exc,
+                as_json=as_json,
+                error_prefix="Linear did not return the created issue",
+            )
+    _render_issue_result(created, as_json=as_json, verb="Created")
+
+
+@issue_app.command()
+def update(
+    identifier: Annotated[
+        str,
+        typer.Argument(help="Issue identifier, e.g. ENG-123, or Linear UUID."),
+    ],
+    *,
+    title: Annotated[str | None, typer.Option(help="Replace the issue title.")] = None,
+    description: Annotated[
+        str | None,
+        typer.Option(help="Replace the Markdown description."),
+    ] = None,
+    clear_description: Annotated[
+        bool,
+        typer.Option("--clear-description", help="Clear the description."),
+    ] = False,
+    priority: Annotated[
+        int | None,
+        typer.Option(min=0, max=4, help="Priority 0-4."),
+    ] = None,
+    clear_priority: Annotated[
+        bool,
+        typer.Option("--clear-priority", help="Clear the priority."),
+    ] = False,
+    assignee_id: Annotated[
+        str | None,
+        typer.Option("--assignee-id", help="Set the Linear user UUID."),
+    ] = None,
+    clear_assignee: Annotated[
+        bool,
+        typer.Option("--clear-assignee", help="Clear the assignee."),
+    ] = False,
+    project_id: Annotated[
+        str | None,
+        typer.Option("--project-id", help="Set the Linear project UUID."),
+    ] = None,
+    clear_project: Annotated[
+        bool,
+        typer.Option("--clear-project", help="Clear the project."),
+    ] = False,
+    state_id: Annotated[
+        str | None,
+        typer.Option("--state-id", help="Set the workflow-state UUID."),
+    ] = None,
+    clear_state: Annotated[
+        bool,
+        typer.Option("--clear-state", help="Clear the workflow state."),
+    ] = False,
+    apply: ApplyOpt = False,
+    as_json: JsonOpt = False,
+) -> None:
+    """Update an issue; preview by default, execute with --apply."""
+    title = _validate_text(title, "--title")
+    description = _validate_text(description, "--description")
+    assignee_id = _validate_text(assignee_id, "--assignee-id")
+    project_id = _validate_text(project_id, "--project-id")
+    state_id = _validate_text(state_id, "--state-id")
+    pairs = (
+        ("--description", description, clear_description, "--clear-description"),
+        ("--priority", priority, clear_priority, "--clear-priority"),
+        ("--assignee-id", assignee_id, clear_assignee, "--clear-assignee"),
+        ("--project-id", project_id, clear_project, "--clear-project"),
+        ("--state-id", state_id, clear_state, "--clear-state"),
+    )
+    for option, value, clear, clear_option in pairs:
+        if value is not None and clear:
+            message = f"{option} cannot be combined with {clear_option}"
+            raise typer.BadParameter(
+                message,
+                param_hint=option,
+            )
+    if title is None and not any(v is not None or c for _, v, c, _ in pairs):
+        message = "provide at least one update field or --clear-* option"
+        raise typer.BadParameter(
+            message,
+            param_hint="issue update",
+        )
+
+    update_values: dict[str, Any] = {}
+    for name, value, clear in (
+        ("title", title, False),
+        ("description", description, clear_description),
+        ("priority", priority, clear_priority),
+        ("assignee_id", assignee_id, clear_assignee),
+        ("project_id", project_id, clear_project),
+        ("state_id", state_id, clear_state),
+    ):
+        if clear:
+            update_values[name] = None
+        elif value is not None:
+            update_values[name] = value
+
+    with _workflow() as linear:
+        resolved = _resolve_issue(linear, identifier)
+        update_input = IssueUpdateInput(**update_values)
+        payload = update_input.model_dump(
+            mode="json",
+            by_alias=True,
+            exclude_unset=True,
+        )
+        target = {"identifier": resolved.identifier, "id": resolved.id}
+        if not apply:
+            _render_preview("issue.update", target, payload, as_json=as_json)
+            return
+        try:
+            updated = linear.update_issue(resolved.id, update_input)
+        except (
+            LinearAPIError,
+            httpx.InvalidURL,
+            httpx.HTTPError,
+            ValidationError,
+        ) as exc:
+            _render_write_failure(
+                "issue.update",
+                target,
+                exc,
+                as_json=as_json,
+            )
+        except ValueError as exc:
+            _render_write_failure(
+                "issue.update",
+                target,
+                exc,
+                as_json=as_json,
+                error_prefix="Linear did not return the updated issue",
+            )
+    _render_issue_result(updated, as_json=as_json, verb="Updated")
+
+
+@issue_app.command()
+def comment(
+    identifier: Annotated[
+        str,
+        typer.Argument(help="Issue identifier, e.g. ENG-123, or Linear UUID."),
+    ],
+    *,
+    body: Annotated[str, typer.Option(help="Comment body in Markdown.")],
+    apply: ApplyOpt = False,
+    as_json: JsonOpt = False,
+) -> None:
+    """Add a comment; preview by default, execute with --apply."""
+    body = _validate_text(body, "--body") or ""
+    with _workflow() as linear:
+        resolved = _resolve_issue(linear, identifier)
+        payload = {"issueId": resolved.id, "body": body}
+        target = {"identifier": resolved.identifier, "id": resolved.id}
+        if not apply:
+            _render_preview("issue.comment", target, payload, as_json=as_json)
+            return
+        try:
+            created = linear.create_comment(resolved.id, body)
+        except (
+            LinearAPIError,
+            httpx.InvalidURL,
+            httpx.HTTPError,
+            ValidationError,
+            ValueError,
+        ) as exc:
+            _render_write_failure(
+                "issue.comment",
+                target,
+                exc,
+                as_json=as_json,
+            )
+    _render_comment_result(created, resolved.identifier, as_json=as_json)
+
+
+app.add_typer(issue_app, name="issue")
 
 
 # Unknown leading tokens are treated as the search term, so queries like
@@ -626,13 +1342,14 @@ def search(
     ],
     *,
     limit: Annotated[
-        int,
+        int | None,
         typer.Option(
             min=1,
             max=MAX_PAGE_SIZE,
             help=f"Max results (1-{MAX_PAGE_SIZE}, default 10).",
         ),
-    ] = 10,
+    ] = None,
+    fetch_all: AllOpt = False,
     verbose: VerboseOpt = False,
     as_json: JsonOpt = False,
 ) -> None:
@@ -643,11 +1360,28 @@ def search(
         # parse-time validations.
         error_msg = "search term must not be empty"
         raise typer.BadParameter(error_msg)
+    if fetch_all and limit is not None:
+        error_msg = "--all cannot be combined with --limit"
+        raise typer.BadParameter(error_msg, param_hint="--limit")
     with _workflow() as linear:
-        result = linear.search_issues(term, first=limit)
-    if result.page_info.has_next_page:
-        _note_more_results("results", limit)
-    _print_issues(list(result.nodes), as_json=as_json, verbose=verbose)
+        results_found, complete, pagination_error = _read_search_results(
+            linear,
+            term,
+            fetch_all=fetch_all,
+            limit=limit,
+        )
+    if pagination_error is not None:
+        _render_pagination_failure(results_found, pagination_error, as_json=as_json)
+    if not complete:
+        _note_more_results("results", len(results_found))
+    _print_issues(
+        results_found,
+        as_json=as_json,
+        verbose=verbose,
+        all_results=fetch_all,
+        complete=complete,
+        kind="results",
+    )
 
 
 def main() -> None:

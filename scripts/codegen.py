@@ -584,6 +584,7 @@ def _python_type(type_: object, *, nullable: bool = True) -> str:
         name = getattr(type_, "name", "Any")
         rendered = {
             "Boolean": "bool",
+            "DateTime": "datetime",
             "Float": "float",
             "ID": "strawberry.ID",
             "Int": "int",
@@ -749,6 +750,78 @@ def _hoist_fragments(generated_out: Path, fragment_names: set[str]) -> list[str]
     return order
 
 
+def _canonicalize_enum_placement(source: str) -> str:
+    """Place top-level enum classes before generated models deterministically.
+
+    Strawberry's code generator can emit enums before or after result models
+    depending on the Python version. Moving them to a stable position keeps
+    generated files byte-identical across the project's supported runtimes.
+    The relative order of every non-enum top-level statement is preserved.
+    """
+    tree = ast.parse(source)
+    enum_nodes = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef)
+        and any(
+            (isinstance(base, ast.Name) and base.id == "Enum")
+            or (isinstance(base, ast.Attribute) and base.attr == "Enum")
+            for base in node.bases
+        )
+    ]
+    if not enum_nodes:
+        return source
+
+    lines = source.splitlines(keepends=True)
+
+    def start_line(node: ast.ClassDef) -> int:
+        if node.decorator_list:
+            return min(decorator.lineno for decorator in node.decorator_list) - 1
+        return node.lineno - 1
+
+    enum_blocks: list[tuple[str, int, int, str]] = []
+    for node in enum_nodes:
+        body_end = node.end_lineno
+        if body_end is None:
+            msg = f"enum class {node.name} has no end_lineno; refusing to reorder"
+            raise SystemExit(msg)
+        start = start_line(node)
+        remove_end = body_end
+        while remove_end < len(lines) and not lines[remove_end].strip():
+            remove_end += 1
+        enum_blocks.append(
+            (
+                node.name,
+                start,
+                remove_end,
+                "".join(lines[start:body_end]).strip(),
+            ),
+        )
+    enum_blocks.sort(key=lambda block: block[0])
+
+    removed_lines = {
+        line for _, start, end, _ in enum_blocks for line in range(start, end)
+    }
+    first_class_line = min(
+        start_line(node) for node in tree.body if isinstance(node, ast.ClassDef)
+    )
+    kept_before_insertion = sum(
+        1 for line in range(first_class_line) if line not in removed_lines
+    )
+    remaining = [line for index, line in enumerate(lines) if index not in removed_lines]
+    prefix = "".join(remaining[:kept_before_insertion]).rstrip()
+    suffix = "".join(remaining[kept_before_insertion:]).lstrip()
+    enum_source = "\n\n".join(block for _, _, _, block in enum_blocks)
+
+    result = f"{prefix}\n\n{enum_source}"
+    if suffix:
+        result += f"\n\n{suffix}"
+    else:
+        result += "\n"
+    ast.parse(result)
+    return result
+
+
 def _run(cmd: list[str], extra_path: Path | None = None) -> None:
     env = os.environ.copy()
     if extra_path is not None:
@@ -900,6 +973,9 @@ def generate(schema_out: Path, generated_out: Path) -> None:
     hoisted = _hoist_fragments(generated_out, set(fragments))
     if hoisted:
         print(f"  hoisted {len(hoisted)} shared fragment type(s) into fragments.py")
+
+    for path in generated_out.glob("*.py"):
+        path.write_text(_canonicalize_enum_placement(path.read_text()))
 
     init = generated_out / "__init__.py"
     modules = _embed_documents(generated_out, composed)

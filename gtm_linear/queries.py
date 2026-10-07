@@ -8,6 +8,7 @@ the hand-rolled `_parse_issue`/`_parse_user` helpers are gone.
 
 from __future__ import annotations
 
+from contextlib import aclosing
 from typing import TYPE_CHECKING, Any
 
 from ._generated.GetIssue import (
@@ -30,6 +31,26 @@ from ._generated.GetViewer import (
     DOCUMENT as GET_VIEWER,
     GetViewerResult,
 )
+from ._generated.ListIssueAttachments import (
+    DOCUMENT as LIST_ISSUE_ATTACHMENTS,
+    ListIssueAttachmentsResult,
+    ListIssueAttachmentsResultIssueAttachments,
+)
+from ._generated.ListIssueComments import (
+    DOCUMENT as LIST_ISSUE_COMMENTS,
+    ListIssueCommentsResult,
+    ListIssueCommentsResultIssueComments,
+)
+from ._generated.ListIssueInverseRelations import (
+    DOCUMENT as LIST_ISSUE_INVERSE_RELATIONS,
+    ListIssueInverseRelationsResult,
+    ListIssueInverseRelationsResultIssueInverseRelations,
+)
+from ._generated.ListIssueRelations import (
+    DOCUMENT as LIST_ISSUE_RELATIONS,
+    ListIssueRelationsResult,
+    ListIssueRelationsResultIssueRelations,
+)
 from ._generated.ListIssues import (
     DOCUMENT as LIST_ISSUES,
     ListIssuesResult,
@@ -46,11 +67,32 @@ from ._generated.SearchIssues import (
     SearchIssuesResult,
     SearchIssuesResultSearchIssues,
 )
-from ._generated.fragments import IssueSearchResultFields, WorkflowStateFields
-from .pagination import paginate
+from ._generated.fragments import (
+    IssueContextAttachmentFields,
+    IssueContextCommentFields,
+    IssueContextRelationFields,
+    IssueSearchResultFields,
+    WorkflowStateFields,
+)
+from .exceptions import LinearWorkflowStateLookupError
+from .pagination import _validate_pagination_options, paginate
+
+
+def _empty_page_payload() -> dict[str, object]:
+    """A Relay empty page used when the issue itself does not exist."""
+    return {
+        "nodes": [],
+        "pageInfo": {
+            "endCursor": None,
+            "hasNextPage": False,
+            "hasPreviousPage": False,
+            "startCursor": None,
+        },
+    }
+
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncGenerator, AsyncIterator
 
     from ._generated.fragments import (
         IssueFields,
@@ -84,6 +126,199 @@ class LinearQueries:
         if not data.get("issue"):
             return None
         return GetIssueResult.model_validate(data).issue
+
+    async def list_issue_comments_page(
+        self,
+        issue_id: str,
+        first: int = 50,
+        after: str | None = None,
+        *,
+        include_archived: bool = False,
+    ) -> ListIssueCommentsResultIssueComments:
+        """Fetch one cursor page of issue comments, including author context.
+
+        Args:
+            issue_id: Linear issue UUID or identifier (for example ``ENG-123``).
+            first: Maximum comments to return.
+            after: Cursor from a previous page's ``page_info.end_cursor``.
+            include_archived: Whether to include archived comments.
+
+        Returns:
+            The page with typed comment nodes and cursor metadata. A missing issue
+            produces a valid empty page.
+        """
+        data = await self._client.execute_async(
+            LIST_ISSUE_COMMENTS,
+            {
+                "id": issue_id,
+                "first": first,
+                "after": after,
+                "includeArchived": include_archived,
+            },
+        )
+        if data.get("issue") is None and "issue" in data:
+            return ListIssueCommentsResultIssueComments.model_validate(
+                _empty_page_payload(),
+            )
+        return ListIssueCommentsResult.model_validate(data).issue.comments
+
+    def iter_issue_comments(
+        self,
+        issue_id: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        include_archived: bool = False,
+    ) -> AsyncIterator[IssueContextCommentFields]:
+        """Iterate every comment on an issue, following cursors automatically."""
+
+        async def fetch(cursor: str | None) -> ListIssueCommentsResultIssueComments:
+            return await self.list_issue_comments_page(
+                issue_id,
+                first=page_size,
+                after=cursor,
+                include_archived=include_archived,
+            )
+
+        return paginate(fetch, limit=limit)
+
+    async def list_issue_attachments_page(
+        self,
+        issue_id: str,
+        first: int = 50,
+        after: str | None = None,
+        *,
+        include_archived: bool = False,
+    ) -> ListIssueAttachmentsResultIssueAttachments:
+        """Fetch one cursor page of an issue's attachments and source metadata."""
+        data = await self._client.execute_async(
+            LIST_ISSUE_ATTACHMENTS,
+            {
+                "id": issue_id,
+                "first": first,
+                "after": after,
+                "includeArchived": include_archived,
+            },
+        )
+        if data.get("issue") is None and "issue" in data:
+            return ListIssueAttachmentsResultIssueAttachments.model_validate(
+                _empty_page_payload(),
+            )
+        return ListIssueAttachmentsResult.model_validate(data).issue.attachments
+
+    def iter_issue_attachments(
+        self,
+        issue_id: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        include_archived: bool = False,
+    ) -> AsyncIterator[IssueContextAttachmentFields]:
+        """Iterate every attachment on an issue, following cursors automatically."""
+
+        async def fetch(
+            cursor: str | None,
+        ) -> ListIssueAttachmentsResultIssueAttachments:
+            return await self.list_issue_attachments_page(
+                issue_id,
+                first=page_size,
+                after=cursor,
+                include_archived=include_archived,
+            )
+
+        return paginate(fetch, limit=limit)
+
+    async def list_issue_relations_page(
+        self,
+        issue_id: str,
+        first: int = 50,
+        after: str | None = None,
+        *,
+        include_archived: bool = False,
+    ) -> ListIssueRelationsResultIssueRelations:
+        """Fetch one cursor page of outgoing issue relations."""
+        data = await self._client.execute_async(
+            LIST_ISSUE_RELATIONS,
+            {
+                "id": issue_id,
+                "first": first,
+                "after": after,
+                "includeArchived": include_archived,
+            },
+        )
+        if data.get("issue") is None and "issue" in data:
+            return ListIssueRelationsResultIssueRelations.model_validate(
+                _empty_page_payload(),
+            )
+        return ListIssueRelationsResult.model_validate(data).issue.relations
+
+    def iter_issue_relations(
+        self,
+        issue_id: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        include_archived: bool = False,
+    ) -> AsyncIterator[IssueContextRelationFields]:
+        """Iterate every outgoing issue relation, following cursors automatically."""
+
+        async def fetch(cursor: str | None) -> ListIssueRelationsResultIssueRelations:
+            return await self.list_issue_relations_page(
+                issue_id,
+                first=page_size,
+                after=cursor,
+                include_archived=include_archived,
+            )
+
+        return paginate(fetch, limit=limit)
+
+    async def list_issue_inverse_relations_page(
+        self,
+        issue_id: str,
+        first: int = 50,
+        after: str | None = None,
+        *,
+        include_archived: bool = False,
+    ) -> ListIssueInverseRelationsResultIssueInverseRelations:
+        """Fetch one cursor page of incoming (inverse) issue relations."""
+        data = await self._client.execute_async(
+            LIST_ISSUE_INVERSE_RELATIONS,
+            {
+                "id": issue_id,
+                "first": first,
+                "after": after,
+                "includeArchived": include_archived,
+            },
+        )
+        if data.get("issue") is None and "issue" in data:
+            return ListIssueInverseRelationsResultIssueInverseRelations.model_validate(
+                _empty_page_payload(),
+            )
+        return ListIssueInverseRelationsResult.model_validate(
+            data,
+        ).issue.inverse_relations
+
+    def iter_issue_inverse_relations(
+        self,
+        issue_id: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        include_archived: bool = False,
+    ) -> AsyncIterator[IssueContextRelationFields]:
+        """Iterate every incoming issue relation, following cursors automatically."""
+
+        async def fetch(
+            cursor: str | None,
+        ) -> ListIssueInverseRelationsResultIssueInverseRelations:
+            return await self.list_issue_inverse_relations_page(
+                issue_id,
+                first=page_size,
+                after=cursor,
+                include_archived=include_archived,
+            )
+
+        return paginate(fetch, limit=limit)
 
     async def list_issues(self, team_id: str, first: int = 50) -> list[IssueFields]:
         """List issues for a team.
@@ -178,8 +413,91 @@ class LinearQueries:
         team_id: str,
         first: int = 50,
     ) -> list[WorkflowStateFields]:
-        """List the first page of workflow states belonging to a team."""
+        """List the first page of workflow states belonging to a team.
+
+        Use :meth:`iter_workflow_states` to follow every page automatically.
+        """
         return (await self.list_workflow_states_page(team_id, first=first)).nodes
+
+    def iter_workflow_states(
+        self,
+        team_id: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        include_archived: bool = False,
+        order_by: PaginationOrderBy | None = None,
+    ) -> AsyncGenerator[WorkflowStateFields, None]:
+        """Iterate every workflow state belonging to a team, following cursors.
+
+        Args:
+            team_id: The Linear team ID.
+            page_size: How many states to request per round trip.
+            limit: Stop after this many states. None fetches every state.
+            include_archived: Whether to include archived workflow states.
+            order_by: Sort field.
+
+        Returns:
+            An async iterator over the team's workflow states.
+        """
+        _validate_pagination_options(page_size, limit)
+
+        async def fetch(cursor: str | None) -> ListWorkflowStatesResultWorkflowStates:
+            return await self.list_workflow_states_page(
+                team_id,
+                first=page_size,
+                after=cursor,
+                include_archived=include_archived,
+                order_by=order_by,
+            )
+
+        return paginate(fetch, limit=limit)
+
+    async def get_workflow_state_by_type(
+        self,
+        team_id: str,
+        state_type: str,
+        *,
+        include_archived: bool = False,
+    ) -> WorkflowStateFields:
+        """Return the unique state of ``state_type`` for a team.
+
+        Common types are ``triage``, ``backlog``, ``unstarted``, ``started``,
+        ``completed``, and ``canceled``. Linear exposes state types as strings, so
+        this method does not restrict values to a client-side list. Types are not
+        guaranteed to be unique within a team; in particular, teams may have
+        multiple ``canceled`` states such as Canceled and Duplicate. This method
+        searches all pages and raises :class:`LinearWorkflowStateLookupError` when
+        there is no unique match.
+
+        Raises:
+            LinearWorkflowStateLookupError: No state or multiple states match.
+            LinearAPIError: Linear rejects the query or the request fails.
+            LinearPaginationError: The workflow-state connection stalls.
+        """
+        matches: list[WorkflowStateFields] = []
+        states = self.iter_workflow_states(
+            team_id,
+            include_archived=include_archived,
+        )
+        async with aclosing(states):
+            async for state in states:
+                if state.type == state_type:
+                    matches.append(state)
+                    if len(matches) > 1:
+                        raise LinearWorkflowStateLookupError.for_result(
+                            team_id,
+                            state_type,
+                            multiple=True,
+                        )
+
+        if not matches:
+            raise LinearWorkflowStateLookupError.for_result(
+                team_id,
+                state_type,
+                multiple=False,
+            )
+        return matches[0]
 
     async def get_team(self, team_id: str) -> TeamFields | None:
         """Fetch a single team by ID.
@@ -282,6 +600,7 @@ class LinearQueries:
             >>> async for issue in queries.iter_issues({"team": {"id": {"eq": tid}}}):
             ...     print(issue.identifier)
         """
+        _validate_pagination_options(page_size, limit)
 
         async def fetch(cursor: str | None) -> ListIssuesResultIssues:
             return await self.list_issues_page(
@@ -334,6 +653,7 @@ class LinearQueries:
         Returns:
             An async iterator over search results.
         """
+        _validate_pagination_options(page_size, limit)
 
         async def fetch(cursor: str | None) -> SearchIssuesResultSearchIssues:
             return await self.search_issues(term, first=page_size, after=cursor)

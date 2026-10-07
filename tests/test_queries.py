@@ -10,11 +10,43 @@ import json
 from pathlib import Path
 
 import httpx
+import pytest
 import respx
 
 import gtm_linear
-from gtm_linear import LinearClient, LinearQueries, PaginationOrderBy
+from gtm_linear import (
+    LinearClient,
+    LinearQueries,
+    LinearWorkflowStateLookupError,
+    PaginationOrderBy,
+    WorkflowState,
+)
 from tests.conftest import API_URL, issue_payload, page_info_payload, user_payload
+
+
+def _workflow_state_page(
+    state_ids_and_types: list[tuple[str, str]],
+    *,
+    has_next: bool,
+    end: str | None,
+) -> dict[str, object]:
+    return {
+        "data": {
+            "workflowStates": {
+                "nodes": [
+                    {
+                        "id": state_id,
+                        "name": state_id.title(),
+                        "type": state_type,
+                        "color": "#ffffff",
+                        "position": float(index),
+                    }
+                    for index, (state_id, state_type) in enumerate(state_ids_and_types)
+                ],
+                "pageInfo": page_info_payload(has_next=has_next, end=end),
+            },
+        },
+    }
 
 
 def test_queries_wildcard_exports_search_result_type() -> None:
@@ -38,6 +70,224 @@ def test_filter_inputs_are_not_public_exports_or_documented_api() -> None:
     assert not any(name in gtm_linear.__all__ for name in obsolete_names)
     readme = (Path(__file__).parent.parent / "README.md").read_text()
     assert not any(name in readme for name in obsolete_names)
+
+
+@pytest.mark.parametrize("archive_mode", ["exclude", "include"])
+async def test_get_workflow_state_by_type_returns_unique_match_from_iterator(
+    monkeypatch: pytest.MonkeyPatch,
+    archive_mode: str,
+) -> None:
+    include_archived = archive_mode == "include"
+    states = [
+        WorkflowState(
+            id="todo",
+            name="Todo",
+            type="unstarted",
+            color="#ffffff",
+            position=1,
+        ),
+        WorkflowState(
+            id="done",
+            name="Done",
+            type="completed",
+            color="#ffffff",
+            position=2,
+        ),
+    ]
+    seen: list[tuple[str, dict[str, object]]] = []
+
+    async def iter_states(
+        _self: object,
+        team_id: str,
+        **kwargs: object,
+    ):
+        seen.append((team_id, kwargs))
+        for state in states:
+            yield state
+
+    monkeypatch.setattr(LinearQueries, "iter_workflow_states", iter_states)
+    async with LinearClient(api_key="key") as client:
+        state = await LinearQueries(client).get_workflow_state_by_type(
+            "team-1",
+            "completed",
+            include_archived=include_archived,
+        )
+
+    assert state.id == "done"
+    # ``include_archived`` is the lookup's only iterator option.
+    assert seen == [("team-1", {"include_archived": include_archived})]
+
+
+async def test_get_workflow_state_by_type_accepts_unrecognized_state_type(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state = WorkflowState(
+        id="future",
+        name="Future",
+        type="future-type",
+        color="#ffffff",
+        position=1,
+    )
+
+    async def iter_states(_self: object, _team_id: str, **_kwargs: object):
+        yield state
+
+    monkeypatch.setattr(LinearQueries, "iter_workflow_states", iter_states)
+    async with LinearClient(api_key="key") as client:
+        result = await LinearQueries(client).get_workflow_state_by_type(
+            "team-1",
+            "future-type",
+        )
+
+    assert result is state
+
+
+@pytest.mark.parametrize(
+    ("states", "message"),
+    [([], "found no state"), (["completed", "completed"], "found multiple states")],
+)
+async def test_get_workflow_state_by_type_requires_one_match(
+    monkeypatch: pytest.MonkeyPatch,
+    states: list[str],
+    message: str,
+) -> None:
+    async def iter_states(
+        _self: object,
+        _team_id: str,
+        **_kwargs: object,
+    ):
+        for index, state_type in enumerate(states):
+            yield WorkflowState(
+                id=f"state-{index}",
+                name=f"State {index}",
+                type=state_type,
+                color="#ffffff",
+                position=index,
+            )
+
+    monkeypatch.setattr(LinearQueries, "iter_workflow_states", iter_states)
+    async with LinearClient(api_key="key") as client:
+        with pytest.raises(LinearWorkflowStateLookupError, match=message):
+            await LinearQueries(client).get_workflow_state_by_type(
+                "team-1",
+                "completed",
+            )
+
+
+async def test_get_workflow_state_by_type_finds_match_on_later_page() -> None:
+    with respx.mock:
+        route = respx.post(API_URL)
+        route.side_effect = [
+            httpx.Response(
+                200,
+                json=_workflow_state_page(
+                    [("todo", "unstarted")],
+                    has_next=True,
+                    end="states-1",
+                ),
+            ),
+            httpx.Response(
+                200,
+                json=_workflow_state_page(
+                    [("done", "completed")],
+                    has_next=False,
+                    end=None,
+                ),
+            ),
+        ]
+        async with LinearClient(api_key="key") as client:
+            state = await LinearQueries(client).get_workflow_state_by_type(
+                "team-1",
+                "completed",
+            )
+
+    assert state.id == "done"
+    first, second = (json.loads(call.request.content) for call in route.calls)
+    assert first["variables"]["after"] is None
+    assert first["variables"]["includeArchived"] is False
+    assert second["variables"]["after"] == "states-1"
+
+
+async def test_get_workflow_state_by_type_reports_multiple_real_matches() -> None:
+    with respx.mock:
+        route = respx.post(API_URL)
+        route.side_effect = [
+            httpx.Response(
+                200,
+                json=_workflow_state_page(
+                    [("done-a", "completed")],
+                    has_next=True,
+                    end="states-1",
+                ),
+            ),
+            httpx.Response(
+                200,
+                json=_workflow_state_page(
+                    [("done-b", "completed")],
+                    has_next=True,
+                    end="states-2",
+                ),
+            ),
+            httpx.Response(
+                200,
+                json=_workflow_state_page(
+                    [("done-c", "completed")],
+                    has_next=False,
+                    end=None,
+                ),
+            ),
+        ]
+        async with LinearClient(api_key="key") as client:
+            with pytest.raises(LinearWorkflowStateLookupError) as error:
+                await LinearQueries(client).get_workflow_state_by_type(
+                    "team-1",
+                    "completed",
+                )
+
+    assert error.value.team_id == "team-1"
+    assert error.value.state_type == "completed"
+    assert error.value.multiple is True
+    assert len(route.calls) == 2
+
+
+async def test_get_workflow_state_by_type_closes_iterator_after_multiple_match(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    closed = False
+
+    async def iter_states(_self: object, _team_id: str, **_kwargs: object):
+        nonlocal closed
+        try:
+            for index in range(2):
+                yield WorkflowState(
+                    id=f"done-{index}",
+                    name=f"Done {index}",
+                    type="completed",
+                    color="#ffffff",
+                    position=index,
+                )
+        finally:
+            closed = True
+
+    monkeypatch.setattr(LinearQueries, "iter_workflow_states", iter_states)
+    async with LinearClient(api_key="key") as client:
+        with pytest.raises(LinearWorkflowStateLookupError, match="found multiple"):
+            await LinearQueries(client).get_workflow_state_by_type(
+                "team-1",
+                "completed",
+            )
+
+    assert closed
+
+
+def test_workflow_state_lookup_error_direct_construction_has_default_attributes() -> (
+    None
+):
+    error = LinearWorkflowStateLookupError("manual lookup error")
+
+    assert error.team_id is None
+    assert error.state_type is None
+    assert error.multiple is None
 
 
 async def test_get_issue_returns_parsed_issue() -> None:

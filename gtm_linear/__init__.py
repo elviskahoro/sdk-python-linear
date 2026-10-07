@@ -10,8 +10,25 @@ The generated classes are named after the GraphQL fragments that produce them
 
 from importlib.metadata import PackageNotFoundError, version
 
+from ._generated.CreateAttachment import AttachmentCreateInput
 from ._generated.CreateComment import CommentCreateInput
 from ._generated.CreateIssue import IssueCreateInput
+from ._generated.CreateIssueRelation import (
+    IssueRelationCreateInput,
+    IssueRelationType,
+)
+from ._generated.ListIssueAttachments import (
+    ListIssueAttachmentsResultIssueAttachments as IssueAttachmentConnection,
+)
+from ._generated.ListIssueComments import (
+    ListIssueCommentsResultIssueComments as IssueCommentConnection,
+)
+from ._generated.ListIssueInverseRelations import (
+    ListIssueInverseRelationsResultIssueInverseRelations as IssueInverseRelationConnection,
+)
+from ._generated.ListIssueRelations import (
+    ListIssueRelationsResultIssueRelations as IssueRelationConnection,
+)
 from ._generated.ListIssues import (
     ListIssuesResultIssues as IssueConnection,
     PaginationOrderBy,
@@ -24,8 +41,13 @@ from ._generated.SearchIssues import (
 )
 from ._generated.UpdateIssue import IssueUpdateInput
 from ._generated.fragments import (
+    AttachmentFields as Attachment,
     CommentFields as Comment,
+    IssueContextAttachmentFields as IssueContextAttachment,
+    IssueContextCommentFields as IssueContextComment,
+    IssueContextRelationFields as IssueContextRelation,
     IssueFields as Issue,
+    IssueRelationFields as IssueRelation,
     IssueSearchResultFields as IssueSearchResult,
     PageInfoFields as PageInfo,
     TeamFields as Team,
@@ -33,7 +55,11 @@ from ._generated.fragments import (
     WorkflowStateFields as WorkflowState,
 )
 from .client import LinearClient
-from .exceptions import LinearAPIError, LinearPaginationError
+from .exceptions import (
+    LinearAPIError,
+    LinearPaginationError,
+    LinearWorkflowStateLookupError,
+)
 from .models import LinearModel
 from .mutations import LinearMutations
 from .queries import LinearQueries
@@ -45,11 +71,23 @@ except PackageNotFoundError:  # running from a source tree without an install
     __version__ = "0.0.0.dev0"
 
 __all__ = [
+    "Attachment",
+    "AttachmentCreateInput",
     "Comment",
     "CommentCreateInput",
     "Issue",
+    "IssueAttachmentConnection",
+    "IssueCommentConnection",
     "IssueConnection",
+    "IssueContextAttachment",
+    "IssueContextComment",
+    "IssueContextRelation",
     "IssueCreateInput",
+    "IssueInverseRelationConnection",
+    "IssueRelation",
+    "IssueRelationConnection",
+    "IssueRelationCreateInput",
+    "IssueRelationType",
     "IssueSearchConnection",
     "IssueSearchResult",
     "IssueUpdateInput",
@@ -60,6 +98,7 @@ __all__ = [
     "LinearPaginationError",
     "LinearQueries",
     "LinearWorkflow",
+    "LinearWorkflowStateLookupError",
     "PageInfo",
     "PaginationOrderBy",
     "Team",

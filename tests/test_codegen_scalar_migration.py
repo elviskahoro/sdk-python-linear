@@ -16,11 +16,21 @@ import sys
 from pathlib import Path
 
 import pytest
+from graphql import GraphQLScalarType
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from scripts import codegen  # noqa: E402
+
+
+def test_restored_root_arguments_use_datetime_python_type() -> None:
+    """DateTime is emitted as ``datetime`` by Strawberry, including root args."""
+    scalar = GraphQLScalarType("DateTime")
+
+    assert codegen._python_type(scalar) == "datetime | None"  # noqa: S101, SLF001
+    assert codegen._python_type(scalar, nullable=False) == "datetime"  # noqa: S101, SLF001
+
 
 # Byte-for-byte what `strawberry schema-codegen` emits for `scalar IssueFilter`
 # before ruff formats it: one line, identity serialize/parse_value lambdas.
@@ -222,7 +232,8 @@ def test_patch_stage_fails_loudly_without_an_import_strawberry_line(
     tmp_path: Path,
 ) -> None:
     """Nothing to hang the StrawberryConfig import on; refuse to emit a module
-    that would NameError only at import time."""
+    that would NameError only at import time.
+    """
     (tmp_path / "pruned.graphql").write_text("type Query { ok: Int }")
     module = tmp_path / "_linear_schema.py"
     module.write_text(RAW_PATCH_INPUT.replace("import strawberry\n", ""))
@@ -235,7 +246,8 @@ def test_patch_stage_fails_loudly_without_a_one_line_schema_call(
     tmp_path: Path,
 ) -> None:
     """A wrapped Schema() call defeats the rewrite; the scalars would ship
-    unregistered, so the run must stop at generation time."""
+    unregistered, so the run must stop at generation time.
+    """
     (tmp_path / "pruned.graphql").write_text("type Query { ok: Int }")
     module = tmp_path / "_linear_schema.py"
     module.write_text(

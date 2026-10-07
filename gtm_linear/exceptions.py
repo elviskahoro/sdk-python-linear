@@ -124,3 +124,47 @@ class LinearPaginationError(LinearAPIError):
     before the error remain with the caller, so partial results survive by
     catching this.
     """
+
+
+class LinearWorkflowStateLookupError(LinearError):
+    """A team has zero or multiple workflow states of the requested type."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        team_id: str | None = None,
+        state_type: str | None = None,
+        multiple: bool | None = None,
+    ) -> None:
+        """Store lookup details; optional defaults preserve exception pickling."""
+        self.team_id = team_id
+        self.state_type = state_type
+        self.multiple = multiple
+        super().__init__(message)
+
+    @classmethod
+    def for_result(
+        cls,
+        team_id: str,
+        state_type: str,
+        *,
+        multiple: bool,
+    ) -> LinearWorkflowStateLookupError:
+        """Build a lookup error while retaining the query that produced it."""
+        if multiple:
+            message = (
+                f"Expected one workflow state for team {team_id!r}; found multiple "
+                f"states of type {state_type!r}."
+            )
+        else:
+            message = (
+                f"Expected one workflow state for team {team_id!r}; found no state "
+                f"of type {state_type!r}."
+            )
+        return cls(
+            message,
+            team_id=team_id,
+            state_type=state_type,
+            multiple=multiple,
+        )

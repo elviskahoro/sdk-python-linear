@@ -1,0 +1,12 @@
+query ListIssueRelations($id: String!, $first: Int!, $after: String, $includeArchived: Boolean!) {
+  issue(id: $id) {
+    relations(first: $first, after: $after, includeArchived: $includeArchived) {
+      nodes {
+        ...IssueContextRelationFields
+      }
+      pageInfo {
+        ...PageInfoFields
+      }
+    }
+  }
+}

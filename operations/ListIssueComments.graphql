@@ -1,0 +1,12 @@
+query ListIssueComments($id: String!, $first: Int!, $after: String, $includeArchived: Boolean!) {
+  issue(id: $id) {
+    comments(first: $first, after: $after, includeArchived: $includeArchived) {
+      nodes {
+        ...IssueContextCommentFields
+      }
+      pageInfo {
+        ...PageInfoFields
+      }
+    }
+  }
+}

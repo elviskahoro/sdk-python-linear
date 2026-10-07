@@ -10,7 +10,7 @@ import httpx
 import pytest
 import respx
 
-from gtm_linear import LinearClient, LinearQueries
+from gtm_linear import LinearClient, LinearQueries, PaginationOrderBy
 from gtm_linear.exceptions import LinearPaginationError
 from gtm_linear.pagination import MAX_CONSECUTIVE_EMPTY_PAGES, paginate
 from tests.conftest import API_URL, issue_payload, page_info_payload
@@ -70,6 +70,98 @@ async def test_iter_team_issues_follows_cursors() -> None:
     first, second = (json.loads(c.request.content) for c in route.calls)
     assert first["variables"]["after"] is None
     assert second["variables"]["after"] == "cur-1"
+
+
+@pytest.mark.parametrize(
+    ("method_name", "args"),
+    [
+        ("iter_issues", (None,)),
+        ("iter_team_issues", ("team-1",)),
+        ("iter_search_issues", ("term",)),
+        ("iter_workflow_states", ("team-1",)),
+    ],
+)
+@pytest.mark.parametrize(
+    ("options", "message"),
+    [
+        ({"page_size": 0}, "page_size must be greater than zero"),
+        ({"page_size": -1}, "page_size must be greater than zero"),
+        ({"limit": -1}, "limit must be greater than or equal to zero"),
+    ],
+)
+async def test_query_iterators_validate_pagination_options(
+    method_name: str,
+    args: tuple[str | None, ...],
+    options: dict[str, int],
+    message: str,
+) -> None:
+    async with LinearClient(api_key="key") as client:
+        method = getattr(LinearQueries(client), method_name)
+        with pytest.raises(ValueError, match=message):
+            method(*args, **options)
+
+
+async def test_iter_workflow_states_follows_cursors_and_respects_limit() -> None:
+    def state_payload(state_id: str, state_type: str) -> dict[str, object]:
+        return {
+            "id": state_id,
+            "name": state_id.title(),
+            "type": state_type,
+            "color": "#ffffff",
+            "position": 1.0,
+        }
+
+    def state_page(
+        state_id: str,
+        state_type: str,
+        *,
+        has_next: bool,
+        end: str | None,
+    ) -> dict[str, object]:
+        return {
+            "data": {
+                "workflowStates": {
+                    "nodes": [state_payload(state_id, state_type)],
+                    "pageInfo": page_info_payload(has_next=has_next, end=end),
+                },
+            },
+        }
+
+    with respx.mock:
+        route = respx.post(API_URL)
+        route.side_effect = [
+            httpx.Response(
+                200,
+                json=state_page("todo", "unstarted", has_next=True, end="cur-1"),
+            ),
+            httpx.Response(
+                200,
+                json=state_page("done", "completed", has_next=True, end="cur-2"),
+            ),
+        ]
+        async with LinearClient(api_key="key") as client:
+            states = [
+                state
+                async for state in LinearQueries(client).iter_workflow_states(
+                    "team-1",
+                    page_size=1,
+                    limit=2,
+                    include_archived=True,
+                    order_by=PaginationOrderBy.updatedAt,
+                )
+            ]
+
+    assert [state.id for state in states] == ["todo", "done"]
+    first, second = (json.loads(call.request.content) for call in route.calls)
+    assert first["variables"] == {
+        "filter": {"team": {"id": {"eq": "team-1"}}},
+        "first": 1,
+        "after": None,
+        "includeArchived": True,
+        "orderBy": "updatedAt",
+    }
+    assert second["variables"]["after"] == "cur-1"
+    assert len(route.calls) == 2
 
 
 async def test_iter_issues_respects_limit_and_stops_early() -> None:

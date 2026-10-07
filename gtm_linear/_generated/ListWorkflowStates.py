@@ -5,6 +5,11 @@ from gtm_linear.models import LinearModel
 from .fragments import PageInfoFields, WorkflowStateFields
 
 
+class PaginationOrderBy(Enum):
+    createdAt = "createdAt"
+    updatedAt = "updatedAt"
+
+
 class ListWorkflowStatesResultWorkflowStates(LinearModel):
     nodes: list[WorkflowStateFields]
     page_info: PageInfoFields
@@ -12,11 +17,6 @@ class ListWorkflowStatesResultWorkflowStates(LinearModel):
 
 class ListWorkflowStatesResult(LinearModel):
     workflow_states: ListWorkflowStatesResultWorkflowStates
-
-
-class PaginationOrderBy(Enum):
-    createdAt = "createdAt"
-    updatedAt = "updatedAt"
 
 
 class ListWorkflowStatesVariables(LinearModel):

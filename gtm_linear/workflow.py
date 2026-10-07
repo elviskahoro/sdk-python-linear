@@ -14,14 +14,18 @@ from .queries import LinearQueries
 if TYPE_CHECKING:
     from pydantic import SecretStr
 
+    from ._generated.CreateAttachment import AttachmentCreateInput
     from ._generated.CreateIssue import IssueCreateInput
+    from ._generated.CreateIssueRelation import IssueRelationCreateInput
     from ._generated.ListIssues import ListIssuesResultIssues
     from ._generated.ListWorkflowStates import ListWorkflowStatesResultWorkflowStates
     from ._generated.SearchIssues import SearchIssuesResultSearchIssues
     from ._generated.UpdateIssue import IssueUpdateInput
     from ._generated.fragments import (
+        AttachmentFields,
         CommentFields,
         IssueFields,
+        IssueRelationFields,
         IssueSearchResultFields,
         TeamFields,
         UserFields,
@@ -176,6 +180,71 @@ class LinearWorkflow:
         first: int = 50,
     ) -> list[WorkflowStateFields]:
         return self._run(self.list_workflow_states_async(team_id, first=first))
+
+    def iter_workflow_states_async(
+        self,
+        team_id: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        include_archived: bool = False,
+        order_by: PaginationOrderBy | None = None,
+    ) -> AsyncIterator[WorkflowStateFields]:
+        return self._queries.iter_workflow_states(
+            team_id,
+            page_size=page_size,
+            limit=limit,
+            include_archived=include_archived,
+            order_by=order_by,
+        )
+
+    def iter_workflow_states(
+        self,
+        team_id: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        include_archived: bool = False,
+        order_by: PaginationOrderBy | None = None,
+    ) -> Iterator[WorkflowStateFields]:
+        """Sync iterator over all states; materializes every page before yielding."""
+        async_iterator = self.iter_workflow_states_async(
+            team_id,
+            page_size=page_size,
+            limit=limit,
+            include_archived=include_archived,
+            order_by=order_by,
+        )
+        return iter(self._run(self._collect(async_iterator)))
+
+    async def get_workflow_state_by_type_async(
+        self,
+        team_id: str,
+        state_type: str,
+        *,
+        include_archived: bool = False,
+    ) -> WorkflowStateFields:
+        return await self._queries.get_workflow_state_by_type(
+            team_id,
+            state_type,
+            include_archived=include_archived,
+        )
+
+    @_sync_doc(LinearQueries.get_workflow_state_by_type)
+    def get_workflow_state_by_type(
+        self,
+        team_id: str,
+        state_type: str,
+        *,
+        include_archived: bool = False,
+    ) -> WorkflowStateFields:
+        return self._run(
+            self.get_workflow_state_by_type_async(
+                team_id,
+                state_type,
+                include_archived=include_archived,
+            ),
+        )
 
     async def list_issues_page_async(
         self,
@@ -411,6 +480,29 @@ class LinearWorkflow:
     @_sync_doc(LinearMutations.create_comment)
     def create_comment(self, issue_id: str, body: str) -> CommentFields:
         return self._run(self.create_comment_async(issue_id, body))
+
+    async def create_attachment_async(
+        self,
+        input_: AttachmentCreateInput,
+    ) -> AttachmentFields:
+        return await self._mutations.create_attachment(input_)
+
+    @_sync_doc(LinearMutations.create_attachment)
+    def create_attachment(self, input_: AttachmentCreateInput) -> AttachmentFields:
+        return self._run(self.create_attachment_async(input_))
+
+    async def create_issue_relation_async(
+        self,
+        input_: IssueRelationCreateInput,
+    ) -> IssueRelationFields:
+        return await self._mutations.create_issue_relation(input_)
+
+    @_sync_doc(LinearMutations.create_issue_relation)
+    def create_issue_relation(
+        self,
+        input_: IssueRelationCreateInput,
+    ) -> IssueRelationFields:
+        return self._run(self.create_issue_relation_async(input_))
 
     def _run(self, awaitable: Awaitable[T]) -> T:
         """Run one operation and release its async session before closing the loop."""

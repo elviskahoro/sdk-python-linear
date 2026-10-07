@@ -110,6 +110,52 @@ def test_sanitize_sdl_orders_scalars_and_enums_first() -> None:
     assert positions == sorted(positions)  # BUG-5
 
 
+def test_canonicalize_enum_placement_is_independent_of_emission_order() -> None:
+    """Enums move to a stable position without reordering generated models."""
+    enum_first = """\
+from enum import Enum
+
+
+class State(Enum):
+    open = "open"
+
+
+class Result:
+    id: str
+
+
+class Variables:
+    state: State
+"""
+    enum_between_models = """\
+from enum import Enum
+
+
+class Result:
+    id: str
+
+
+class State(Enum):
+    open = "open"
+
+
+class Variables:
+    state: State
+"""
+
+    canonical = codegen._canonicalize_enum_placement(enum_first)
+
+    assert canonical == codegen._canonicalize_enum_placement(enum_between_models)
+    assert canonical.index("class State") < canonical.index("class Result")
+    assert canonical.index("class Result") < canonical.index("class Variables")
+
+
+def test_canonicalize_enum_placement_leaves_non_enum_source_unchanged() -> None:
+    source = "from enum import Enum\n\n\nclass Result:\n    id: str\n"
+
+    assert codegen._canonicalize_enum_placement(source) == source
+
+
 def test_unwrap_names_the_wrapped_type_and_returns_none_otherwise() -> None:
     """Pin _unwrap's None contract so a refactor cannot change it silently.
 
