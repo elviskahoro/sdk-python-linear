@@ -6,6 +6,11 @@ from gtm_linear.models import LinearModel
 from .fragments import IssueFields, IssueFieldsAssignee, IssueFieldsState
 
 
+class SLADayCountType(Enum):
+    all = "all"
+    onlyBusinessDays = "onlyBusinessDays"
+
+
 class UpdateIssueResultIssueUpdate(LinearModel):
     success: bool
     issue: Optional[IssueFields]
@@ -13,11 +18,6 @@ class UpdateIssueResultIssueUpdate(LinearModel):
 
 class UpdateIssueResult(LinearModel):
     issue_update: UpdateIssueResultIssueUpdate
-
-
-class SLADayCountType(Enum):
-    all = "all"
-    onlyBusinessDays = "onlyBusinessDays"
 
 
 class IssueUpdateInput(LinearModel):

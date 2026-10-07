@@ -9,6 +9,13 @@ from .fragments import (
 )
 
 
+class IssueRelationType(Enum):
+    blocks = "blocks"
+    duplicate = "duplicate"
+    related = "related"
+    similar = "similar"
+
+
 class CreateIssueRelationResultIssueRelationCreate(LinearModel):
     success: bool
     issue_relation: IssueRelationFields
@@ -16,13 +23,6 @@ class CreateIssueRelationResultIssueRelationCreate(LinearModel):
 
 class CreateIssueRelationResult(LinearModel):
     issue_relation_create: CreateIssueRelationResultIssueRelationCreate
-
-
-class IssueRelationType(Enum):
-    blocks = "blocks"
-    duplicate = "duplicate"
-    related = "related"
-    similar = "similar"
 
 
 class IssueRelationCreateInput(LinearModel):

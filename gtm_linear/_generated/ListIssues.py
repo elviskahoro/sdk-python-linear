@@ -10,6 +10,11 @@ from .fragments import (
 )
 
 
+class PaginationOrderBy(Enum):
+    createdAt = "createdAt"
+    updatedAt = "updatedAt"
+
+
 class ListIssuesResultIssues(LinearModel):
     nodes: list[IssueFields]
     page_info: PageInfoFields
@@ -17,11 +22,6 @@ class ListIssuesResultIssues(LinearModel):
 
 class ListIssuesResult(LinearModel):
     issues: ListIssuesResultIssues
-
-
-class PaginationOrderBy(Enum):
-    createdAt = "createdAt"
-    updatedAt = "updatedAt"
 
 
 class ListIssuesVariables(LinearModel):

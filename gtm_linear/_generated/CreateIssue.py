@@ -6,6 +6,11 @@ from gtm_linear.models import LinearModel
 from .fragments import IssueFields, IssueFieldsAssignee, IssueFieldsState
 
 
+class SLADayCountType(Enum):
+    all = "all"
+    onlyBusinessDays = "onlyBusinessDays"
+
+
 class CreateIssueResultIssueCreate(LinearModel):
     success: bool
     issue: Optional[IssueFields]
@@ -13,11 +18,6 @@ class CreateIssueResultIssueCreate(LinearModel):
 
 class CreateIssueResult(LinearModel):
     issue_create: CreateIssueResultIssueCreate
-
-
-class SLADayCountType(Enum):
-    all = "all"
-    onlyBusinessDays = "onlyBusinessDays"
 
 
 class IssueCreateInput(LinearModel):
