@@ -171,6 +171,7 @@ class LinearQueries:
         include_archived: bool = False,
     ) -> AsyncIterator[IssueContextCommentFields]:
         """Iterate every comment on an issue, following cursors automatically."""
+        _validate_pagination_options(page_size, limit)
 
         async def fetch(cursor: str | None) -> ListIssueCommentsResultIssueComments:
             return await self.list_issue_comments_page(
@@ -215,6 +216,7 @@ class LinearQueries:
         include_archived: bool = False,
     ) -> AsyncIterator[IssueContextAttachmentFields]:
         """Iterate every attachment on an issue, following cursors automatically."""
+        _validate_pagination_options(page_size, limit)
 
         async def fetch(
             cursor: str | None,
@@ -261,6 +263,7 @@ class LinearQueries:
         include_archived: bool = False,
     ) -> AsyncIterator[IssueContextRelationFields]:
         """Iterate every outgoing issue relation, following cursors automatically."""
+        _validate_pagination_options(page_size, limit)
 
         async def fetch(cursor: str | None) -> ListIssueRelationsResultIssueRelations:
             return await self.list_issue_relations_page(
@@ -307,6 +310,7 @@ class LinearQueries:
         include_archived: bool = False,
     ) -> AsyncIterator[IssueContextRelationFields]:
         """Iterate every incoming issue relation, following cursors automatically."""
+        _validate_pagination_options(page_size, limit)
 
         async def fetch(
             cursor: str | None,

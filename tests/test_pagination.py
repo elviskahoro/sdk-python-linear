@@ -79,6 +79,10 @@ async def test_iter_team_issues_follows_cursors() -> None:
         ("iter_team_issues", ("team-1",)),
         ("iter_search_issues", ("term",)),
         ("iter_workflow_states", ("team-1",)),
+        ("iter_issue_comments", ("issue-1",)),
+        ("iter_issue_attachments", ("issue-1",)),
+        ("iter_issue_relations", ("issue-1",)),
+        ("iter_issue_inverse_relations", ("issue-1",)),
     ],
 )
 @pytest.mark.parametrize(
