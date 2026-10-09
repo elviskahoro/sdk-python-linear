@@ -1,0 +1,2 @@
+{"v":1,"agent":"pi","cli_version":"0.11.4","type":"user","ts":"2026-10-02T19:02:53.218Z","content":[{"text":"test"}]}
+{"v":1,"agent":"pi","cli_version":"0.11.4","type":"assistant","ts":"2026-10-02T19:02:55.729Z","id":"f7f44a64","input_tokens":18774,"output_tokens":76,"content":[{"type":"text","text":"Working — I'm in `/Users/elvis/Documents/ai/projects/sdk-python-linear`. What would you like to do?"}]}

@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M3YZYY129C1VQ90H1HV0027K",
+  "session_id": "01a0fdff-0f1b-706d-9d85-fbcce1eb8621",
+  "strategy": "import",
+  "created_at": "2026-10-02T19:02:53.218Z",
+  "commit_sha": "175ff107fe56c513993bee0b35320875f12e3215",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "agent": "Pi",
+  "model": "accounts/fireworks/routers/glm-fast-latest",
+  "checkpoint_transcript_start": 6,
+  "transcript_lines_at_start": 6,
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 18774,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 8,
+    "output_tokens": 76,
+    "api_call_count": 1
+  },
+  "kind": "imported"
+}
