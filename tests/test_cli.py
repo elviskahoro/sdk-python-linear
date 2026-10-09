@@ -943,6 +943,50 @@ def test_empty_env_api_key_does_not_shadow_dotenv(tmp_path: Path) -> None:
     assert route.calls.last.request.headers["Authorization"] == "lin_api_dotenv"  # noqa: S101
 
 
+def test_empty_env_timeout_falls_back_to_default() -> None:
+    """An exported-but-empty LINEAR_TIMEOUT falls through to the documented default.
+
+    Symmetric to ``test_empty_env_api_key_does_not_shadow_dotenv``: the
+    ``export X=$UNSET_VAR`` pattern is handled for endpoint fields too, so a
+    valid run is not aborted with ``invalid LINEAR_* settings: timeout: ...`` —
+    the empty value is ignored and the field default (``30.0``) is used, the
+    request succeeds, and the viewer is printed.
+    """
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["viewer"],
+            env={"LINEAR_API_KEY": "lin_api_test", "LINEAR_TIMEOUT": ""},
+        )
+    assert result.exit_code == 0  # noqa: S101
+    assert route.calls.called  # noqa: S101
+    assert "Alice" in result.output  # noqa: S101
+    assert "invalid LINEAR_* settings" not in result.output  # noqa: S101
+
+
+@pytest.mark.parametrize("api_key_env", ["", None])
+def test_empty_env_timeout_does_not_shadow_missing_key(
+    api_key_env: str | None,
+) -> None:
+    """An empty LINEAR_TIMEOUT must not mask the missing-key guidance.
+
+    Pass 2's ``ValidationError`` handler runs *before* the missing-key check,
+    so an empty timeout that raised would blame ``timeout`` instead of
+    pointing the user at ``LINEAR_API_KEY``. Both an explicitly-empty key
+    (``export LINEAR_API_KEY=$UNSET_VAR``) and an unset key (not exported at
+    all) must surface the actionable ``no LINEAR_API_KEY found`` guidance.
+    """
+    env: dict[str, str] = {"LINEAR_TIMEOUT": ""}
+    if api_key_env is not None:
+        env["LINEAR_API_KEY"] = api_key_env
+    with respx.mock:
+        result = runner.invoke(app, ["viewer"], env=env)
+    assert result.exit_code == 1  # noqa: S101
+    assert "no LINEAR_API_KEY found" in result.output  # noqa: S101
+    assert "invalid LINEAR_* settings" not in result.output  # noqa: S101
+
+
 def test_issue_json_lists_issue_dicts() -> None:
     with respx.mock:
         respx.post(API_URL).mock(side_effect=_graphql_router())
