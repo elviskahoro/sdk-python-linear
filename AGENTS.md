@@ -44,3 +44,10 @@ typed read/write paths, `pagination.py` drives cursor connections, and
   the plugin's exported ones); re-copy their base sections on plugin upgrades.
 - Tests intentionally exercise `_private` internals and use `assert` — scoped
   per-file ignores in `ruff.toml` cover this; do not add per-line noqas for it.
+
+<!-- entire-graph:begin -->
+This repo has the entire-graph code graph installed. Before exploring code with
+grep/find/whole-file reads, read .entire/graph-agent.md — resolution-first guidance
+for using graph retrieval, focused source inspection, and verification.
+@.entire/graph-agent.md
+<!-- entire-graph:end -->
