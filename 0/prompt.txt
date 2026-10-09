@@ -1,0 +1,4 @@
+go through these beads and close what's done:
+○ sdk-python-linear-aok ● P3 Handle strawberry.scalar class deprecation in generated _schema.py
+○ sdk-python-linear-iw3 ● P3 Pin the PyPI publish dagger module and add a github-actions update config
+○ sdk-python-linear-jzp ● P3 Refresh stale README sections (layout, status, conventions)
