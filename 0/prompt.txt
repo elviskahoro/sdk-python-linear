@@ -1,0 +1,1 @@
+create github issues for both and then close the beads. we don't want to use beads anymore automatically only manually if I explicitly want to!
