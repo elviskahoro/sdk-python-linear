@@ -74,7 +74,11 @@ from ._generated.fragments import (
     IssueSearchResultFields,
     WorkflowStateFields,
 )
-from .exceptions import LinearWorkflowStateLookupError
+from .exceptions import (
+    LinearGraphQLError,
+    LinearWorkflowStateLookupError,
+    _looks_like_not_found,  # pyright: ignore[reportPrivateUsage]
+)
 from .pagination import _validate_pagination_options, paginate
 
 
@@ -122,7 +126,23 @@ class LinearQueries:
         Returns:
             The issue, or None if it does not exist.
         """
-        data = await self._client.execute_async(GET_ISSUE, {"id": issue_id})
+        try:
+            data = await self._client.execute_async(GET_ISSUE, {"id": issue_id})
+        except LinearGraphQLError as exc:
+            # Linear reports unknown identifiers as a top-level GraphQL
+            # ``errors`` array rather than a null ``issue``, and
+            # ``LinearClient._handle_response`` raises the moment it sees that
+            # array — so ``data`` never reaches the null-``issue`` guard below
+            # for this not-found shape. Translate the issue-not-found wording
+            # back into the documented ``None`` (mirroring the CLI's
+            # ``_looks_like_not_found`` heuristic so a not-found for a
+            # *different* referenced entity — a team, a user — still
+            # propagates). See README ("Returns ``None`` on not-found (not an
+            # error)") and ``tests/test_cli.py``'s pinned live capture of
+            # Linear's wording.
+            if any(_looks_like_not_found(e) for e in exc.errors):
+                return None
+            raise
         if not data.get("issue"):
             return None
         return GetIssueResult.model_validate(data).issue

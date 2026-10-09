@@ -338,6 +338,45 @@ async def test_list_open_team_issues_applies_workflow_filter_and_order() -> None
     assert variables["orderBy"] == PaginationOrderBy.updatedAt.value
 
 
+async def test_get_issue_async_returns_none_for_not_found_identifier() -> None:
+    """The facade's ``-> IssueFields | None`` contract holds for the errors shape.
+
+    The bug report flagged ``LinearWorkflow.get_issue_async`` as the second
+    site of the same contract break as ``LinearQueries.get_issue``: it just
+    delegates ``await self._queries.get_issue(issue_id)``, so before the
+    queries-layer fix a missing identifier raised ``LinearGraphQLError``
+    through the facade despite the declared ``| None`` return. Pin the
+    pinned-live Linear not-found payload (the same capture as
+    ``tests/test_cli.py::test_issue_not_found_via_api_error_is_a_clean_error``)
+    through the real ``LinearWorkflow.get_issue_async`` path so the
+    contract surfaces through the facade, not just at the queries layer.
+    """
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "errors": [
+                        {
+                            "message": "Entity not found: Issue",
+                            "extensions": {
+                                "type": "invalid input",
+                                "code": "INPUT_ERROR",
+                                "statusCode": 400,
+                                "userError": True,
+                                "userPresentableMessage": (
+                                    "Could not find referenced Issue."
+                                ),
+                            },
+                        },
+                    ],
+                },
+            ),
+        )
+        async with LinearWorkflow("key") as linear:
+            assert await linear.get_issue_async("ENG-404") is None
+
+
 async def test_facade_iterators_delegate_and_sync_iterator_materializes(
     monkeypatch: Any,
 ) -> None:
