@@ -2,7 +2,7 @@
 
 Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, typed wrapper around `httpx` with optional sync support, Strawberry-typed models, explicit error semantics, and a bundled read-only CLI.
 
-> **Status:** Alpha (`0.3.0`, see `pyproject.toml` and `CHANGELOG.md`). API surface is small but incomplete — fall back to raw `LinearClient.execute_async` for anything not yet wrapped.
+> **Status:** Alpha (`0.4.0`, see `pyproject.toml` and `CHANGELOG.md`). API surface is small but incomplete — fall back to raw `LinearClient.execute_async` for anything not yet wrapped.
 
 ---
 
