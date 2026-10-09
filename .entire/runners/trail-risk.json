@@ -1,0 +1,37 @@
+{
+  "id": "trail-risk",
+  "display_name": "Risk Eval",
+  "enabled": true,
+  "scope": "trail",
+  "runtime": {
+    "kind": "prompt_runner",
+    "agent": "claude",
+    "timeout_ms": 300000,
+    "sandbox": {
+      "base_template": "claude",
+      "repo_token": "read"
+    }
+  },
+  "automation": {
+    "kind": "trail_prompt"
+  },
+  "prompt": {
+    "template": "You are a risk evaluator. Analyze the changes on branch \"{{branch}}\" compared to \"{{base_branch}}\".\n\nRun `git diff origin/{{base_branch}}...HEAD` to see the changes, then score **risk** from 0 to 100 (higher = more potential damage if something is wrong).\n\nThis repo is a typed async Python SDK over Linear's GraphQL API. Weigh these surfaces:\n\n- Transport & error contract (`client.py`, `exceptions.py`): changes to retry/timeout/error-mapping semantics affect every caller.\n- Typed read/write paths (`queries.py`, `mutations.py`) and cursor pagination (`pagination.py`): incorrect cursor or page-size handling can silently truncate or duplicate results.\n- Generated code (`gtm_linear/_generated/`, `gtm_linear/_schema.py`) and `operations/`: hand edits instead of regeneration risk schema drift that `--check` jobs only catch at CI.\n- CLI and settings (`workflow.py`, CLI module): new write commands or changes to env-var parsing can break automation users.\n- Publish/pipeline files: changes to the PyPI publisher or pinned module refs can break releases.\n\nScore bands:\n- 0-20: docs, comments, or test-only changes; no runtime behavior change.\n- 21-45: additive read-path helpers or CLI read flags with tests; generated code properly regenerated.\n- 46-70: changes to pagination, error mapping, or settings parsing; new write-path mutations; runtime dependency bumps.\n- 71-100: transport/retry/auth/error-contract changes, anything touching API-key or token handling, or publishing pipeline logic.\n\nOutput ONLY this JSON object as the very last line of your response:\n\n{\"value\": <number 0-100>, \"rationale\": \"<1-2 sentence explanation>\"}"
+  },
+  "select": {
+    "trigger_types": [
+      "api",
+      "push"
+    ]
+  },
+  "output": {
+    "adapter": "last_json_line",
+    "result_type": "trail_monitor",
+    "trail_monitor": {
+      "key": "risk",
+      "label": "Risk",
+      "value_type": "percent",
+      "polarity": "lower_is_better"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "id": "trail-drift",
+  "display_name": "Drift Eval",
+  "enabled": true,
+  "scope": "trail",
+  "runtime": {
+    "kind": "prompt_runner",
+    "agent": "claude",
+    "timeout_ms": 300000,
+    "sandbox": {
+      "base_template": "claude",
+      "repo_token": "read"
+    }
+  },
+  "automation": {
+    "kind": "trail_prompt"
+  },
+  "prompt": {
+    "template": "You are a drift evaluator. Analyze the changes on branch \"{{branch}}\" compared to \"{{base_branch}}\".\n\nRun `git diff origin/{{base_branch}}...HEAD` to see the changes, then score **drift** from 0 to 100 (higher = more deviation from the project's established patterns).\n\nEstablished patterns in this repo:\n\n- Generated code (`gtm_linear/_generated/`, `gtm_linear/_schema.py`) comes only from `scripts/codegen.py`; changes there should be regenerations, and fixes belong in the generator, not the output.\n- GraphQL operations live in `operations/*.graphql` paired with `_spec.toml`; the two change together.\n- Transport errors raise the typed hierarchy in `exceptions.py` — never bare `KeyError`/`ValueError` from the transport layer.\n- Tests intentionally exercise `_private` internals and use bare `assert` (covered by scoped ruff ignores) — no per-line noqas.\n- Async-first API with thin optional sync wrappers; the CLI is a facade over `workflow.py`, not a second implementation.\n- Repo-root `ruff.toml`/`pyrightconfig.json` are copies of shared plugin configs; don't restyle them ad hoc.\n\nScore bands:\n- 0-20: follows all conventions; generated changes properly regenerated.\n- 21-50: minor deviations (new test patterns, style drift) with no contract impact.\n- 51-75: bypasses conventions — hand-edited generated files, spec/GraphQL mismatch, bare exceptions from the transport layer, logic duplicated in the CLI.\n- 76-100: replaces core patterns — new error strategy, restructured codegen, divergent lint config.\n\nOutput ONLY this JSON object as the very last line of your response:\n\n{\"value\": <number 0-100>, \"rationale\": \"<1-2 sentence explanation>\"}"
+  },
+  "select": {
+    "trigger_types": [
+      "api",
+      "push"
+    ]
+  },
+  "output": {
+    "adapter": "last_json_line",
+    "result_type": "trail_monitor",
+    "trail_monitor": {
+      "key": "drift",
+      "label": "Drift",
+      "value_type": "percent",
+      "polarity": "lower_is_better"
+    }
+  }
+}

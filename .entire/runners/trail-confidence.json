@@ -1,0 +1,37 @@
+{
+  "id": "trail-confidence",
+  "display_name": "Confidence Eval",
+  "enabled": true,
+  "scope": "trail",
+  "runtime": {
+    "kind": "prompt_runner",
+    "agent": "claude",
+    "timeout_ms": 300000,
+    "sandbox": {
+      "base_template": "claude",
+      "repo_token": "read"
+    }
+  },
+  "automation": {
+    "kind": "trail_prompt"
+  },
+  "prompt": {
+    "template": "You are a confidence evaluator. Analyze the changes on branch \"{{branch}}\" compared to \"{{base_branch}}\".\n\nRun `git diff origin/{{base_branch}}...HEAD` to see the changes, then score **confidence** from 0 to 100 (higher = more confident the changes are correct and well-tested).\n\nThis is a typed async Python SDK (httpx + pydantic, network tests deselected, so transport mocking is the testing norm). Confidence signals:\n\n- Tests covering the changed behavior, mocking the transport rather than hitting the network.\n- `operations/*.graphql` and `_spec.toml` changed together so the operations check passes.\n- Errors raised from the typed `exceptions.py` hierarchy, not bare `KeyError`/`ValueError`.\n- Edge cases covered: missing-issue identifiers returning `None` vs raising, invalid pagination inputs (bad cursors, non-positive page sizes), empty-string env vars.\n- Changes under `_generated/` look like bulk, mechanical generator output, not hand edits.\n\nScore bands:\n- 0-30: behavior changes with no tests, or hand-edited generated files.\n- 31-60: tests present but happy-path only, or known edge-case classes untested.\n- 61-85: well-tested changes following existing patterns (mocked transport, typed exceptions).\n- 86-100: mechanical/regenerated changes with matching spec and test updates, or docs-only.\n\nOutput ONLY this JSON object as the very last line of your response:\n\n{\"value\": <number 0-100>, \"rationale\": \"<1-2 sentence explanation>\"}"
+  },
+  "select": {
+    "trigger_types": [
+      "api",
+      "push"
+    ]
+  },
+  "output": {
+    "adapter": "last_json_line",
+    "result_type": "trail_monitor",
+    "trail_monitor": {
+      "key": "confidence",
+      "label": "Confidence",
+      "value_type": "percent",
+      "polarity": "higher_is_better"
+    }
+  }
+}
