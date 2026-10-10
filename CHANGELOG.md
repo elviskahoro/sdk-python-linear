@@ -46,6 +46,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- The `iter_issue_comments`, `iter_issue_attachments`, `iter_issue_relations`,
+  and `iter_issue_inverse_relations` iterators now reject non-positive `page_size`
+  and negative `limit` eagerly via `_validate_pagination_options`, matching the
+  existing `iter_issues`/`iter_search_issues`/`iter_workflow_states` iterators.
+  Previously `page_size <= 0` was forwarded to the API (raising
+  `LinearGraphQLError` after a wasted round trip) and `limit < 0` was silently
+  swallowed by `paginate`'s early return.
 - The PyPI `Development Status` classifier now reads `3 - Alpha` (#69),
   matching the status the README and changelog have claimed since the 0.2.x
   line. PyPI serves classifiers from the published wheel's metadata, so the
