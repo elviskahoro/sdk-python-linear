@@ -362,22 +362,27 @@ if issues.page_info.has_next_page:
 
 ### Issue shape returned by queries
 
-`get_issue` and issue list/search methods return this projection:
+`get_issue` and issue list/search methods return this projection, whose field
+order and types match `Issue.model_fields` (the generated `IssueFields` model):
 
 ```python
 Issue(
     id: str,
+    identifier: str,        # e.g. "ENG-123" — the human-readable ID
     title: str,
     description: str | None,
-    identifier: str,       # e.g. "ENG-123" — the human-readable ID
     url: str,
-    priority: int | None,  # 0=None, 1=Urgent, 2=High, 3=Medium, 4=Low (Linear convention)
-    status: str | None,    # state.name flattened — e.g. "In Progress"
+    priority: float,        # 0=None, 1=Urgent, 2=High, 3=Medium, 4=Low (Linear convention; Linear's schema types this Float!)
+    state: IssueFieldsState,  # nested object: {id, name, type}; state.name is the display string, e.g. "In Progress"
     assignee: User | None,
 )
 ```
 
-`status` is a **flattened string** (the state's `name`), not the full Linear `WorkflowState` object. If you need state ID or color, use `execute_async` directly.
+`state` is a nested `IssueFieldsState` object carrying `{id, name, type}` — a
+projection of Linear's `WorkflowState`, not a flattened string. Use `state.name`
+for the human-readable status (e.g. `"In Progress"`). For state color or
+position, use `list_workflow_states` (the `WorkflowState` model includes
+`color` and `position`) or `execute_async` directly.
 
 ### Issue comments, attachments, and relations
 
