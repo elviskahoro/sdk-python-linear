@@ -2072,14 +2072,63 @@ class ExternalUser:
 @strawberry.type
 class Issue:
     assignee: User | None
-    attachments: AttachmentConnection
-    comments: CommentConnection
+
+    @strawberry.field
+    def attachments(
+        self,
+        after: str | None = None,
+        before: str | None = None,
+        filter: AttachmentFilter | None = None,
+        first: int | None = None,
+        include_archived: bool | None = None,
+        last: int | None = None,
+        order_by: PaginationOrderBy | None = None,
+    ) -> AttachmentConnection:
+        raise NotImplementedError
+
+    @strawberry.field
+    def comments(
+        self,
+        after: str | None = None,
+        before: str | None = None,
+        filter: CommentFilter | None = None,
+        first: int | None = None,
+        include_archived: bool | None = None,
+        last: int | None = None,
+        order_by: PaginationOrderBy | None = None,
+    ) -> CommentConnection:
+        raise NotImplementedError
+
     description: str | None
     id: strawberry.ID
     identifier: str
-    inverse_relations: IssueRelationConnection
+
+    @strawberry.field
+    def inverse_relations(
+        self,
+        after: str | None = None,
+        before: str | None = None,
+        first: int | None = None,
+        include_archived: bool | None = None,
+        last: int | None = None,
+        order_by: PaginationOrderBy | None = None,
+    ) -> IssueRelationConnection:
+        raise NotImplementedError
+
     priority: float
-    relations: IssueRelationConnection
+
+    @strawberry.field
+    def relations(
+        self,
+        after: str | None = None,
+        before: str | None = None,
+        first: int | None = None,
+        include_archived: bool | None = None,
+        last: int | None = None,
+        order_by: PaginationOrderBy | None = None,
+    ) -> IssueRelationConnection:
+        raise NotImplementedError
+
     state: WorkflowState
     title: str
     url: str

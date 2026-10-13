@@ -27,8 +27,9 @@ appear in a production schema. Each is worked around below and tagged BUG-n:
   BUG-5  Definitions are emitted in SDL order, so a default can precede its enum.
   BUG-6  Field arguments are dropped, leaving input types unreachable from the
          schema, which makes stage 4 fail on every mutation.
-  BUG-7  Root fields are emitted as class attributes with their arguments dropped;
-         the Query/Mutation classes are rebuilt as resolvers.
+  BUG-7  Fields are emitted as class attributes with their arguments dropped; the
+         Query/Mutation classes (and any nested object type whose fields declare
+         arguments, today only ``Issue``) are rebuilt as resolvers.
   BUG-8  Custom scalars are emitted as ``X = strawberry.scalar(NewType(...))``, the
          class form strawberry deprecates; rewritten to plain NewType aliases whose
          definitions are registered through ``StrawberryConfig.scalar_map``.
@@ -556,12 +557,16 @@ def _patch_schema_module(path: Path) -> None:
             )
             raise SystemExit(msg)
 
-    # BUG-7: schema-codegen emits root fields as class attributes and drops their
-    # arguments. Rebuild the Query and Mutation classes as Strawberry resolvers so
-    # the shipped schema remains a faithful mirror of the pruned SDL. Resolver
-    # bodies are intentionally unimplemented: this module describes the schema for
-    # callers who provide their own resolvers.
-    source = _restore_root_arguments(source, path.parent / "pruned.graphql")
+    # BUG-7: schema-codegen emits every field as a class attribute and drops its
+    # arguments — root and nested alike. Rebuild each affected Strawberry type as
+    # resolvers so the shipped schema remains a faithful mirror of the pruned SDL.
+    # Root ``Query``/``Mutation`` are always rebuilt; nested object types are
+    # rebuilt only when one of their fields declares arguments (today only
+    # ``Issue``, whose ``attachments``/``comments``/``relations``/
+    # ``inverseRelations`` carry pagination/filter args). Resolver bodies are
+    # intentionally unimplemented: this module describes the schema for callers
+    # who provide their own resolvers.
+    source = _restore_field_arguments(source, path.parent / "pruned.graphql")
 
     source = GENERATED_HEADER + source
     ast.parse(source)  # never emit Python that does not parse
@@ -593,21 +598,42 @@ def _python_type(type_: object, *, nullable: bool = True) -> str:
     return f"{rendered} | None" if nullable else rendered
 
 
-def _restore_root_arguments(source: str, sdl_path: Path) -> str:
-    """Restore Query/Mutation arguments omitted by Strawberry schema-codegen."""
+def _restore_field_arguments(source: str, sdl_path: Path) -> str:
+    """Restore field arguments Strawberry schema-codegen drops (BUG-7).
+
+    schema-codegen emits every field — root and nested alike — as a plain class
+    attribute, dropping its argument list. The pruned SDL carries the full
+    argument list for every field it keeps, so rebuild each affected Strawberry
+    type as resolvers that re-expose those arguments, keeping the shipped schema
+    a faithful mirror of the pruned SDL.
+
+    Root ``Query``/``Mutation`` are always rebuilt. Nested object types are
+    rebuilt only when at least one of their fields declares arguments (today
+    only ``Issue``; its ``attachments``/``comments``/``relations``/
+    ``inverseRelations`` carry pagination/filter args). Resolver bodies raise
+    ``NotImplementedError``: this module describes the schema for callers who
+    provide their own resolvers.
+    """
     schema = build_schema(sdl_path.read_text())
     tree = ast.parse(source)
     replacements: list[tuple[int, int, str]] = []
 
     for node in tree.body:
-        if not isinstance(node, ast.ClassDef) or node.name not in {"Query", "Mutation"}:
+        if not isinstance(node, ast.ClassDef):
             continue
-        root = schema.get_type(node.name)
-        if not isinstance(root, GraphQLObjectType):
+        sdl_type = schema.get_type(node.name)
+        if not isinstance(sdl_type, GraphQLObjectType):
+            continue
+        # Root types are always rebuilt (existing behaviour). Nested object
+        # types are rebuilt only when a field declares arguments: a type with
+        # no argumented fields is unchanged, so the restoration stays minimal
+        # and never churns classes that have nothing to restore.
+        is_root = node.name in {"Query", "Mutation"}
+        if not (is_root or any(field.args for field in sdl_type.fields.values())):
             continue
 
         lines = ["@strawberry.type", f"class {node.name}:"]
-        for field_name, field in root.fields.items():
+        for field_name, field in sdl_type.fields.items():
             python_field = _python_name(field_name)
             return_type = _python_type(field.type)
             if not field.args:

@@ -16,6 +16,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `required_statuses` moves in the same change; a status rename landing
   without it would stall the queue on a name that no longer posts.
 
+### Fixed
+
+- The generated Strawberry schema mirror (`gtm_linear/_schema.py`, shipped with
+  the `[strawberry]` extra) now declares the full argument lists on `Issue`'s
+  nested collection fields — `attachments`, `comments`, `relations`, and
+  `inverseRelations` — instead of dropping them. The codegen pipeline's
+  argument-restoration step was scoped to the root `Query`/`Mutation` types, so
+  these fields were emitted as plain argument-less attributes; a consumer
+  building a GraphQL server from the shipped schema could not express
+  pagination or filtering on them and queries Linear's real API validates
+  (e.g. the SDK's own `ListIssueAttachments` operation) were rejected
+  ({{detail_github_issue_ref}}).
+
 ## [0.4.0] - 2026-10-09
 
 ### Added
