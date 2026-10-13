@@ -374,7 +374,7 @@ Issue(
     url: str,
     priority: float,        # 0=None, 1=Urgent, 2=High, 3=Medium, 4=Low (Linear convention; Linear's schema types this Float!)
     state: IssueFieldsState,  # nested object: {id, name, type}; state.name is the display string, e.g. "In Progress"
-    assignee: User | None,
+    assignee: IssueFieldsAssignee | None,  # {id, name, email, active}; UserFields/User is a separate class with the same fields
 )
 ```
 
