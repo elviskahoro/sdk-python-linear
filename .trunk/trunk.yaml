@@ -94,7 +94,14 @@ lint:
   # then both pass vacuously -- tach exits 1 on the missing config, which the
   # plugin's success_codes accepts, and vale simply has no matching files.
   enabled:
-    - actionlint@1.17.0
+    # Pinned to the latest release before 1.17.0 added the cache-write-untrusted,
+    # cache-call-unrestricted, and cache-operation policies (default-on in 1.17.0;
+    # explicit `policy:` config is supported but the upgrade note warns the new
+    # policies can turn previously clean workflows into exits with status 1, even
+    # on repositories without a configuration file). Bump to 1.17.x once the
+    # surviving workflows (.github/workflows/{pullfrog,pypi}.yml) are revised and
+    # the policies pass on them.
+    - actionlint@1.16.1
     - add-trailing-comma@4.0.0
     - bandit@1.9.4
     - buildifier@8.2.1
