@@ -1,0 +1,132 @@
+on:
+  github:
+    pull_request:
+      # No base-branch `if:` filter -- matches .rwx/ci.yml's pull_request
+      # trigger (whose GHA source declared `pull_request: {}` with no
+      # branches filter), so this gate posts on every PR, including the
+      # Trunk merge queue's temporary trunk-merge/* PRs, which arrive as
+      # ordinary pull_request events (same mechanism gtm-sdk's queue relies
+      # on; its configs narrow with base-branch == 'main', the unfiltered
+      # trigger here is broader, not narrower).
+      init:
+        commit-sha: ${{ event.git.sha }}
+        repository: https://github.com/elviskahoro/sdk-python-linear.git
+        event-type: pull_request
+        # Same raw-webhook field gtm-sdk's .rwx/trunk-check.yml uses
+        # (event.github.pull_request.pull_request.base.sha, confirmed on real
+        # runs there 2026-09-26): PR-mode lint must diff against the PR's
+        # exact base commit, not the moving tip of main -- the tip would
+        # silently widen or narrow the lint scope whenever main has moved
+        # since the PR branched.
+        base-sha: ${{ event.github.pull_request.pull_request.base.sha }}
+        # Deliberately no push or cli trigger. gtm-sdk also runs the full-repo
+        # `trunk check --all --ci` on pushes to main as a post-merge safety net;
+        # this repo currently carries known pyright findings
+        # (gtm_linear/pagination.py, gtm_linear/queries.py) that --all fails on,
+        # and per the maintainer they stay unfixed for now, so that gate would be
+        # born red on every main push. Add the push full-lint task (and a manual
+        # cli dispatch for validation) once those findings are cleared. PR runs of
+        # this pipeline validate the wiring in the meantime.
+
+base:
+  image: ubuntu:24.04
+  config: rwx/base 1.2.0
+
+tasks:
+  - key: code
+    call: git/clone 2.2.0
+    with:
+      repository: ${{ init.repository }}
+      ref: ${{ init.commit-sha }}
+      # Full depth + preserved .git: the trunk-check task below resolves the
+      # PR's base commit (git cat-file) and diffs against it via
+      # `trunk check --upstream` -- both need real git history, not a
+      # shallow snapshot (same reason gtm-sdk's trunk-check code task sets
+      # these flags, unlike this repo's ci.yml clone, which nothing
+      # history-dependent consumes). Public repo, so no github-token is
+      # needed.
+      fetch-full-depth: true
+      preserve-git-dir: true
+
+  # Same checksum-pinned installer as .rwx/ci.yml's uv-install task, same
+  # rationale there: the astral.sh script at a versioned URL is stable for
+  # that version, and pinning the bytes makes an altered or compromised
+  # script fail closed instead of executing. Version matches ci.yml's
+  # (validated against uv sync --locked + the full pytest suite).
+  - key: uv-install
+    use: [code]
+    run: |
+      set -euo pipefail
+      script="$(mktemp)"
+      trap 'rm -f "${script}"' EXIT
+      curl -LsSf https://astral.sh/uv/0.11.29/install.sh -o "${script}"
+      echo "504a79fd2ed0dcd47e7f04f0792cfd0871f62e24a7fe40fa8ae0f563a369f2bd  ${script}" | sha256sum -c -
+      sh "${script}"
+      echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
+
+  # pyright and pyrefly resolve the project's dependencies through .venv
+  # (the pyright override in .trunk/trunk.yaml points at
+  # ${workspace}/.venv/bin/python), so the lint gate needs the same uv sync
+  # the test pipeline runs. Without it pyright fails red with confusing
+  # Unknown-type findings (see the comment on that override). Exports mirror
+  # ci.yml's deps task so downstream `trunk run` inherits them.
+  - key: deps
+    use: [uv-install]
+    env:
+      UV_LOCKED: "1"
+      UV_PYTHON: "3.13"
+    run: |
+      uv sync
+      echo "$PWD/.venv/bin" >> "$RWX_ENV/PATH"
+      echo "$PWD/.venv" > "$RWX_ENV/VIRTUAL_ENV"
+      echo "1" > "$RWX_ENV/UV_LOCKED"
+      echo "3.13" > "$RWX_ENV/UV_PYTHON"
+
+  # Ports gtm-sdk's .rwx/trunk-check.yml trunk-check-pr task, adapted for a
+  # public repo: no github-token and no GIT_ASKPASS base fetch are needed --
+  # the full-depth clone already contains the PR's base commit (the head
+  # descends from it), so presence is verified with git cat-file instead of
+  # re-fetching. Fork PRs get full lint coverage here (unlike gtm-sdk's
+  # Bazel gate, which skips them for secret safety) because this task uses
+  # no secrets. Incremental mode against the exact base commit also keeps
+  # the known pre-existing pyright findings out of the gate unless a PR
+  # touches those lines.
+  # The launcher is checksum-pinned (same rationale as uv-install):
+  # trunk.io/releases/trunk is latest-only -- no versioned URL exists -- so
+  # the bytes are pinned and any upstream change fails closed instead of
+  # executing. gtm-sdk pins an older launcher checksum for the same reason;
+  # this pin is the live bytes as of 2026-10-15 (smoke-tested: resolves to
+  # the cli.version pin, 1.25.0). Re-pin deliberately, never opportunistically.
+  # If this task fails with a checksum mismatch, the launcher rolled upstream:
+  # re-download, re-hash, and re-pin here. Failing closed is the design -- an
+  # unpinned launcher would execute whatever upstream serves -- but it reddens
+  # a required status until re-pinned, so treat it as urgent.
+  # `--ci` and `< /dev/null` are required, not cosmetic: without them trunk
+  # can hang on an interactive prompt with no TTY/stdin (observed on gtm-sdk:
+  # 2.5+ minutes of repeated cursor-clear escapes, no progress).
+  # No `if: init.event-type` guard (gtm-sdk has one because it also has push
+  # and cli tasks): with pull_request as the only trigger it is always true,
+  # and if a trigger is added later without a base-sha, the cat-file guard
+  # below fails loudly rather than silently skipping the lint and posting a
+  # green status.
+  - key: trunk-check-pr
+    use: [deps]
+    env:
+      BASE_SHA: ${{ init.base-sha }}
+    run: |
+      set -euo pipefail
+      git cat-file -e "${BASE_SHA}^{commit}"
+      trunk_launcher="$(mktemp)"
+      if ! curl -fsSL https://trunk.io/releases/trunk -o "${trunk_launcher}" ||
+        ! echo "700f8bbedfd226595999ea2202b9a7af75ba8398dd711f5f159f5bbba6cbf322  ${trunk_launcher}" | sha256sum -c -; then
+        rm -f "${trunk_launcher}"
+        echo "error: trunk launcher download or checksum failed" >&2
+        exit 1
+      fi
+      if ! install -m 755 "${trunk_launcher}" /usr/local/bin/trunk 2>/dev/null; then
+        mkdir -p "$HOME/.local/bin"
+        install -m 755 "${trunk_launcher}" "$HOME/.local/bin/trunk"
+        echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
+      fi
+      rm -f "${trunk_launcher}"
+      trunk check --upstream="${BASE_SHA}" --ci < /dev/null

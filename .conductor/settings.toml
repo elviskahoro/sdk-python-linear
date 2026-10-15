@@ -218,12 +218,15 @@ Body:
 
 Roborev: <clean (after M fix rounds) | N findings unresolved (list them) | unavailable (reason)>
 
-Push and create this PR? (or edit before I submit)
+<Push, open this PR, and submit it to the merge queue (auto-merges once CI passes) | Push and open this PR (not queued: draft or reviewers requested)>
+(or edit before I submit)
 ```
+
+Use the first closing line unless the PR will be opened `--draft` or with `--reviewer` (Step 13 skips the queue for those) — then use the second, so the approval prompt never promises a queue submission that won't happen.
 
 The roborev line is mandatory — never omit it. If it shows "unavailable", the user is implicitly being asked to proceed without review.
 
-If the user requests edits, revise and re-show. Don't auto-submit. A "yes" here authorizes closing or linking the GitHub issue (Step 9), the rebase (Step 10), the push (Step 11), and the PR creation (Step 12) — proceed through all of them without re-prompting (pausing only if the rebase hits conflicts).
+If the user requests edits, revise and re-show. Don't auto-submit. A "yes" here authorizes linking the GitHub issue (Step 9 — via `Closes #N` in the PR body or a Step 12b comment; the issue itself closes only when the PR lands, never by hand), the rebase (Step 10), the push (Step 11), the PR creation (Step 12), and the merge-queue submission (Step 13) — proceed through all of them without re-prompting (pausing only if the rebase hits conflicts, or if Step 13's roborev guard applies). Because the queue auto-merges the PR once CI passes, this single approval **is** the authorization to merge; the preview below says so explicitly so it can't be mistaken for a publish-only gate.
 
 ### Step 9: Note the GitHub issue disposition
 
@@ -306,17 +309,29 @@ gh issue comment <number> --repo <owner/repo> --body "Addressed in <PR URL from 
 - Do not close the issue yourself; partial or cross-repo work isn't the maintainer's signal to close it.
 - Skip silently if Step 9 found nothing to do here.
 
-### Step 13: Suggest the merge once tests and checks pass
+### Step 13: Submit the PR to the Trunk merge queue
 
-Merging is never automatic. Once the PR is open, check its status with a single call (`gh pr checks <pr-number>`). When tests and required checks have passed, suggest merging with the GitHub CLI and wait for the user to say yes:
+This repo lands PRs through the **Trunk Merge Queue**, not GitHub's "Merge" button. Once the PR is open, submit it to the queue — the queue runs predictive CI on a simulated post-merge branch and **auto-merges the PR once tests pass**. You do not wait for tests, poll in a loop, or click merge; submitting is the whole step.
 
 ```bash
-gh pr merge <pr-number> --squash
+trunk merge <pr-number>
 ```
 
-- Do not poll in a loop. If checks are still running, report that and stop; the user can ask again later.
-- Do not log in to, configure, or call any merge-queue service. If `gh` is not authenticated, say so and stop.
-- Never pass `--admin` or `--auto` unless the user asks for it.
+- `<pr-number>` is the GitHub PR number from Step 12's output — not a URL or branch name.
+- Skip the submit for PRs opened as drafts or with reviewers requested (`--draft` / `--reviewer`, see Modifiers) — either signals a human review gate before landing. Report that the PR is open but **not** queued, and submit only after the user says to land it (for drafts: after it is marked ready for review).
+- This step is already authorized by the single "yes" at Step 8. Don't re-prompt. Because the queue auto-merges once CI passes, that approval **is** the authorization to merge.
+- Optionally confirm acceptance with a **single** status check (never a tight loop): `trunk merge status <pr-number>`. Report the state (`Queued` / `Testing` / `Tests Passed` / `Merged`) and stop — the queue lands it asynchronously.
+
+Guardrails (full list in AGENTS.md → Landing PRs):
+
+- **Default priority.** Never pass `-p` / `--priority` above `medium` without an explicit reason from the user; `urgent`/`high` are for incidents only.
+- **Never `gh pr merge` or the GitHub "Merge" button.** Both bypass the queue and can break the landing order.
+- **Never `trunk merge --force`, `trunk merge pause`, or `trunk merge resume`.** Force bypasses branch protection; pause/resume are admin operations affecting every contributor.
+- **Auth failure** — run `trunk login` once and retry the submit.
+- **Queue not active** — if `trunk merge` reports the queue does not exist or is not enabled for the repo, stop and report that the PR is open but **not** queued. Never fall back to `gh pr merge` or the GitHub "Merge" button.
+- **Unresolved roborev findings** — the queue's gate is CI tests only; it does not re-run roborev. If the Step 8 preview's Roborev line was not clean, ask for an explicit merge confirmation before submitting instead of proceeding on the Step 8 approval alone.
+- **`Failed` / `PENDING_FAILURE`** — `PENDING_FAILURE` may be a flake: re-run the same `trunk merge <pr-number>` submit once (a failed PR is dequeued, so resubmitting re-tests it). `Failed` means push a fix to the PR branch and resubmit the same way. Do **not** resubmit blindly in a loop — after one retry, report the state and let the user decide.
+- **Refuse on `main` or a protected branch** — the queue operates on the feature-branch PR; there is no PR to queue from a protected branch.
 
 ## Modifiers: drafts, reviewers, labels
 
@@ -484,6 +499,7 @@ What's wrong: the Summary paraphrases the diff, the Test plan has no reasoning, 
 
 ## Red flags (stop and rethink)
 
+- **About to merge with `gh pr merge` or the GitHub "Merge" button.** This repo lands PRs through the Trunk merge queue (`trunk merge <pr>`, Step 13); the GitHub button bypasses the queue and can break the landing order.
 - **About to `git push` without running `roborev review --wait` first.** This is the repository-wide roborev gate defined in the repo's agent instructions; no PR should skip it.
 - **About to `git push` with more commits than the PR needs.** Squash to a coherent set first (Step 4); don't rely on GitHub's "Squash and merge" button to clean up history before review.
 - Drafting a PR with no Linear ticket, no design artifact, and no conversation-derived motivation.
