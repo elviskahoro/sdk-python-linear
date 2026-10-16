@@ -1,24 +1,28 @@
-# roborev review configuration for gtm-linear.
+# roborev review configuration for gtm-sdk.
 #
 # `review_guidelines` is embedded into every review prompt. Use it to encode
 # deliberate house decisions so the reviewer stops re-flagging them as findings.
 
-# Use Claude Code for review jobs.
+# Use the Claude Code agent for review jobs.
+#
+# No `model` pin on purpose: the claude CLI resolves its own default model per
+# machine, and it rejects Pi-style provider-prefixed model strings — so don't
+# pin one here. See the switch commit for the incident detail.
 agent = "claude-code"
 
 review_guidelines = """
-- Everything under gtm_linear/_generated/ plus gtm_linear/_schema.py is produced
-  by scripts/codegen.py from the pinned SDL in schema/ and the operations in
-  operations/. Generated code is lint-ignored by design (see .trunk/trunk.yaml);
-  do not flag style or typing issues inside generated files, and do not suggest
-  hand-editing them. Fixes belong in the generator, and codegen.py --check
-  fails CI on drift.
+- The anti-AI-co-author git hooks (scripts/git-hooks/prepare-commit-msg and
+  commit-msg) are intentionally a DENYLIST of known AI/agent identities (Claude,
+  Oz, Copilot, Cursor, Devin, Jules, ...), NOT a human allowlist. Do not suggest
+  switching to an allowlist or "reject every Co-Authored-By: not on a human
+  list" — humans co-author freely in this repo, so an allowlist would block
+  legitimate contributors and require perpetual upkeep. The correct maintenance
+  action is to extend the denylist when a new agent identity appears.
 
-- Tests intentionally exercise _private internals and use bare `assert`
-  instead of unittest/pytest assertion helpers. This is covered by scoped
-  per-file ignores in ruff.toml; do not flag it and do not suggest per-line
-  noqas.
-
-- Errors raise the typed hierarchy in exceptions.py. Do not flag the absence
-  of bare KeyError/ValueError from the transport layer — that is the contract.
+- scripts/setup-entire-hooks.py applies its --force custom-hook guard only to
+  prepare-commit-msg and commit-msg. This is deliberate, not an oversight: the
+  script re-seeds ONLY those two hooks (it unlinks Entire's .pre-entire backup
+  and rewrites them). Entire's own `entire enable` chains any pre-existing
+  post-commit / pre-push / post-rewrite hook to <hook>.pre-entire, so those
+  slots are already preserved without a separate guard (verified empirically).
 """
