@@ -24,6 +24,7 @@ import httpx
 import pytest
 import respx
 from pydantic import ValidationError
+from pydantic_core import PydanticCustomError
 from typer.testing import CliRunner
 
 from gtm_linear import (
@@ -2102,10 +2103,12 @@ def test_main_sanitizes_schema_drift_details(
             "IssueFields",
             [
                 {
-                    "type": "string_type",
+                    "type": PydanticCustomError(
+                        "evil_type",
+                        "Input should be a valid string\x1b[2K",
+                    ),
                     "loc": ("evil\x1b[31mfield",),
                     "input": 1,
-                    "msg": "Input should be a valid string\x1b[2K",
                 },
             ],
         )

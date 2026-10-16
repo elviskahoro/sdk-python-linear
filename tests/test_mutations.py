@@ -447,7 +447,7 @@ async def test_create_attachment_and_relation_reject_malformed_payloads(
     root = (
         "attachmentCreate" if method == "create_attachment" else "issueRelationCreate"
     )
-    payload = {"success": True}
+    payload: dict[str, object] = {"success": True}
     if entity_mode == "null":
         payload[result_entity] = None
     with respx.mock:
