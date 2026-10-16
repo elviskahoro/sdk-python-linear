@@ -2104,7 +2104,8 @@ def test_main_sanitizes_schema_drift_details(
             [
                 {
                     "type": PydanticCustomError(
-                        "evil_type", "Input should be a valid string\x1b[2K",
+                        "evil_type",
+                        "Input should be a valid string\x1b[2K",
                     ),
                     "loc": ("evil\x1b[31mfield",),
                     "input": 1,
