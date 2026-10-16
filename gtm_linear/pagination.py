@@ -54,7 +54,7 @@ class _Connection(Protocol[T]):
 MAX_CONSECUTIVE_EMPTY_PAGES = 3
 
 
-def _validate_pagination_options(page_size: int, limit: int | None) -> None:
+def validate_pagination_options(page_size: int, limit: int | None) -> None:
     """Reject invalid iterator bounds before any page request is made."""
     if page_size <= 0:
         message = "page_size must be greater than zero"

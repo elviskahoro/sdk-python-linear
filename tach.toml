@@ -1,0 +1,341 @@
+# Enforce the SDK package's internal dependency direction.
+source_roots = ["."]
+exclude = [
+  "tests/**",
+  "docs/**",
+  "tmp/**",
+  "worktrees/**",
+  ".venv/**",
+  ".agents/**",
+  ".beads/**",
+  ".context/**",
+  ".entire/**",
+  ".github/**",
+]
+
+forbid_circular_dependencies = true
+exact = true
+root_module = "forbid"
+ignore_type_checking_imports = false
+include_string_imports = true
+layers_explicit_depends_on = true
+layers = [
+  "tooling",
+  "entrypoints",
+  "api",
+  "workflow",
+  "operations",
+  "transport",
+  "pagination",
+  "configuration",
+  "errors",
+  "generated",
+  "models",
+]
+
+[rules]
+unused_ignore_directives = "error"
+require_ignore_directive_reasons = "error"
+unused_external_dependencies = "error"
+
+[cache]
+file_dependencies = ["tests/**", "pyproject.toml", "uv.lock", "tach.toml"]
+
+[external]
+# Tach resolves imported modules against runtime dependencies. These are
+# optional/build-only imports (plus stdlib tomllib on the supported Python 3.11+).
+exclude = [
+  "graphql",
+  "ruff",
+  "strawberry",
+  "tomllib",
+]
+
+[[modules]]
+path = "scripts"
+layer = "tooling"
+visibility = []
+depends_on = ["gtm_linear"]
+
+[[modules]]
+path = "gtm_linear"
+layer = "api"
+visibility = ["gtm_linear.cli", "scripts"]
+depends_on = [
+  "gtm_linear._generated",
+  "gtm_linear.client",
+  "gtm_linear.exceptions",
+  "gtm_linear.models",
+  "gtm_linear.mutations",
+  "gtm_linear.queries",
+  "gtm_linear.workflow",
+]
+
+[[modules]]
+path = "gtm_linear._generated"
+layer = "generated"
+visibility = [
+  "gtm_linear",
+  "gtm_linear.cli",
+  "gtm_linear.mutations",
+  "gtm_linear.queries",
+  "gtm_linear.workflow",
+]
+depends_on = ["gtm_linear.models"]
+
+[[modules]]
+path = "gtm_linear._schema"
+layer = "generated"
+visibility = []
+depends_on = []
+
+[[modules]]
+path = "gtm_linear.cli"
+layer = "entrypoints"
+visibility = []
+depends_on = [
+  "gtm_linear",
+  "gtm_linear._generated",
+  "gtm_linear.exceptions",
+  "gtm_linear.pagination",
+  "gtm_linear.settings",
+  "gtm_linear.workflow",
+]
+
+[[modules]]
+path = "gtm_linear.client"
+layer = "transport"
+visibility = [
+  "gtm_linear",
+  "gtm_linear.mutations",
+  "gtm_linear.queries",
+  "gtm_linear.workflow",
+]
+depends_on = ["gtm_linear.exceptions", "gtm_linear.settings"]
+
+[[modules]]
+path = "gtm_linear.exceptions"
+layer = "errors"
+visibility = [
+  "gtm_linear",
+  "gtm_linear.cli",
+  "gtm_linear.client",
+  "gtm_linear.pagination",
+  "gtm_linear.queries",
+]
+depends_on = []
+
+[[modules]]
+path = "gtm_linear.models"
+layer = "models"
+visibility = ["gtm_linear", "gtm_linear._generated"]
+depends_on = []
+
+[[modules]]
+path = "gtm_linear.mutations"
+layer = "operations"
+visibility = ["gtm_linear", "gtm_linear.workflow"]
+depends_on = ["gtm_linear._generated", "gtm_linear.client"]
+
+[[modules]]
+path = "gtm_linear.pagination"
+layer = "pagination"
+visibility = ["gtm_linear.cli", "gtm_linear.queries"]
+depends_on = ["gtm_linear.exceptions"]
+
+[[modules]]
+path = "gtm_linear.queries"
+layer = "operations"
+visibility = ["gtm_linear", "gtm_linear.workflow"]
+depends_on = [
+  "gtm_linear._generated",
+  "gtm_linear.client",
+  "gtm_linear.exceptions",
+  "gtm_linear.pagination",
+]
+
+[[modules]]
+path = "gtm_linear.settings"
+layer = "configuration"
+visibility = ["gtm_linear.cli", "gtm_linear.client"]
+depends_on = []
+
+[[modules]]
+path = "gtm_linear.workflow"
+layer = "workflow"
+visibility = ["gtm_linear", "gtm_linear.cli"]
+depends_on = [
+  "gtm_linear._generated",
+  "gtm_linear.client",
+  "gtm_linear.mutations",
+  "gtm_linear.queries",
+]
+
+[[interfaces]]
+from = ['^gtm_linear$']
+expose = [
+  "__version__",
+  "Attachment",
+  "AttachmentCreateInput",
+  "Comment",
+  "CommentCreateInput",
+  "Issue",
+  "IssueAttachmentConnection",
+  "IssueCommentConnection",
+  "IssueConnection",
+  "IssueContextAttachment",
+  "IssueContextComment",
+  "IssueContextRelation",
+  "IssueCreateInput",
+  "IssueInverseRelationConnection",
+  "IssueRelation",
+  "IssueRelationConnection",
+  "IssueRelationCreateInput",
+  "IssueRelationType",
+  "IssueSearchConnection",
+  "IssueSearchResult",
+  "IssueUpdateInput",
+  "LinearAPIError",
+  "LinearClient",
+  "LinearModel",
+  "LinearMutations",
+  "LinearPaginationError",
+  "LinearQueries",
+  "LinearWorkflow",
+  "LinearWorkflowStateLookupError",
+  "PageInfo",
+  "PaginationOrderBy",
+  "Team",
+  "User",
+  "WorkflowState",
+  "WorkflowStateConnection",
+]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]CreateAttachment$']
+expose = ["AttachmentCreateInput", "CreateAttachmentResult", "DOCUMENT"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]CreateComment$']
+expose = ["CommentCreateInput", "CreateCommentResult", "DOCUMENT"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]CreateIssue$']
+expose = ["CreateIssueResult", "DOCUMENT", "IssueCreateInput"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]CreateIssueRelation$']
+expose = ["CreateIssueRelationResult", "DOCUMENT", "IssueRelationCreateInput", "IssueRelationType"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]DeleteIssue$']
+expose = ["DeleteIssueResult", "DOCUMENT"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]GetIssue$']
+expose = ["DOCUMENT", "GetIssueResult"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]GetTeam$']
+expose = ["DOCUMENT", "GetTeamResult"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]GetTeamByKey$']
+expose = ["DOCUMENT", "GetTeamByKeyResult"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]GetUser$']
+expose = ["DOCUMENT", "GetUserResult"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]GetViewer$']
+expose = ["DOCUMENT", "GetViewerResult"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]ListIssueAttachments$']
+expose = ["DOCUMENT", "ListIssueAttachmentsResult", "ListIssueAttachmentsResultIssueAttachments"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]ListIssueComments$']
+expose = ["DOCUMENT", "ListIssueCommentsResult", "ListIssueCommentsResultIssueComments"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]ListIssueInverseRelations$']
+expose = ["DOCUMENT", "ListIssueInverseRelationsResult", "ListIssueInverseRelationsResultIssueInverseRelations"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]ListIssueRelations$']
+expose = ["DOCUMENT", "ListIssueRelationsResult", "ListIssueRelationsResultIssueRelations"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]ListIssues$']
+expose = ["DOCUMENT", "ListIssuesResult", "ListIssuesResultIssues", "PaginationOrderBy"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]ListWorkflowStates$']
+expose = ["DOCUMENT", "ListWorkflowStatesResult", "ListWorkflowStatesResultWorkflowStates"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]SearchIssues$']
+expose = ["DOCUMENT", "SearchIssuesResult", "SearchIssuesResultSearchIssues"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]UpdateIssue$']
+expose = ["DOCUMENT", "IssueUpdateInput", "UpdateIssueResult"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]fragments$']
+expose = [
+  "AttachmentFields",
+  "CommentFields",
+  "IssueContextAttachmentFields",
+  "IssueContextCommentFields",
+  "IssueContextRelationFields",
+  "IssueFields",
+  "IssueRelationFields",
+  "IssueSearchResultFields",
+  "PageInfoFields",
+  "TeamFields",
+  "UserFields",
+  "WorkflowStateFields",
+]
+
+[[interfaces]]
+from = ['^gtm_linear[.]client$']
+expose = ["DEFAULT_TIMEOUT", "LinearClient"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]exceptions$']
+expose = [
+  "GraphQLError",
+  "LinearAPIError",
+  "LinearGraphQLError",
+  "LinearHTTPError",
+  "LinearPaginationError",
+  "LinearResponseError",
+  "LinearWorkflowStateLookupError",
+]
+
+[[interfaces]]
+from = ['^gtm_linear[.]models$']
+expose = ["LinearModel"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]mutations$']
+expose = ["LinearMutations"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]pagination$']
+expose = ["paginate", "validate_pagination_options"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]queries$']
+expose = ["LinearQueries"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]settings$']
+expose = ["LinearSettings"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]workflow$']
+expose = ["LinearWorkflow"]

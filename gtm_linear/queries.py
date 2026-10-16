@@ -75,7 +75,7 @@ from ._generated.fragments import (
     WorkflowStateFields,
 )
 from .exceptions import LinearWorkflowStateLookupError
-from .pagination import _validate_pagination_options, paginate
+from .pagination import paginate, validate_pagination_options
 
 
 def _empty_page_payload() -> dict[str, object]:
@@ -171,7 +171,7 @@ class LinearQueries:
         include_archived: bool = False,
     ) -> AsyncIterator[IssueContextCommentFields]:
         """Iterate every comment on an issue, following cursors automatically."""
-        _validate_pagination_options(page_size, limit)
+        validate_pagination_options(page_size, limit)
 
         async def fetch(cursor: str | None) -> ListIssueCommentsResultIssueComments:
             return await self.list_issue_comments_page(
@@ -216,7 +216,7 @@ class LinearQueries:
         include_archived: bool = False,
     ) -> AsyncIterator[IssueContextAttachmentFields]:
         """Iterate every attachment on an issue, following cursors automatically."""
-        _validate_pagination_options(page_size, limit)
+        validate_pagination_options(page_size, limit)
 
         async def fetch(
             cursor: str | None,
@@ -263,7 +263,7 @@ class LinearQueries:
         include_archived: bool = False,
     ) -> AsyncIterator[IssueContextRelationFields]:
         """Iterate every outgoing issue relation, following cursors automatically."""
-        _validate_pagination_options(page_size, limit)
+        validate_pagination_options(page_size, limit)
 
         async def fetch(cursor: str | None) -> ListIssueRelationsResultIssueRelations:
             return await self.list_issue_relations_page(
@@ -310,7 +310,7 @@ class LinearQueries:
         include_archived: bool = False,
     ) -> AsyncIterator[IssueContextRelationFields]:
         """Iterate every incoming issue relation, following cursors automatically."""
-        _validate_pagination_options(page_size, limit)
+        validate_pagination_options(page_size, limit)
 
         async def fetch(
             cursor: str | None,
@@ -444,7 +444,7 @@ class LinearQueries:
         Returns:
             An async iterator over the team's workflow states.
         """
-        _validate_pagination_options(page_size, limit)
+        validate_pagination_options(page_size, limit)
 
         async def fetch(cursor: str | None) -> ListWorkflowStatesResultWorkflowStates:
             return await self.list_workflow_states_page(
@@ -604,7 +604,7 @@ class LinearQueries:
             >>> async for issue in queries.iter_issues({"team": {"id": {"eq": tid}}}):
             ...     print(issue.identifier)
         """
-        _validate_pagination_options(page_size, limit)
+        validate_pagination_options(page_size, limit)
 
         async def fetch(cursor: str | None) -> ListIssuesResultIssues:
             return await self.list_issues_page(
@@ -657,7 +657,7 @@ class LinearQueries:
         Returns:
             An async iterator over search results.
         """
-        _validate_pagination_options(page_size, limit)
+        validate_pagination_options(page_size, limit)
 
         async def fetch(cursor: str | None) -> SearchIssuesResultSearchIssues:
             return await self.search_issues(term, first=page_size, after=cursor)

@@ -56,6 +56,21 @@ lint:
           enabled: true
         - name: lint
           enabled: true
+    # The plugin's default command checks module boundaries. Tach's external
+    # dependency audit is separate, so include it in the same Trunk gate.
+    - name: tach
+      commands:
+        - name: lint
+          run: tach check --dependencies --interfaces --exact
+        - name: external
+          run: tach check-external
+          output: regex
+          read_output_from: stderr
+          parse_regex: "\\[FAIL\\] (?P<path>[^:]+):(?P<line>\\d+): (?P<message>.*)"
+          # A parser mismatch must not turn Tach's nonzero violation status into success.
+          success_codes: [0]
+          batch: true
+          cache_results: false
     # Trunk runs linters from a sandboxed tmp dir with `env -i`, so pyright's
     # usual environment discovery (PATH lookup) lands on Trunk's own node
     # runtime, which has none of the project's dependencies. That made pyright
@@ -88,11 +103,8 @@ lint:
         - ^docs/.+\.(md|mdx)$
 
   # Mirrors gtm-sdk's enabled list (shared lint stack; renovate bumps versions
-  # independently per repo). tach and vale ride along even though their support
-  # files are not here yet: tach needs a tach.toml (module boundaries are a
-  # per-repo design decision) and vale needs a docs/ tree plus .vale.ini. Until
-  # then both pass vacuously -- tach exits 1 on the missing config, which the
-  # plugin's success_codes accepts, and vale simply has no matching files.
+  # independently per repo). Vale is dormant until a docs/ tree and .vale.ini
+  # exist; it currently has no matching files.
   enabled:
     # Pinned to the latest release before 1.17.0 added the cache-write-untrusted,
     # cache-call-unrestricted, and cache-operation policies (default-on in 1.17.0;
