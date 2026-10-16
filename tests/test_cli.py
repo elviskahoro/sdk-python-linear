@@ -2095,7 +2095,7 @@ def test_main_sanitizes_schema_drift_details(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Even pydantic-supplied loc text must not carry escape sequences."""
+    """Even pydantic-supplied loc/msg text must not carry escape sequences."""
 
     def _drift() -> None:
         raise ValidationError.from_exception_data(
@@ -2105,6 +2105,7 @@ def test_main_sanitizes_schema_drift_details(
                     "type": "string_type",
                     "loc": ("evil\x1b[31mfield",),
                     "input": 1,
+                    "msg": "Input should be a valid string\x1b[2K",  # pyrefly: ignore[bad-typed-dict-key]
                 },
             ],
         )
