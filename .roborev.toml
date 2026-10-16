@@ -4,6 +4,9 @@
 # deliberate house decisions so the reviewer stops re-flagging them as findings.
 
 # Use Claude Code for review jobs.
+#
+# No `model` pin: the Claude CLI resolves its default per machine and rejects
+# Pi-style provider-prefixed model IDs. See `6679ada` (#85) for the switch.
 agent = "claude-code"
 
 review_guidelines = """
