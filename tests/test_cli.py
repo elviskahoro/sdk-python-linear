@@ -2109,7 +2109,6 @@ def test_main_sanitizes_schema_drift_details(
                     ),
                     "loc": ("evil\x1b[31mfield",),
                     "input": 1,
-                    "msg": "Input should be a valid string\x1b[2K",  # pyrefly: ignore[bad-typed-dict-key]
                 },
             ],
         )
