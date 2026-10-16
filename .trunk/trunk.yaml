@@ -376,7 +376,7 @@ merge:
   # Re-verify after any pipeline rename:
   #   gh pr checks <pr-number> --json name --jq '.[].name'
   #
-  # Both entries are posted by RWX (.rwx/ci.yml and .rwx/trunk-check.yml) --
+  # Both entries are posted by RWX (.rwx/tests.yml and .rwx/trunk-check.yml) --
   # the test gate (pytest plus the gen_operations/codegen drift checks and
   # the lean-install wheel check) and the lint gate, matching gtm-sdk's
   # two-gate queue. Neither pipeline's pull_request trigger has a
@@ -410,5 +410,5 @@ merge:
   # a name that never posts stalls the queue (Queued forever) instead of
   # failing loudly.
   required_statuses:
-    - "RWX: ci.yml (pull request)"
+    - "RWX: tests.yml (pull request)"
     - "RWX: trunk-check.yml (pull request)"

@@ -1,7 +1,7 @@
 on:
   github:
     pull_request:
-      # No base-branch `if:` filter -- matches .rwx/ci.yml's pull_request
+      # No base-branch `if:` filter -- matches .rwx/tests.yml's pull_request
       # trigger (whose GHA source declared `pull_request: {}` with no
       # branches filter), so this gate posts on every PR, including the
       # Trunk merge queue's temporary trunk-merge/* PRs, which arrive as
@@ -42,16 +42,16 @@ tasks:
       # PR's base commit (git cat-file) and diffs against it via
       # `trunk check --upstream` -- both need real git history, not a
       # shallow snapshot (same reason gtm-sdk's trunk-check code task sets
-      # these flags, unlike this repo's ci.yml clone, which nothing
+      # these flags, unlike this repo's tests.yml clone, which nothing
       # history-dependent consumes). Public repo, so no github-token is
       # needed.
       fetch-full-depth: true
       preserve-git-dir: true
 
-  # Same checksum-pinned installer as .rwx/ci.yml's uv-install task, same
+  # Same checksum-pinned installer as .rwx/tests.yml's uv-install task, same
   # rationale there: the astral.sh script at a versioned URL is stable for
   # that version, and pinning the bytes makes an altered or compromised
-  # script fail closed instead of executing. Version matches ci.yml's
+  # script fail closed instead of executing. Version matches tests.yml's
   # (validated against uv sync --locked + the full pytest suite).
   - key: uv-install
     use: [code]
@@ -69,7 +69,7 @@ tasks:
   # ${workspace}/.venv/bin/python), so the lint gate needs the same uv sync
   # the test pipeline runs. Without it pyright fails red with confusing
   # Unknown-type findings (see the comment on that override). Exports mirror
-  # ci.yml's deps task so downstream `trunk run` inherits them.
+  # tests.yml's deps task so downstream `trunk run` inherits them.
   - key: deps
     use: [uv-install]
     env:
