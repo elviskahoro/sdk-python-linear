@@ -42,14 +42,19 @@ unused_external_dependencies = "error"
 file_dependencies = ["tests/**", "pyproject.toml", "uv.lock", "tach.toml"]
 
 [external]
-# Tach resolves imported modules against runtime dependencies. These are
-# optional/build-only imports (plus stdlib tomllib on the supported Python 3.11+).
-exclude = [
-  "graphql",
-  "ruff",
-  "strawberry",
-  "tomllib",
-]
+# Tach resolves an import to a distribution name via importlib.metadata of
+# the *active* environment: under `uv run` (dev venv) `strawberry` resolves
+# to the `strawberry-graphql` distribution and `graphql` to `graphql-core`.
+# An `exclude` entry only suppresses the import when it matches the resolved
+# name, and empirically (tach 0.35.1) a hyphenated env-resolved name never
+# matches an exclude entry directly -- so `strawberry`/`graphql` below would
+# be ignored exactly when the audit runs inside the dev venv
+# (.rwx/ci.yml's tach-external task). The identity `rename` entries pin the
+# resolved names to the module names, making the excludes match in every
+# environment (dev venv, CI, or bare). ruff maps to a distribution of the
+# same name and tomllib is stdlib, so neither needs a rename.
+rename = ["graphql:graphql", "strawberry:strawberry"]
+exclude = ["graphql", "ruff", "strawberry", "tomllib"]
 
 [[modules]]
 path = "scripts"
@@ -225,7 +230,12 @@ expose = ["CreateIssueResult", "DOCUMENT", "IssueCreateInput"]
 
 [[interfaces]]
 from = ['^gtm_linear[.]_generated[.]CreateIssueRelation$']
-expose = ["CreateIssueRelationResult", "DOCUMENT", "IssueRelationCreateInput", "IssueRelationType"]
+expose = [
+  "CreateIssueRelationResult",
+  "DOCUMENT",
+  "IssueRelationCreateInput",
+  "IssueRelationType",
+]
 
 [[interfaces]]
 from = ['^gtm_linear[.]_generated[.]DeleteIssue$']
@@ -253,27 +263,52 @@ expose = ["DOCUMENT", "GetViewerResult"]
 
 [[interfaces]]
 from = ['^gtm_linear[.]_generated[.]ListIssueAttachments$']
-expose = ["DOCUMENT", "ListIssueAttachmentsResult", "ListIssueAttachmentsResultIssueAttachments"]
+expose = [
+  "DOCUMENT",
+  "ListIssueAttachmentsResult",
+  "ListIssueAttachmentsResultIssueAttachments",
+]
 
 [[interfaces]]
 from = ['^gtm_linear[.]_generated[.]ListIssueComments$']
-expose = ["DOCUMENT", "ListIssueCommentsResult", "ListIssueCommentsResultIssueComments"]
+expose = [
+  "DOCUMENT",
+  "ListIssueCommentsResult",
+  "ListIssueCommentsResultIssueComments",
+]
 
 [[interfaces]]
 from = ['^gtm_linear[.]_generated[.]ListIssueInverseRelations$']
-expose = ["DOCUMENT", "ListIssueInverseRelationsResult", "ListIssueInverseRelationsResultIssueInverseRelations"]
+expose = [
+  "DOCUMENT",
+  "ListIssueInverseRelationsResult",
+  "ListIssueInverseRelationsResultIssueInverseRelations",
+]
 
 [[interfaces]]
 from = ['^gtm_linear[.]_generated[.]ListIssueRelations$']
-expose = ["DOCUMENT", "ListIssueRelationsResult", "ListIssueRelationsResultIssueRelations"]
+expose = [
+  "DOCUMENT",
+  "ListIssueRelationsResult",
+  "ListIssueRelationsResultIssueRelations",
+]
 
 [[interfaces]]
 from = ['^gtm_linear[.]_generated[.]ListIssues$']
-expose = ["DOCUMENT", "ListIssuesResult", "ListIssuesResultIssues", "PaginationOrderBy"]
+expose = [
+  "DOCUMENT",
+  "ListIssuesResult",
+  "ListIssuesResultIssues",
+  "PaginationOrderBy",
+]
 
 [[interfaces]]
 from = ['^gtm_linear[.]_generated[.]ListWorkflowStates$']
-expose = ["DOCUMENT", "ListWorkflowStatesResult", "ListWorkflowStatesResultWorkflowStates"]
+expose = [
+  "DOCUMENT",
+  "ListWorkflowStatesResult",
+  "ListWorkflowStatesResultWorkflowStates",
+]
 
 [[interfaces]]
 from = ['^gtm_linear[.]_generated[.]SearchIssues$']
