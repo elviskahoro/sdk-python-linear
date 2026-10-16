@@ -58,19 +58,25 @@ lint:
           enabled: true
     # The plugin's default command checks module boundaries. Tach's external
     # dependency audit is separate, so include it in the same Trunk gate.
+    #
+    # No `external` command here on purpose. Trunk executes batch lint
+    # commands from a sandboxed tmp dir that contains only the diff's files
+    # plus direct configs, and `tach check-external` decides "used" by
+    # scanning the imports visible from its cwd -- the diff, not the tree.
+    # Every runtime dependency whose import sites sit outside the diff was
+    # reported "not used": #108's own PR run flagged all four (httpx, pydantic,
+    # pydantic_settings, typer), and any single-file Python PR trips it the
+    # same way, which would reject every queue entry once the merge queue
+    # gates on this pipeline. There is no way to point it at the real
+    # workspace from a lint command (Trunk does binary lookup, not a shell,
+    # so `cd ${workspace} && ...` dies with "Unable to find binary in PATH:
+    # cd"; tach has no --root flag), so the audit lives in .rwx/ci.yml's
+    # tach-external task, which runs against the full checkout and is
+    # required by the same queue.
     - name: tach
       commands:
         - name: lint
           run: tach check --dependencies --interfaces --exact
-        - name: external
-          run: tach check-external
-          output: regex
-          read_output_from: stderr
-          parse_regex: "\\[FAIL\\] (?P<path>[^:]+):(?P<line>\\d+): (?P<message>.*)"
-          # A parser mismatch must not turn Tach's nonzero violation status into success.
-          success_codes: [0]
-          batch: true
-          cache_results: false
     # Trunk runs linters from a sandboxed tmp dir with `env -i`, so pyright's
     # usual environment discovery (PATH lookup) lands on Trunk's own node
     # runtime, which has none of the project's dependencies. That made pyright
