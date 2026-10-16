@@ -212,61 +212,90 @@ expose = [
 ]
 
 [[interfaces]]
-from = ['^gtm_linear[.]._generated$']
+from = ['^gtm_linear[.]_generated[.]CreateAttachment$']
+expose = ["AttachmentCreateInput", "CreateAttachmentResult", "DOCUMENT"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]CreateComment$']
+expose = ["CommentCreateInput", "CreateCommentResult", "DOCUMENT"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]CreateIssue$']
+expose = ["CreateIssueResult", "DOCUMENT", "IssueCreateInput"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]CreateIssueRelation$']
+expose = ["CreateIssueRelationResult", "DOCUMENT", "IssueRelationCreateInput", "IssueRelationType"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]DeleteIssue$']
+expose = ["DeleteIssueResult", "DOCUMENT"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]GetIssue$']
+expose = ["DOCUMENT", "GetIssueResult"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]GetTeam$']
+expose = ["DOCUMENT", "GetTeamResult"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]GetTeamByKey$']
+expose = ["DOCUMENT", "GetTeamByKeyResult"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]GetUser$']
+expose = ["DOCUMENT", "GetUserResult"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]GetViewer$']
+expose = ["DOCUMENT", "GetViewerResult"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]ListIssueAttachments$']
+expose = ["DOCUMENT", "ListIssueAttachmentsResult", "ListIssueAttachmentsResultIssueAttachments"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]ListIssueComments$']
+expose = ["DOCUMENT", "ListIssueCommentsResult", "ListIssueCommentsResultIssueComments"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]ListIssueInverseRelations$']
+expose = ["DOCUMENT", "ListIssueInverseRelationsResult", "ListIssueInverseRelationsResultIssueInverseRelations"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]ListIssueRelations$']
+expose = ["DOCUMENT", "ListIssueRelationsResult", "ListIssueRelationsResultIssueRelations"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]ListIssues$']
+expose = ["DOCUMENT", "ListIssuesResult", "ListIssuesResultIssues", "PaginationOrderBy"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]ListWorkflowStates$']
+expose = ["DOCUMENT", "ListWorkflowStatesResult", "ListWorkflowStatesResultWorkflowStates"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]SearchIssues$']
+expose = ["DOCUMENT", "SearchIssuesResult", "SearchIssuesResultSearchIssues"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]UpdateIssue$']
+expose = ["DOCUMENT", "IssueUpdateInput", "UpdateIssueResult"]
+
+[[interfaces]]
+from = ['^gtm_linear[.]_generated[.]fragments$']
 expose = [
-  "AttachmentCreateInput",
   "AttachmentFields",
-  "CommentCreateInput",
   "CommentFields",
-  "CreateAttachmentResult",
-  "CreateCommentResult",
-  "CreateIssueRelationResult",
-  "CreateIssueResult",
-  "DOCUMENT",
-  "DeleteIssueResult",
-  "GetIssueResult",
-  "GetTeamByKeyResult",
-  "GetTeamResult",
-  "GetUserResult",
-  "GetViewerResult",
   "IssueContextAttachmentFields",
   "IssueContextCommentFields",
-  "IssueContextCommentFieldsExternalUser",
-  "IssueContextCommentFieldsUser",
   "IssueContextRelationFields",
-  "IssueContextRelationFieldsIssue",
-  "IssueContextRelationFieldsRelatedIssue",
-  "IssueCreateInput",
   "IssueFields",
-  "IssueFieldsAssignee",
-  "IssueFieldsState",
-  "IssueRelationCreateInput",
   "IssueRelationFields",
-  "IssueRelationFieldsIssue",
-  "IssueRelationFieldsRelatedIssue",
-  "IssueRelationType",
   "IssueSearchResultFields",
-  "IssueSearchResultFieldsAssignee",
-  "IssueSearchResultFieldsState",
-  "IssueUpdateInput",
-  "ListIssueAttachmentsResult",
-  "ListIssueAttachmentsResultIssueAttachments",
-  "ListIssueCommentsResult",
-  "ListIssueCommentsResultIssueComments",
-  "ListIssueInverseRelationsResult",
-  "ListIssueInverseRelationsResultIssueInverseRelations",
-  "ListIssueRelationsResult",
-  "ListIssueRelationsResultIssueRelations",
-  "ListIssuesResult",
-  "ListIssuesResultIssues",
-  "ListWorkflowStatesResult",
-  "ListWorkflowStatesResultWorkflowStates",
   "PageInfoFields",
-  "PaginationOrderBy",
-  "SearchIssuesResult",
-  "SearchIssuesResultSearchIssues",
   "TeamFields",
-  "UpdateIssueResult",
   "UserFields",
   "WorkflowStateFields",
 ]
@@ -297,7 +326,7 @@ expose = ["LinearMutations"]
 
 [[interfaces]]
 from = ['^gtm_linear[.]pagination$']
-expose = ["_validate_pagination_options", "paginate"]
+expose = ["paginate", "validate_pagination_options"]
 
 [[interfaces]]
 from = ['^gtm_linear[.]queries$']

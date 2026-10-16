@@ -67,7 +67,8 @@ lint:
           output: regex
           read_output_from: stderr
           parse_regex: "\\[FAIL\\] (?P<path>[^:]+):(?P<line>\\d+): (?P<message>.*)"
-          success_codes: [0, 1]
+          # A parser mismatch must not turn Tach's nonzero violation status into success.
+          success_codes: [0]
           batch: true
           cache_results: false
     # Trunk runs linters from a sandboxed tmp dir with `env -i`, so pyright's
