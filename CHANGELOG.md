@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- The RWX CI pipeline `.rwx/ci.yml` is renamed `.rwx/tests.yml`, so its
+  GitHub status now reads "RWX: tests.yml (pull request)" — the name says
+  what the gate does (the pytest suite, the `gen_operations`/`codegen`
+  drift checks, the lean wheel-install check) and matches gtm-sdk's
+  `tests-*.yml` pipeline naming. `.trunk/trunk.yaml`'s merge-queue
+  `required_statuses` moves in the same change; a status rename landing
+  without it would stall the queue on a name that no longer posts.
+
 ## [0.4.0] - 2026-10-09
 
 ### Added
