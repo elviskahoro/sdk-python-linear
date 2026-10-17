@@ -424,7 +424,7 @@ merge:
   # admission and merges into main on the GitHub side.
   #
   # The lint gate's PR mode diffs against the PR's exact base commit
-  # (--upstream=$BASE_SHA, see .rwx/trunk-check.yml), so the known
+  # (--upstream=$MERGE_BASE, see .rwx/trunk-check.yml), so the known
   # pre-existing pyright findings (gtm_linear/pagination.py,
   # gtm_linear/queries.py) only fail it when a PR touches those lines --
   # they do not block unrelated PRs or the queue.
