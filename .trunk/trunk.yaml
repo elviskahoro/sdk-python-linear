@@ -94,6 +94,24 @@ lint:
         - name: lint
           run: pyright --pythonpath ${workspace}/.venv/bin/python --outputjson ${target}
 
+    # Trunk runs linters from a sandboxed tmp dir, so pyrefly's usual environment
+    # discovery (interpreter resolution via PATH lookup) lands in Trunk's sandbox,
+    # not the project workspace. The pyrefly plugin (oss-linter-trunk-pyrefly v0.2.0)
+    # claims to pass --python-interpreter-path ${workspace}/.venv/bin/python and
+    # --search-path ${workspace} automatically, but this fails in environments where
+    # .venv/bin/python is a symlink to /usr/local/bin/python3 (typical in cloud
+    # sandboxes), because pyrefly's interpreter-resolver follows the symlink target,
+    # landing outside the venv's site-packages. See #120.
+    #
+    # This overrides the plugin's whole pyrefly invocation to explicitly pass the
+    # workspace venv paths, matching the pattern used for pyright above. Re-check
+    # this command against the plugin definition whenever trunk.yaml bumps plugin
+    # versions.
+    - name: pyrefly
+      commands:
+        - name: lint
+          run: pyrefly check --python-interpreter-path ${workspace}/.venv/bin/python --search-path ${workspace} --output-format=min-text --summary=none ${target}
+
     # Vale is scoped exclusively to docs/** via a custom file type -- there is
     # no first-class "restrict this linter to a directory" field on `enabled`
     # entries, and `regexes` (unlike `extensions`) match the full path from
