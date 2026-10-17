@@ -1,6 +1,6 @@
 # gtm-linear
 
-Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, typed wrapper around `httpx` with optional sync support, Strawberry-typed models, explicit error semantics, and a bundled read-only CLI.
+Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, typed wrapper around `httpx` with optional sync support, Strawberry-typed models, explicit error semantics, and a bundled CLI.
 
 > **Status:** Alpha (`0.4.0`, see `pyproject.toml` and `CHANGELOG.md`). API surface is small but incomplete — fall back to raw `LinearClient.execute_async` for anything not yet wrapped.
 
@@ -14,7 +14,7 @@ Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, t
 | Need ad-hoc GraphQL escape hatch alongside typed helpers | Yes — `LinearClient.execute_async(query, variables)` |
 | Building MCP-style tooling against Linear | Yes (low-level), or prefer the official Linear MCP server for higher-level intent |
 | Need full coverage of Linear's GraphQL schema | **No** — only a focused subset of Linear types is wrapped today |
-| Need webhooks, OAuth flow, or attachments | **No** — not implemented |
+| Need webhooks or OAuth flow | **No** — not implemented |
 | Writing a one-off shell command | Yes — the bundled CLI: `uvx gtm-linear issues --team ENG` |
 
 If you only need to *create or read a few issues* from an automation, this is the right tool. If you need broad schema coverage, drop down to `execute_async` with a hand-written query.
@@ -95,7 +95,7 @@ Three classes, all importable from the package root:
 ```text
 LinearClient        # transport + auth + GraphQL execution
   ├── LinearQueries # typed read wrappers (get_issue, list_issues, search_issues, get_team, get_user)
-  └── LinearMutations # typed write wrappers (issues and comments)
+  └── LinearMutations # typed write wrappers (issues, comments, ...)
 LinearWorkflow      # injected-key CLI facade over every typed read/write helper
 ```
 
@@ -550,7 +550,7 @@ sdk-python-linear/
 │   ├── __init__.py           # public re-exports
 │   ├── _generated/           # codegen output: Pydantic models + GraphQL documents
 │   ├── _schema.py            # generated Strawberry mirror ([strawberry] extra)
-│   ├── cli.py                # read-only CLI behind the gtm-linear command
+│   ├── cli.py                # CLI behind the gtm-linear command
 │   ├── client.py             # LinearClient (httpx transport)
 │   ├── exceptions.py         # LinearAPIError and friends
 │   ├── models.py             # LinearModel base class
@@ -607,7 +607,7 @@ Tests use `respx` to mock `httpx` — no network access required. `pytest-asynci
 ## Known gaps (read before extending)
 
 1. **Filtering coverage**: Issue filters are plain `dict[str, Any]` mappings that mirror Linear's nested filter tree. Use `execute_async` for other Linear filters.
-2. **Schema coverage**: Only a focused subset of Linear resources is typed. Attachments, cycles, projects-as-containers, workflow mutations, and webhooks remain absent.
+2. **Schema coverage**: Only a focused subset of Linear resources is typed. Cycles, projects-as-containers, workflow mutations, and webhooks remain absent.
 3. **Search filtering**: `search_issues` accepts only a text term. Use `list_issues_page` for mapped team/state filtering.
 4. **Subscriptions**: Not supported. Linear's `subscription` API requires WebSockets — the client is HTTP-only.
 5. **Status filtering**: Workflow-state query results include the state ID and type. More advanced filters still require `execute_async`.
