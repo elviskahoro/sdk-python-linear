@@ -110,7 +110,7 @@ lint:
     - name: pyrefly
       commands:
         - name: lint
-          run: pyrefly check --python-interpreter-path ${workspace}/.venv/bin/python --search-path ${workspace} ${target}
+          run: pyrefly check --python-interpreter-path ${workspace}/.venv/bin/python --search-path ${workspace} --output-format=min-text --summary=none ${target}
 
     # Vale is scoped exclusively to docs/** via a custom file type -- there is
     # no first-class "restrict this linter to a directory" field on `enabled`
