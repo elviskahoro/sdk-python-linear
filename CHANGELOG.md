@@ -16,6 +16,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `required_statuses` moves in the same change; a status rename landing
   without it would stall the queue on a name that no longer posts.
 
+### Fixed
+
+- The README's "Issue shape returned by queries" block now matches the generated
+  `Issue` (`IssueFields`) model: `state` is the nested `IssueFieldsState` object
+  (`{id, name, type}`), not a flattened `status` string, and `priority` is
+  `float`, not `int | None`. The stale block documented the pre-codegen
+  hand-written model from before #13 (commit `867104f`), so `issue.status`
+  raised `AttributeError` while the README promised it would work;
+  `issue.state.name` is the working spelling.
+
 ## [0.4.0] - 2026-10-09
 
 ### Added
