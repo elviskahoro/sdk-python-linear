@@ -39,7 +39,7 @@ tasks:
       repository: ${{ init.repository }}
       ref: ${{ init.commit-sha }}
       # Full depth + preserved .git: the trunk-check task below resolves the
-      # PR's base commit (git cat-file) and diffs against it via
+      # PR's base commit (git cat-file + fetch + merge-base) and diffs against it via
       # `trunk check --upstream` -- both need real git history, not a
       # shallow snapshot (same reason gtm-sdk's trunk-check code task sets
       # these flags, unlike this repo's tests.yml clone, which nothing
@@ -115,7 +115,22 @@ tasks:
       BASE_SHA: ${{ init.base-sha }}
     run: |
       set -euo pipefail
-      git cat-file -e "${BASE_SHA}^{commit}"
+      # When the base branch (main) moves after a PR is created, GitHub's
+      # pull_request.base.sha points to main's new tip, which may not be in
+      # the PR clone. Fetch it to ensure it's available, then use merge-base
+      # to find the actual fork point (stable even when main has moved).
+      if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+        if git fetch origin "${BASE_SHA}" 2>/dev/null; then
+          : # Fetch succeeded, base SHA now available
+        else
+          echo "error: could not resolve base SHA ${BASE_SHA}" >&2
+          exit 1
+        fi
+      fi
+      # Compute the true fork point, not the moving tip of the base branch.
+      # When main hasn't moved, merge-base equals BASE_SHA (identical behavior).
+      # When main has moved, merge-base returns the actual fork point.
+      MERGE_BASE="$(git merge-base HEAD "${BASE_SHA}")"
       trunk_launcher="$(mktemp)"
       if ! curl -fsSL https://trunk.io/releases/trunk -o "${trunk_launcher}" ||
         ! echo "700f8bbedfd226595999ea2202b9a7af75ba8398dd711f5f159f5bbba6cbf322  ${trunk_launcher}" | sha256sum -c -; then
@@ -129,4 +144,4 @@ tasks:
         echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
       fi
       rm -f "${trunk_launcher}"
-      trunk check --upstream="${BASE_SHA}" --ci < /dev/null
+      trunk check --upstream="${MERGE_BASE}" --ci < /dev/null

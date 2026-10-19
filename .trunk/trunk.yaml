@@ -94,6 +94,24 @@ lint:
         - name: lint
           run: pyright --pythonpath ${workspace}/.venv/bin/python --outputjson ${target}
 
+    # Trunk runs linters from a sandboxed tmp dir, so pyrefly's usual environment
+    # discovery (interpreter resolution via PATH lookup) lands in Trunk's sandbox,
+    # not the project workspace. The pyrefly plugin (oss-linter-trunk-pyrefly v0.2.0)
+    # claims to pass --python-interpreter-path ${workspace}/.venv/bin/python and
+    # --search-path ${workspace} automatically, but this fails in environments where
+    # .venv/bin/python is a symlink to /usr/local/bin/python3 (typical in cloud
+    # sandboxes), because pyrefly's interpreter-resolver follows the symlink target,
+    # landing outside the venv's site-packages. See #120.
+    #
+    # This overrides the plugin's whole pyrefly invocation to explicitly pass the
+    # workspace venv paths, matching the pattern used for pyright above. Re-check
+    # this command against the plugin definition whenever trunk.yaml bumps plugin
+    # versions.
+    - name: pyrefly
+      commands:
+        - name: lint
+          run: pyrefly check --python-interpreter-path ${workspace}/.venv/bin/python --search-path ${workspace} --output-format=min-text --summary=none ${target}
+
     # Vale is scoped exclusively to docs/** via a custom file type -- there is
     # no first-class "restrict this linter to a directory" field on `enabled`
     # entries, and `regexes` (unlike `extensions`) match the full path from
@@ -376,28 +394,51 @@ merge:
   # Re-verify after any pipeline rename:
   #   gh pr checks <pr-number> --json name --jq '.[].name'
   #
-  # Both entries are posted by RWX (.rwx/tests.yml and .rwx/trunk-check.yml) --
-  # the test gate (pytest plus the gen_operations/codegen drift checks and
-  # the lean-install wheel check) and the lint gate, matching gtm-sdk's
+  # The queue reads this list from the tested ref -- the PR head for an
+  # up-to-date entry (every queue landing so far has merged directly, with
+  # no trunk-merge/* test branch ever created), or the trunk-merge/* test
+  # branch otherwise -- so a rename that lands without moving its entry
+  # here stalls the queue on a name that no longer posts (proven by the
+  # 2026-10-16 ci.yml -> tests.yml rename, which moved its entry in
+  # lockstep).
+  #
+  # The two RWX entries (.rwx/tests.yml and .rwx/trunk-check.yml) are the
+  # test gate (pytest plus the gen_operations/codegen drift checks and the
+  # lean-install wheel check) and the lint gate, matching gtm-sdk's
   # two-gate queue. Neither pipeline's pull_request trigger has a
   # base-branch filter (unlike gtm-sdk's, which gate on
-  # base-branch == 'main'), so both post on every PR -- including the
-  # queue's temporary trunk-merge/* PRs, which arrive as ordinary
-  # pull_request events; that same mechanism is what gtm-sdk's queue relies
-  # on. RWX posts them as commit statuses (contexts) here rather than
-  # check-runs; the queue and `gh pr checks` match on the name either way.
+  # base-branch == 'main'), so both post on every PR -- and if the queue
+  # ever does build a trunk-merge/* test branch with a PR, it arrives as an
+  # ordinary pull_request event and fires them the same way (the mechanism
+  # gtm-sdk's queue relies on). RWX posts them as commit statuses
+  # (contexts) here rather than check-runs; the queue and `gh pr checks`
+  # match on the name either way.
+  #
+  # "pullfrog-approval" is the pullfrog GitHub App's pass/fail verdict on
+  # the PR under review (success = approved, failure = changes requested),
+  # posted as a check-run on every PR pullfrog reviews -- distinct from the
+  # plain "pullfrog" check, which only mirrors the agent run itself. It has
+  # posted on every PR reviewed since the 0.1.95 bump (#108-#112, including
+  # the bot-authored #100/#101). Required since 2026-10-16 to match the repo
+  # ruleset "Require Entire Gates and pullfrog-approval", which gates PR
+  # admission and merges into main on the GitHub side.
   #
   # The lint gate's PR mode diffs against the PR's exact base commit
-  # (--upstream=$BASE_SHA, see .rwx/trunk-check.yml), so the known
+  # (--upstream=$MERGE_BASE, see .rwx/trunk-check.yml), so the known
   # pre-existing pyright findings (gtm_linear/pagination.py,
   # gtm_linear/queries.py) only fail it when a PR touches those lines --
   # they do not block unrelated PRs or the queue.
   #
   # Deliberately excluded -- each of these would deadlock the queue:
-  # - "Entire Gates": does not post on PRs opened before the Entire app was
+  # - "Entire Gates": required on main by the ruleset above, but not waited
+  #   on here: it does not post on PRs opened before the Entire app was
   #   installed (~2026-10-10) and has been observed stuck IN_PROGRESS on an
-  #   already-merged PR; revisit once it posts reliably on every PR.
-  # - "pullfrog" / "Corridor Review": review bots, not pass/fail CI gates.
+  #   already-merged PR. It reports neutral on new PRs, which counts as
+  #   passing for required checks (GitHub: success/skipped/neutral all
+  #   satisfy required status checks), so the ruleset is satisfied without
+  #   the queue waiting on it. Revisit once it posts reliably on every PR.
+  # - "pullfrog" / "Corridor Review": review-run mirrors without pass/fail
+  #   semantics (pullfrog's verdict itself is "pullfrog-approval" above).
   # - Netlify deploy previews and header/redirect/pages checks: only post on
   #   docs-changing PRs (path-dependent), like gtm-sdk's path-filtered
   #   "Docs checks" workflow.
@@ -405,10 +446,19 @@ merge:
   # Do NOT add path-filtered or workflow_run workflows here -- they do not
   # report on every PR and would deadlock the queue.
   #
-  # Before enabling branch protection on main, queue one throwaway PR and
-  # confirm its trunk-merge/* test branch actually receives BOTH statuses:
-  # a name that never posts stalls the queue (Queued forever) instead of
-  # failing loudly.
+  # Residual risk for "pullfrog-approval": every landing so far merged
+  # directly against the PR head, where pullfrog always posts. The check
+  # can still go missing and stall the queue (Queued forever instead of
+  # failing loudly) in two ways: (a) pullfrog skips a PR, is down or
+  # rate-limited, or does not re-run after a rebase or force-push, so the
+  # verdict never posts on the current head; (b) an entry is submitted
+  # while out of date with main, so the queue builds a trunk-merge/*
+  # test branch and waits for this list there -- unverified that pullfrog
+  # reviews those. Watch the first entry that stalls. Recovery: re-trigger
+  # the pullfrog review on the head; for (b) verify with a throwaway PR
+  # deliberately behind main, or drop the entry and rely on the ruleset's
+  # GitHub-side gate (PR admission + final merge) instead.
   required_statuses:
     - "RWX: tests.yml (pull request)"
     - "RWX: trunk-check.yml (pull request)"
+    - pullfrog-approval

@@ -1,0 +1,2 @@
+# Formatting and linting fixes to skip in git blame
+cbed7a5868591f44b380d3e0fa71073a9062e74a # Fix trunk check security and formatting issues
