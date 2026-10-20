@@ -31,8 +31,8 @@ appear in a production schema. Each is worked around below and tagged BUG-n:
          Query/Mutation classes (and any nested object type whose fields declare
          arguments, today only ``Issue``) are rebuilt as resolvers.
   BUG-8  Custom scalars are emitted as ``X = strawberry.scalar(NewType(...))``, the
-          class form strawberry deprecates; rewritten to plain NewType aliases whose
-          definitions are registered through ``StrawberryConfig.scalar_map``.
+         class form strawberry deprecates; rewritten to plain NewType aliases whose
+         definitions are registered through ``StrawberryConfig.scalar_map``.
   BUG-9  Field-argument defaults are dropped: ``_prune`` re-emits arguments as
          ``name: type`` and the resolver rebuild hardcodes ``= None`` for every
          nullable argument. Both now thread the SDL-declared default through so
