@@ -20,6 +20,7 @@ pytest.importorskip("strawberry", reason="requires the [strawberry] extra")
 from gtm_linear import _schema  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT))
 
 # The deprecation gate: warnings attributed to the generated module become
 # errors in a subprocess. Shared by the two gate tests below so the gate and
@@ -168,3 +169,85 @@ def test_generated_models_and_schema_agree_on_issue_fields() -> None:
     }
     pydantic_fields = {f.alias or name for name, f in Issue.model_fields.items()}
     assert pydantic_fields <= strawberry_fields
+
+
+def test_generated_schema_preserves_nested_field_arguments() -> None:
+    """The four ``Issue`` nested collection fields keep their full argument lists.
+
+    Regression test for BUG-7's nested-field gap. ``attachments``/``comments``/
+    ``relations``/``inverseRelations`` carry pagination/filter args in Linear's
+    real schema and in the pruned SDL; the shipped Strawberry mirror must expose
+    them too, or a consumer cannot express ``issue { attachments(first: 10) }``
+    and queries the real Linear API validates get rejected.
+    """
+    sdl = str(_schema.schema)
+
+    # attachments and comments carry the full pagination + filter argument set.
+    assert (
+        "attachments(after: String = null, before: String = null, "
+        "filter: AttachmentFilter = null, first: Int = null, "
+        "includeArchived: Boolean = null, last: Int = null, "
+        "orderBy: PaginationOrderBy = null): AttachmentConnection!" in sdl
+    )
+    assert (
+        "comments(after: String = null, before: String = null, "
+        "filter: CommentFilter = null, first: Int = null, "
+        "includeArchived: Boolean = null, last: Int = null, "
+        "orderBy: PaginationOrderBy = null): CommentConnection!" in sdl
+    )
+    # relations and inverseRelations have no `filter` arg in Linear's schema,
+    # so their argument list is the six pagination args only.
+    assert (
+        "inverseRelations(after: String = null, before: String = null, "
+        "first: Int = null, includeArchived: Boolean = null, last: Int = null, "
+        "orderBy: PaginationOrderBy = null): IssueRelationConnection!" in sdl
+    )
+    assert (
+        "relations(after: String = null, before: String = null, "
+        "first: Int = null, includeArchived: Boolean = null, last: Int = null, "
+        "orderBy: PaginationOrderBy = null): IssueRelationConnection!" in sdl
+    )
+
+
+def test_shipped_schema_accepts_nested_pagination_arguments() -> None:
+    """The shipped mirror must accept the queries Linear's real API accepts.
+
+    End-to-end proof of the BUG-7 nested-field fix. The exact reproduction from
+    the bug report — ``issue { attachments(first: 10) { ... } }`` — used to fail
+    with ``Unknown argument 'first' on field 'Issue.attachments'``; and the
+    SDK's own ``ListIssue*`` operations (composed with their shared fragments)
+    must validate against the *shipped* schema, not just the pinned SDL the
+    codegen pipeline validates against internally.
+    """
+    from graphql import build_schema, parse, validate
+
+    from scripts import codegen
+
+    # Validate against the schema the [strawberry] extra actually ships: build a
+    # graphql-core schema from the exported SDL rather than probing the
+    # Strawberry wrapper, which is what a consumer's GraphQL server would parse.
+    shipped = build_schema(str(_schema.schema))
+
+    # The bug-report reproduction: a nested pagination argument the pre-fix
+    # mirror rejected. The argument-less shape still validates too, so the
+    # plain read path is not regressed.
+    repro = parse(
+        'query { issue(id: "x") { attachments(first: 10) { nodes { id } } } }',
+    )
+    plain = parse('query { issue(id: "x") { attachments { nodes { id } } } }')
+    assert not validate(shipped, repro)
+    assert not validate(shipped, plain)
+
+    # The SDK's own operations that traverse these nested fields, composed with
+    # their shared fragments, validate against the shipped mirror.
+    fragments = codegen._fragment_definitions()
+    for name in (
+        "ListIssueAttachments",
+        "ListIssueComments",
+        "ListIssueRelations",
+        "ListIssueInverseRelations",
+    ):
+        document = parse(
+            codegen._compose(codegen.OPERATIONS_DIR / f"{name}.graphql", fragments),
+        )
+        assert not validate(shipped, document), f"{name} rejected by shipped schema"
