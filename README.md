@@ -1,6 +1,6 @@
 # gtm-linear
 
-Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, typed wrapper around `httpx` with optional sync support, Strawberry-typed models, explicit error semantics, and a bundled read-only CLI.
+Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, typed wrapper around `httpx2` (Pydantic-maintained fork) with optional sync support, Strawberry-typed models, explicit error semantics, and a bundled read-only CLI.
 
 > **Status:** Alpha (`0.4.0`, see `pyproject.toml` and `CHANGELOG.md`). API surface is small but incomplete — fall back to raw `LinearClient.execute_async` for anything not yet wrapped.
 
@@ -31,7 +31,7 @@ uv sync
 
 Installing the package also installs the `gtm-linear` console command — see [CLI](#cli).
 
-Requires Python `>=3.11`. Runtime deps: `httpx>=0.27`, `pydantic>=2.0`, `pydantic-settings>=2.14.2`, `typer>=0.27` (imported only by the CLI module — `import gtm_linear` never touches it). Typer is unconditional rather than a `[cli]` extra so `uvx gtm-linear` and `uv tool install gtm-linear` need no extra syntax — a deliberate install-footprint trade-off for library-only consumers. The optional `[strawberry]` extra (ships the generated schema mirror) adds `strawberry-graphql>=0.328.0`, which pulls `graphql-core>=3.3,<3.4`.
+Requires Python `>=3.11`. Runtime deps: `httpx2>=2.0.0`, `pydantic>=2.0`, `pydantic-settings>=2.14.2`, `typer>=0.27` (imported only by the CLI module — `import gtm_linear` never touches it). Typer is unconditional rather than a `[cli]` extra so `uvx gtm-linear` and `uv tool install gtm-linear` need no extra syntax — a deliberate install-footprint trade-off for library-only consumers. The optional `[strawberry]` extra (ships the generated schema mirror) adds `strawberry-graphql>=0.328.0`, which pulls `graphql-core>=3.3,<3.4`.
 
 ---
 
@@ -216,7 +216,7 @@ LinearClient(api_key: str)
 
 State:
 - `BASE_URL = "https://api.linear.app/graphql"` (class attribute, overrideable on subclasses or by monkeypatch in tests)
-- Lazily creates an `httpx.Client` (sync) and `httpx.AsyncClient` (async) on first use.
+- Lazily creates an `httpx2.Client` (sync) and `httpx2.AsyncClient` (async) on first use.
 - Connection reuse: both clients persist across calls until their respective close method or context-manager exit.
 
 ### Methods

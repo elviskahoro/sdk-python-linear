@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Self
 
-import httpx
+import httpx2 as httpx
 from pydantic import SecretStr, ValidationError
 
 from .exceptions import (

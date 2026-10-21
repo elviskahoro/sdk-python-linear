@@ -44,7 +44,7 @@ import sys
 import unicodedata
 from typing import TYPE_CHECKING, Annotated, Any, NoReturn, Protocol, TypeVar
 
-import httpx
+import httpx2 as httpx
 import typer
 from pydantic import SecretStr, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict

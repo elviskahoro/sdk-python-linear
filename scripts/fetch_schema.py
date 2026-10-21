@@ -30,7 +30,7 @@ import argparse
 import os
 from pathlib import Path
 
-import httpx
+import httpx2 as httpx
 from graphql import build_client_schema, get_introspection_query, print_schema
 
 SCRIPT_DIR = Path(__file__).resolve().parent
