@@ -1,12 +1,21 @@
-"""Root conftest.py - loads before pytest plugins initialize."""
+"""Root conftest.py: installs the ``httpx2`` process-wide alias.
+
+``respx>=0.21`` registers ``respx.plugin`` as a ``pytest11`` setuptools entry
+point, which pytest auto-loads before any conftest runs and which imports real
+``httpx`` into ``sys.modules`` at that point. After that, ``alias_httpx()``
+refuses to run (raises ``RuntimeError("httpx was already imported…")``), so the
+swap would silently fail and respx would patch the wrong module. The pytest
+config disables that plugin with ``-p no:respx``; ``import respx`` in test
+modules still works.
+
+The alias call is deliberately NOT wrapped in try/except: a partially-applied
+alias is the worst case (respx patches real ``httpx`` while the SDK uses
+``httpx2``, mocks silently miss, errors reach the real Linear API). Fail loud
+instead of swallowing.
+"""
 
 from __future__ import annotations
 
-# Set up httpx2 aliasing BEFORE anything imports httpx
-try:
-    from httpx2 import alias_httpx
+from httpx2 import alias_httpx
 
-    alias_httpx()
-except RuntimeError:
-    # httpx is already imported; respx may have imported it before the alias could be set up
-    pass
+alias_httpx()
