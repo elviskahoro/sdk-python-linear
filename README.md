@@ -237,7 +237,7 @@ State:
 2. The HTTP status is not 200, OR
 3. The response is not parseable JSON / not a dict.
 
-`LinearAPIError.errors` is the raw list of error dicts from Linear; `LinearAPIError.message` is a human-readable summary. Inspect `.errors` to recover structured codes.
+`LinearAPIError.errors` is a list of `GraphQLError` objects (empty for transport-level failures) exposing `.code`, `.message`, and `.extensions`; `LinearAPIError.message` is a human-readable summary. Inspect `.errors` to recover structured codes.
 
 ### Return value
 
@@ -515,7 +515,7 @@ except LinearAPIError as exc:
     # Both transport and GraphQL errors land here.
     print(exc.message)
     for err in exc.errors:
-        print(err.get("extensions", {}).get("code"), err.get("message"))
+        print(err.code, err.message)  # err is a GraphQLError
 ```
 
 Common Linear error codes worth branching on (found in `errors[].extensions.code`):
