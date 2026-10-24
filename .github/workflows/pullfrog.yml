@@ -31,6 +31,7 @@ jobs:
         uses: pullfrog/pullfrog@ed800018463e1b84e8e3377f662173aed1da98b0 # v0.1.95
         with:
           prompt: ${{ inputs.prompt }}
+          model: openrouter/z-ai/glm-5.3-flash
         env:
           # add at least one provider API key
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
