@@ -121,6 +121,18 @@ ignore = [
   "S301",    # pickle round-trips of self-built fixtures, never untrusted data
   "SIM117",  # nested with (mock + client) reads better than one long line
 ]
+# The Ariadne Codegen proof of concept's compatibility tests: same rationale as
+# tests/**, plus subprocess calls to the pinned generator/type-checker toolchain.
+"poc/ariadne/tests/**" = [
+  "S101",
+  "PLR2004",
+  "ANN401",
+  "SLF001",
+  "PT011",
+  "S603",    # subprocess inputs are fixed toolchain commands and repo paths
+  "S607",    # `uv` is resolved from PATH, as everywhere else in the repo
+  "E402",    # schema_only_probe.py imports after its sys.path setup
+]
 "tests/test_dagger_ref_drift.py" = [
   "S107", # the GH token is a synthetic fixture value, never a real secret
   "S603", # subprocess inputs are controlled test arguments and a fixed script
