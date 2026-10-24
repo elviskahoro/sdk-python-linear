@@ -1,0 +1,80 @@
+# Isolated generator environment for the Ariadne Codegen proof of concept.
+#
+# This is deliberately NOT part of the root project or its dev group:
+# ariadne-codegen 0.19.0 requires graphql-core<3.3 and httpx~=0.28, while the
+# root dev group pins graphql-core>=3.3,<3.4 (strawberry-graphql 0.328) and the
+# SDK runs on httpx2. The two cannot resolve into one environment, so the
+# generator gets its own locked venv (poc/ariadne/.venv, via `uv run --project`).
+# The *generated* package needs neither: with the custom base client below it
+# imports only pydantic and gtm_linear (see linear_base_client.py).
+#
+# Regenerate / verify (from the repo root):
+#   uv run python poc/ariadne/generate.py           # operation-based client
+#   uv run python poc/ariadne/generate.py --check   # fail if committed output drifts
+#   uv run python poc/ariadne/generate.py --schema-only <out-dir>
+[project]
+name = "gtm-linear-ariadne-poc"
+version = "0.0.0"
+requires-python = ">=3.11"
+dependencies = ["ariadne-codegen==0.19.0"]
+
+[tool.uv]
+package = false
+# Supply-chain cooldown: never resolve a release younger than a week.
+exclude-newer = "7 days"
+
+# Operation-based generation: schema + the SDK's existing operations/*.graphql.
+# Paths are relative to poc/ariadne/ (generate.py runs the generator from here).
+[tool.ariadne-codegen]
+schema_path = "../../schema/linear.graphql"
+queries_path = "../../operations"
+target_package_name = "linear_ariadne"
+target_package_path = "."
+client_name = "LinearAriadneClient"
+# Transport, auth, timeouts, and the error contract stay in gtm_linear.LinearClient;
+# the base client adapts Ariadne's execute/get_data protocol onto it.
+base_client_name = "LinearAriadneBaseClient"
+base_client_file_path = "linear_base_client.py"
+files_to_include = ["linear_scalars.py"]
+# Keeps `state.type` / `IssueRelationCreateInput(type=...)` instead of `type_`.
+# generate.py puts poc/ariadne on PYTHONPATH so the module imports.
+plugins = ["linear_plugins.PreserveBuiltinNamesPlugin"]
+# Linear's schema has ~550 object types and hundreds of inputs; only emit what the
+# operations reach. (Defaults are true, which would dump the whole schema.)
+include_all_inputs = false
+include_all_enums = false
+include_typename = false
+include_comments = "stable"
+async_client = true
+multipart_uploads = false
+# Match the current SDK: every selected key must be present in a response, even
+# when its value may be null.
+default_optional_fields_to_none = false
+# The IssueFilter input closure is ~90 models; building them eagerly costs ~0.6 s
+# at import (measured: ~870 ms -> ~165 ms for the package with this on).
+defer_model_build = true
+# snake_case constructor parameters for type checkers. With per-field
+# Field(alias="teamId") (the default), pyright/pyrefly see `teamId=` as the
+# parameter and flag `IssueCreateInput(team_id=...)` as an error.
+use_alias_generator = true
+
+[tool.ariadne-codegen.scalars.DateTime]
+type = "datetime.datetime"
+
+[tool.ariadne-codegen.scalars.TimelessDate]
+type = "datetime.date"
+
+[tool.ariadne-codegen.scalars.JSON]
+type = "typing.Any"
+
+[tool.ariadne-codegen.scalars.JSONObject]
+type = ".linear_scalars.JSONObject"
+
+[tool.ariadne-codegen.scalars.Duration]
+type = "float"
+
+[tool.ariadne-codegen.scalars.DateTimeOrDuration]
+type = "typing.Any"
+
+[tool.ariadne-codegen.scalars.TimelessDateOrDuration]
+type = "typing.Any"

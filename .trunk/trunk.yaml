@@ -275,6 +275,10 @@ lint:
         # than inside _generated/, so the directory glob above misses it.
         - "**/_generated/**"
         - gtm_linear/_schema.py
+        # Ariadne Codegen proof of concept output (poc/ariadne/generate.py);
+        # build/ is the uncommitted schema-only client.
+        - poc/ariadne/linear_ariadne/**
+        - poc/ariadne/build/**
         - "**/*.openapi.json"
         - "**/*.openapi.yaml"
         - "**/*.openapi.yml"
@@ -310,6 +314,7 @@ lint:
     - linters: [ruff, pyright, pyrefly, bandit]
       paths:
         - tests/**
+        - poc/ariadne/tests/**
 
     - linters: [checkov, semgrep]
       paths:

@@ -116,3 +116,6 @@ include = [
   "README.md",
   "LICENSE",
 ]
+# The Ariadne Codegen proof of concept is evaluation tooling, not SDK source; the
+# bare "tests" pattern above would otherwise also match poc/ariadne/tests.
+exclude = ["/poc"]

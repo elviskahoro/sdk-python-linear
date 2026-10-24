@@ -1,0 +1,9 @@
+"""Python spellings for Linear scalars that have no single importable name.
+
+Copied into the generated package by ``files_to_include`` so the scalar mapping in
+``pyproject.toml`` can reference ``.linear_scalars.JSONObject``.
+"""
+
+from typing import Any
+
+JSONObject = dict[str, Any]

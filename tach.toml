@@ -2,6 +2,8 @@
 source_roots = ["."]
 exclude = [
   "tests/**",
+  # Isolated Ariadne Codegen proof of concept; not part of the shipped package.
+  "poc/**",
   "docs/**",
   "tmp/**",
   "worktrees/**",
