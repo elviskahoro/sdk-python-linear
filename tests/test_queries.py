@@ -21,6 +21,7 @@ from gtm_linear import (
     PaginationOrderBy,
     WorkflowState,
 )
+from gtm_linear.exceptions import LinearGraphQLError
 from tests.conftest import API_URL, issue_payload, page_info_payload, user_payload
 
 
@@ -317,6 +318,117 @@ async def test_get_issue_returns_none_when_missing() -> None:
         )
         async with LinearClient(api_key="key") as client:
             assert await LinearQueries(client).get_issue("nope") is None
+
+
+async def test_get_issue_returns_none_for_not_found_identifier() -> None:
+    """The errors-array not-found shape Linear returns for unknown identifiers.
+
+    The payload below is captured verbatim from Linear's live API (the same
+    capture pinned in ``tests/test_cli.py::test_issue_not_found_via_api_error_is_a_clean_error``,
+    2026-10-02). Before the fix, ``LinearClient._handle_response`` raised
+    ``LinearGraphQLError`` the moment it saw the top-level ``errors`` array,
+    so the null-``issue`` guard never ran for this shape and ``get_issue``
+    violated its ``-> IssueFields | None`` contract for the docstring's own
+    ``ENG-123``-style identifier inputs.
+    """
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "errors": [
+                        {
+                            "message": "Entity not found: Issue",
+                            "extensions": {
+                                "type": "invalid input",
+                                "code": "INPUT_ERROR",
+                                "statusCode": 400,
+                                "userError": True,
+                                "userPresentableMessage": (
+                                    "Could not find referenced Issue."
+                                ),
+                            },
+                        },
+                    ],
+                },
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            assert await LinearQueries(client).get_issue("ENG-404") is None
+
+
+async def test_get_issue_returns_none_for_reworded_not_found_via_user_presentable_message() -> (
+    None
+):
+    """The matcher also covers reworded messages via ``userPresentableMessage``.
+
+    Mirrors ``tests/test_cli.py::test_issue_not_found_via_extension_wording_is_a_clean_error``:
+    ``message`` is the one Linear may rewrite at will, but the presentable
+    message still names the Issue entity, so the SDK should still honor its
+    not-found contract rather than raise.
+    """
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "errors": [
+                        {
+                            "message": "Look-up failed",
+                            "extensions": {
+                                "userPresentableMessage": (
+                                    "Could not find referenced Issue."
+                                ),
+                            },
+                        },
+                    ],
+                },
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            assert await LinearQueries(client).get_issue("ENG-404") is None
+
+
+async def test_get_issue_re_raises_for_other_entity_not_found() -> None:
+    """A not-found for a different entity (Team, User) is NOT an issue not-found.
+
+    Mirrors ``tests/test_cli.py::test_issue_other_entity_not_found_is_not_issue_not_found``:
+    the wording heuristic names the Issue entity specifically so a
+    referenced-team/referenced-user not-found still propagates as a
+    ``LinearGraphQLError`` instead of being silenced into ``None``. Without
+    this guard, every ``LinearGraphQLError`` would be swallowed and callers
+    could not distinguish issue-not-found from genuine failures.
+    """
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={"errors": [{"message": "Entity not found: Team"}]},
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            with pytest.raises(LinearGraphQLError):
+                await LinearQueries(client).get_issue("ENG-1")
+
+
+async def test_get_issue_re_raises_for_unrelated_api_errors() -> None:
+    """An unrelated GraphQL error (auth, rate limit) must still propagate.
+
+    Mirrors ``tests/test_cli.py::test_issue_unrelated_api_error_reaches_main_mapping``:
+    a payload that does not mention the Issue not-found wording escapes
+    untouched, so callers following the documented ``if issue is None: ...``
+    pattern still see real failures as exceptions.
+    """
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={"errors": [{"message": "boom"}]},
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            with pytest.raises(LinearGraphQLError):
+                await LinearQueries(client).get_issue("ENG-1")
 
 
 async def test_unknown_response_fields_are_ignored() -> None:
