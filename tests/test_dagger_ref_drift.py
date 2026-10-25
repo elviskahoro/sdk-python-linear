@@ -62,7 +62,7 @@ def _run_check(
 ) -> tuple[subprocess.CompletedProcess[str], str, str, str]:
     if run_real_jq and not HAS_JQ:
         pytest.fail("jq is required for these GitHub issue-filter integration tests")
-    workflow = tmp_path / ".github/workflows/pypi.yml"
+    workflow = tmp_path / ".rwx/publish.yml"
     cwd = REPO_ROOT if use_real_workflow else tmp_path
     if not use_real_workflow:
         workflow.parent.mkdir(parents=True, exist_ok=True)
@@ -260,7 +260,7 @@ def test_active_module_ref_must_match_renovate_sha_record(tmp_path: Path) -> Non
     )
 
     assert result.returncode != 0
-    assert "pypi.yml records" in result.stderr
+    assert "publish.yml records" in result.stderr
     assert gh_calls == ""
 
 
@@ -290,7 +290,7 @@ def test_publish_pin_verification_is_offline_and_needs_no_token(tmp_path: Path) 
 def test_real_pypi_workflow_pin_and_sha_parse_in_publish_mode(
     tmp_path: Path,
 ) -> None:
-    workflow_contents = (REPO_ROOT / ".github/workflows/pypi.yml").read_text()
+    workflow_contents = (REPO_ROOT / ".rwx/publish.yml").read_text()
     pin_pattern = rf"github\.com/{re.escape(REPO)}@([0-9a-f]{{40}})"
     pin_match = re.search(pin_pattern, workflow_contents)
     sha_match = re.search(
@@ -330,7 +330,7 @@ def test_renovate_manager_keeps_release_and_immutable_sha_in_sync() -> None:
     renovate = json.loads((REPO_ROOT / "renovate.json").read_text())
     manager = renovate["customManagers"][0]
     pattern = manager["matchStrings"][0].replace("(?<", "(?P<")
-    workflow = (REPO_ROOT / ".github/workflows/pypi.yml").read_text()
+    workflow = (REPO_ROOT / ".rwx/publish.yml").read_text()
     match = re.search(pattern, workflow)
 
     assert match is not None
@@ -392,7 +392,7 @@ def test_existing_stale_ref_issue_is_not_duplicated(tmp_path: Path) -> None:
         ),
         open_issues="1",
         open_issue_body=(
-            f"pypi.yml pins {REPO}@v0.2.2, but the latest upstream release is "
+            f"publish.yml pins {REPO}@v0.2.2, but the latest upstream release is "
             f"v0.2.3. Review and re-pin. See #49. {ISSUE_MARKER}\n"
             "Operator note that must survive an automation refresh."
         ),
@@ -495,7 +495,7 @@ def test_existing_issue_body_is_refreshed_when_latest_release_changes(
         ),
         open_issues="1",
         open_issue_body=(
-            f"pypi.yml pins {REPO}@v0.2.2, but the latest upstream release is "
+            f"publish.yml pins {REPO}@v0.2.2, but the latest upstream release is "
             f"v0.2.3. Review and re-pin. See #49. {ISSUE_MARKER}\n"
             "Operator note that must survive an automation refresh."
         ),
@@ -651,7 +651,7 @@ def test_appended_first_line_operator_note_survives_issue_refresh(
 
 def test_legacy_rwx_issue_is_migrated_when_stale(tmp_path: Path) -> None:
     legacy_body = (
-        f"pypi.yml pins {REPO}@{'d' * 40}, but upstream HEAD is "
+        f"publish.yml pins {REPO}@{'d' * 40}, but upstream HEAD is "
         f"{'e' * 40}. Review and re-pin. See #45.\r\n"
         "Additional operator context."
     )
@@ -674,7 +674,7 @@ def test_legacy_rwx_issue_is_migrated_when_stale(tmp_path: Path) -> None:
 
 def test_recovery_closes_legacy_rwx_issue(tmp_path: Path) -> None:
     legacy_body = (
-        f"pypi.yml pins {REPO}@{'d' * 40}, but upstream HEAD is "
+        f"publish.yml pins {REPO}@{'d' * 40}, but upstream HEAD is "
         f"{'e' * 40}. Review and re-pin. See #45."
     )
     result, gh_calls, _, _ = _run_check(
