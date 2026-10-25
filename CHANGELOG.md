@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- The tag-triggered PyPI publish moves from GitHub Actions (`pypi.yml`) to
+  `.rwx/publish.yml`, publishing with a `PYPI_TOKEN` vault secret instead of
+  trusted publishing. GitHub Actions now only runs the Pullfrog harness.
 - The RWX CI pipeline `.rwx/ci.yml` is renamed `.rwx/tests.yml`, so its
   GitHub status now reads "RWX: tests.yml (pull request)" — the name says
   what the gate does (the pytest suite, the `gen_operations`/`codegen`

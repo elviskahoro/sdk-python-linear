@@ -573,7 +573,7 @@ sdk-python-linear/
 ├── ruff.toml                 # lint config (repo-local, incl. per-file ignores)
 ├── pyrightconfig.json        # pyright config (repo-local)
 ├── pyrefly.toml              # type-checker config
-├── .github/workflows/        # pypi.yml (publish), pullfrog.yml (agent harness)
+├── .github/workflows/        # pullfrog.yml (agent harness)
 ├── .rwx/                     # RWX pipeline — tests.yml (canonical test gate) + dagger-ref-drift.yml (weekly fallback)
 └── .trunk/                   # lint config (trunk.io)
 ```
@@ -594,7 +594,7 @@ trunk check --all             # lint + type check (local; run uv sync first)
 trunk fmt                     # autoformat
 ```
 
-CI runs on RWX: `.rwx/tests.yml` runs `pytest`, the two `--check` scripts, a lean-install task (the wheel must import without the `[strawberry]` extra), and a weekly scheduled schema-drift cron (`pytest -m network`). `.rwx/trunk-check.yml` runs `trunk check` on every PR as the lint gate (a required status in `.trunk/trunk.yaml`). `.rwx/dagger-ref-drift.yml` remains a weekly fallback that verifies the publisher tag/SHA pair and reports stale releases. GitHub Actions remains for the tag-triggered PyPI publish (`pypi.yml`) and the Pullfrog agent harness (`pullfrog.yml`) — see `.rwx/.migration-inventory.md` for the port inventory and flip status. Renovate updates the paired SemVer tag and immutable SHA in the PyPI workflow; its custom regex manager is intentionally the only enabled Renovate manager because Dependabot handles GitHub Actions.
+CI runs on RWX: `.rwx/tests.yml` runs `pytest`, the two `--check` scripts, a lean-install task (the wheel must import without the `[strawberry]` extra), and a weekly scheduled schema-drift cron (`pytest -m network`). `.rwx/trunk-check.yml` runs `trunk check` on every PR as the lint gate (a required status in `.trunk/trunk.yaml`). `.rwx/dagger-ref-drift.yml` remains a weekly fallback that verifies the publisher tag/SHA pair and reports stale releases. `.rwx/publish.yml` builds with Dagger and publishes to PyPI on `v*` tags using a project-scoped `PYPI_TOKEN` from the `sdk-python-linear` RWX vault (`rwx vaults secrets set --vault sdk-python-linear PYPI_TOKEN=<token>`; RWX cannot use PyPI trusted publishing). GitHub Actions remains only for the Pullfrog agent harness (`pullfrog.yml`) — see `.rwx/.migration-inventory.md` for the port inventory and flip status. Renovate updates the paired SemVer tag and immutable SHA in `.rwx/publish.yml`; its custom regex manager is intentionally the only enabled Renovate manager because Dependabot handles the remaining GitHub Actions.
 
 Tests use `respx` to mock `httpx` — no network access required. `pytest-asyncio` is in `auto` mode, so async test functions don't need decoration.
 

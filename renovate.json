@@ -9,7 +9,7 @@
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": ["/.github\\/workflows\\/pypi\\.yml$/"],
+      "managerFilePatterns": ["/^\\.rwx\\/publish\\.yml$/"],
       "matchStrings": [
         "# publisher-module-sha: (?<currentValue>v\\d+\\.\\d+\\.\\d+) (?<currentDigest>[0-9a-f]{40})(?:[^\\n]*\\n){1,8}?[ \\t]*dagger -m github.com/(?<packageName>elviskahoro/sdk-python-publish-to-pypi)@[0-9a-f]{40}"
       ],
