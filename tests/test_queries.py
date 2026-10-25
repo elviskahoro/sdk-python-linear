@@ -647,6 +647,46 @@ async def test_get_team() -> None:
     assert team.key == "ENG"
 
 
+@pytest.mark.parametrize(
+    ("method", "arg", "entity"),
+    [("get_team", "t1", "Team"), ("get_user", "u1", "User")],
+)
+async def test_get_by_id_returns_none_for_errors_array_not_found(
+    method: str,
+    arg: str,
+    entity: str,
+) -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={"errors": [{"message": f"Entity not found: {entity}"}]},
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            assert await getattr(LinearQueries(client), method)(arg) is None
+
+
+@pytest.mark.parametrize(
+    ("method", "arg"),
+    [("get_team", "t1"), ("get_user", "u1")],
+)
+async def test_get_by_id_re_raises_other_entity_not_found(
+    method: str,
+    arg: str,
+) -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={"errors": [{"message": "Entity not found: Issue"}]},
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            with pytest.raises(LinearGraphQLError):
+                await getattr(LinearQueries(client), method)(arg)
+
+
 async def test_get_team_by_key() -> None:
     with respx.mock:
         route = respx.post(API_URL).mock(

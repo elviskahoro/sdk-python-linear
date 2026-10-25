@@ -183,3 +183,21 @@ def test_looks_like_not_found_matches_only_issue_not_found_wording(
     ``-> IssueFields | None`` contract.
     """
     assert looks_like_not_found(error) is expected
+
+
+@pytest.mark.parametrize(
+    ("message", "entity", "expected"),
+    [
+        ("Entity not found: Team", "team", True),
+        ("Entity not found: User", "user", True),
+        ("Entity not found: Issue", "team", False),
+        ("Entity not found: Team", "user", False),
+    ],
+)
+def test_looks_like_not_found_discriminates_by_entity(
+    message: str,
+    entity: str,
+    *,
+    expected: bool,
+) -> None:
+    assert looks_like_not_found(GraphQLError(message=message), entity) is expected
