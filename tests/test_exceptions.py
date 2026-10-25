@@ -21,7 +21,7 @@ from gtm_linear.exceptions import (
     LinearGraphQLError,
     LinearHTTPError,
     LinearResponseError,
-    _looks_like_not_found,
+    looks_like_not_found,
 )
 
 
@@ -182,4 +182,4 @@ def test_looks_like_not_found_matches_only_issue_not_found_wording(
     on Linear's current wording. Both regressions break the documented
     ``-> IssueFields | None`` contract.
     """
-    assert _looks_like_not_found(error) is expected
+    assert looks_like_not_found(error) is expected

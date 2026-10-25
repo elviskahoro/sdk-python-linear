@@ -57,7 +57,7 @@ from ._generated.UpdateIssue import IssueUpdateInput
 from .exceptions import (
     LinearAPIError,
     LinearPaginationError,
-    _looks_like_not_found,  # pyright: ignore[reportPrivateUsage]
+    looks_like_not_found,
 )
 from .pagination import paginate
 from .settings import LinearSettings
@@ -877,7 +877,7 @@ def _resolve_issue(linear: LinearWorkflow, identifier: str) -> IssueFields:
     try:
         match = linear.get_issue(normalized)
     except LinearAPIError as exc:
-        if any(_looks_like_not_found(error) for error in exc.errors):
+        if any(looks_like_not_found(error) for error in exc.errors):
             _fail(f"no issue found with identifier {normalized}")
         raise
     if match is None:

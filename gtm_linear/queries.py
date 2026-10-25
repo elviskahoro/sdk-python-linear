@@ -77,7 +77,7 @@ from ._generated.fragments import (
 from .exceptions import (
     LinearGraphQLError,
     LinearWorkflowStateLookupError,
-    _looks_like_not_found,  # pyright: ignore[reportPrivateUsage]
+    looks_like_not_found,
 )
 from .pagination import paginate, validate_pagination_options
 
@@ -135,12 +135,12 @@ class LinearQueries:
             # array — so ``data`` never reaches the null-``issue`` guard below
             # for this not-found shape. Translate the issue-not-found wording
             # back into the documented ``None`` (mirroring the CLI's
-            # ``_looks_like_not_found`` heuristic so a not-found for a
+            # ``looks_like_not_found`` heuristic so a not-found for a
             # *different* referenced entity — a team, a user — still
             # propagates). See README ("Returns ``None`` on not-found (not an
             # error)") and ``tests/test_cli.py``'s pinned live capture of
             # Linear's wording.
-            if any(_looks_like_not_found(e) for e in exc.errors):
+            if any(looks_like_not_found(e) for e in exc.errors):
                 return None
             raise
         if not data.get("issue"):

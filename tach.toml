@@ -349,6 +349,7 @@ expose = [
   "LinearPaginationError",
   "LinearResponseError",
   "LinearWorkflowStateLookupError",
+  "looks_like_not_found",
 ]
 
 [[interfaces]]
