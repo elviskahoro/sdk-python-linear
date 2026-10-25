@@ -532,7 +532,12 @@ class LinearQueries:
         Returns:
             The team, or None if it does not exist.
         """
-        data = await self._client.execute_async(GET_TEAM, {"id": team_id})
+        try:
+            data = await self._client.execute_async(GET_TEAM, {"id": team_id})
+        except LinearGraphQLError as exc:
+            if any(looks_like_not_found(e, "team") for e in exc.errors):
+                return None
+            raise
         if not data.get("team"):
             return None
         return GetTeamResult.model_validate(data).team
@@ -585,7 +590,12 @@ class LinearQueries:
         Returns:
             The user, or None if they do not exist.
         """
-        data = await self._client.execute_async(GET_USER, {"id": user_id})
+        try:
+            data = await self._client.execute_async(GET_USER, {"id": user_id})
+        except LinearGraphQLError as exc:
+            if any(looks_like_not_found(e, "user") for e in exc.errors):
+                return None
+            raise
         if not data.get("user"):
             return None
         return GetUserResult.model_validate(data).user

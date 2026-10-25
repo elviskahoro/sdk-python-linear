@@ -45,8 +45,12 @@ class GraphQLError(BaseModel):
         return code if isinstance(code, str) else None
 
 
-def looks_like_not_found(error: GraphQLError) -> bool:
-    """Best-effort issue-not-found detection for Linear's GraphQL errors.
+def looks_like_not_found(error: GraphQLError, entity: str = "issue") -> bool:
+    """Best-effort not-found detection for Linear's GraphQL errors.
+
+    ``entity`` names the entity the caller looked up (``"issue"`` by default,
+    or ``"team"`` / ``"user"``); the Team and User wording is assumed to
+    mirror the pinned Issue wording and has not been captured live.
 
     Linear sends no dedicated code (``INPUT_ERROR`` is shared with genuine
     input errors), so match its wording — the message names the Issue entity
@@ -57,12 +61,13 @@ def looks_like_not_found(error: GraphQLError) -> bool:
     for unknown identifiers, and by the CLI for the same wording caveat;
     kept here so the two layers cannot drift apart.
     """
-    if "entity not found: issue" in error.message.lower():
+    entity = entity.lower()
+    if f"entity not found: {entity}" in error.message.lower():
         return True
     presentable = error.extensions.get("userPresentableMessage")
     return (
         isinstance(presentable, str)
-        and "could not find referenced issue" in presentable.lower()
+        and f"could not find referenced {entity}" in presentable.lower()
     )
 
 
