@@ -7,10 +7,10 @@ issue_number=49
 issue_marker="<!-- sdk-python-linear:dagger-publisher-drift -->"
 title="Dagger publish module ref is stale"
 # Keep the legacy matcher aligned with the previous RWX issue body.
-legacy_body_prefix="pypi.yml pins ${repo}@"
+legacy_body_prefix="publish.yml pins ${repo}@"
 legacy_body_head_phrase="upstream HEAD"
 legacy_body_action_phrase="Review and re-pin"
-pypi_workflow=.github/workflows/pypi.yml
+pypi_workflow=.rwx/publish.yml
 verify_pin_only=0
 if [[ $# -eq 1 && $1 == --verify-pin ]]; then
 	verify_pin_only=1
@@ -67,7 +67,7 @@ if [[ ! ${expected_sha} =~ ^[0-9a-f]{40}$ ]]; then
 	exit 1
 fi
 if [[ ${active_sha} != "${expected_sha}" ]]; then
-	echo "${repo} is pinned to ${active_sha}, but pypi.yml records ${expected_sha} for ${pinned}" >&2
+	echo "${repo} is pinned to ${active_sha}, but publish.yml records ${expected_sha} for ${pinned}" >&2
 	exit 1
 fi
 if [[ ${verify_pin_only} -eq 1 ]]; then
@@ -97,7 +97,7 @@ if [[ -z ${resolved_sha} ]]; then
 	exit 1
 fi
 if [[ ${resolved_sha} != "${expected_sha}" ]]; then
-	echo "${repo}@${pinned} resolves to ${resolved_sha}, but pypi.yml records ${expected_sha}" >&2
+	echo "${repo}@${pinned} resolves to ${resolved_sha}, but publish.yml records ${expected_sha}" >&2
 	exit 1
 fi
 
@@ -162,7 +162,7 @@ if [[ ${pinned} == "${latest}" ]]; then
 	exit 0
 fi
 
-printf -v body 'pypi.yml pins %s@%s, but the latest upstream release is %s. Review and re-pin. See #%s. %s' \
+printf -v body 'publish.yml pins %s@%s, but the latest upstream release is %s. Review and re-pin. See #%s. %s' \
 	"${repo}" "${pinned}" "${latest}" "${issue_number}" "${issue_marker}"
 has_automation_issue=0
 suppressed_issue=
