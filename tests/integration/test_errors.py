@@ -1,0 +1,23 @@
+"""Live error-contract checks."""
+
+from __future__ import annotations
+
+import pytest
+
+from gtm_linear import LinearClient, LinearQueries
+from gtm_linear.exceptions import LinearGraphQLError
+
+pytestmark = pytest.mark.network
+
+
+async def test_bad_key_maps_to_authentication_error() -> None:
+    async with LinearClient(api_key="lin_api_invalid") as c:
+        with pytest.raises(LinearGraphQLError) as info:
+            await LinearQueries(c).get_viewer()
+    assert "AUTHENTICATION_ERROR" in info.value.codes
+
+
+async def test_trailing_newline_key_authenticates(api_key: str) -> None:
+    async with LinearClient(api_key=api_key + "\n") as c:
+        viewer = await LinearQueries(c).get_viewer()
+    assert viewer.id

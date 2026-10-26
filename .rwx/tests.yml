@@ -237,4 +237,20 @@ tasks:
       LINEAR_API_KEY:
         value: ${{ vaults.sdk-python-linear.secrets.LINEAR_API_KEY }}
         cache-key: excluded
-    run: uv run pytest -q -m network tests/test_cli.py::test_issue_not_found_wording_against_live_api
+      LINEAR_IT_TEAM_KEY: ELV
+    run: uv run pytest -q -m 'network and not network_writes' tests/test_cli.py tests/integration
+
+  # Mutating half of the integration suite: creates and deletes issues in the
+  # dedicated test team, then sweeps leaks. Same main/cron gating as live-api.
+  - key: live-api-writes
+    use: [deps]
+    if: ${{ init.event-type == 'push' || init.event-type == 'schedule' }}
+    cache: false
+    env:
+      LINEAR_API_KEY:
+        value: ${{ vaults.sdk-python-linear.secrets.LINEAR_API_KEY }}
+        cache-key: excluded
+      # Not a secret: the key of the disposable team in the vault's test workspace.
+      LINEAR_IT_TEAM_KEY: ELV
+      LINEAR_IT_RUN_ID: ${{ run.id }}
+    run: uv run pytest -q -m network_writes tests/integration
