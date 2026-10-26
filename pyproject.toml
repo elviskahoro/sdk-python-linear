@@ -87,7 +87,6 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
   "network: hits the public internet; deselected by default",
-  "network_writes: live tests that mutate the Linear test team; need LINEAR_IT_TEAM_KEY",
 ]
 addopts = "-m 'not network'"
 

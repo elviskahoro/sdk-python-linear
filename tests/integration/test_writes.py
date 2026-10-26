@@ -15,9 +15,9 @@ from gtm_linear._generated.CreateIssueRelation import (
     IssueRelationCreateInput,
     IssueRelationType,
 )
-from tests.integration.conftest import TITLE_PREFIX, with_backoff
+from tests.integration.conftest import with_backoff
 
-pytestmark = [pytest.mark.network, pytest.mark.network_writes]
+pytestmark = pytest.mark.network
 
 
 async def test_issue_lifecycle(
@@ -76,18 +76,3 @@ async def test_issue_lifecycle(
     finally:
         for issue_id in created:
             await mutations.delete_issue(issue_id)
-
-
-async def test_janitor_sweeps_leaked_issues(
-    queries: LinearQueries,
-    mutations: LinearMutations,
-    team,  # noqa: ANN001
-) -> None:
-    """Delete leftovers from crashed earlier runs (any run id)."""
-    filt = {
-        "team": {"id": {"eq": team.id}},
-        "title": {"startsWith": TITLE_PREFIX},
-    }
-    leaked = [i async for i in queries.iter_issues(filt)]
-    for issue in leaked:
-        await mutations.delete_issue(issue.id)

@@ -80,8 +80,8 @@ async def test_async_iter_workflow_states(queries: LinearQueries, team) -> None:
     assert len(ids) == len(set(ids))
 
 
-def test_sync_facade(workflow: LinearWorkflow, team_key: str) -> None:
-    team = workflow.get_team_by_key(team_key)
+def test_sync_facade(workflow: LinearWorkflow, team) -> None:
+    team = workflow.get_team_by_key(team.key)
     assert team is not None
     ids = [i.id for i in workflow.iter_team_issues(team.id, page_size=2, limit=5)]
     assert len(ids) == len(set(ids))
