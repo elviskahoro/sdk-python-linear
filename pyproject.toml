@@ -53,7 +53,7 @@ gtm-linear = "gtm_linear.cli:main"
 dev = [
   "pytest>=8.0",
   "pytest-asyncio>=0.23",
-  "respx @ git+https://github.com/elviskahoro/respx@httpx2-support",
+  "respx @ git+https://github.com/elviskahoro/respx@master",
   # Codegen toolchain. Build-time only: scripts/codegen.py turns Linear's SDL
   # into the Pydantic models under gtm_linear/_generated/.
   # graphql-core 3.3 freezes its AST dataclasses; codegen.py builds replacement

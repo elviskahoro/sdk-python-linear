@@ -161,7 +161,7 @@ dev = [
     { name = "gtm-linear", extras = ["strawberry"] },
     { name = "pytest", specifier = ">=8.0" },
     { name = "pytest-asyncio", specifier = ">=0.23" },
-    { name = "respx", git = "https://github.com/elviskahoro/respx?rev=httpx2-support" },
+    { name = "respx", git = "https://github.com/elviskahoro/respx?rev=master" },
     { name = "ruff", specifier = "==0.15.14" },
     { name = "strawberry-graphql", extras = ["cli"], specifier = ">=0.328.0" },
     { name = "tach", specifier = "==0.35.1" },
@@ -701,7 +701,7 @@ wheels = [
 [[package]]
 name = "respx"
 version = "0.23.1"
-source = { git = "https://github.com/elviskahoro/respx?rev=httpx2-support#d8ab5a1b130f2b5348af7d63e25c09fd0b876ea7" }
+source = { git = "https://github.com/elviskahoro/respx?rev=master#c14645dfce6d10349cd5e3dba19c1a2003fd4032" }
 dependencies = [
     { name = "httpx", marker = "sys_platform == 'never'" },
 ]
