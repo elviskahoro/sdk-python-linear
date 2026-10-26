@@ -276,3 +276,17 @@ def test_pipeline_preserves_default_through_prune_and_restore(tmp_path: Path) ->
     sdl = codegen._sanitize_sdl(_prune_query(schema, "sso", whole={"IdType"}))
     result = _restore(sdl, tmp_path)
     assert "type: IdType = IdType.general," in result
+
+
+def test_restore_threads_field_descriptions(tmp_path: Path) -> None:
+    sdl = textwrap.dedent('''\
+        type Query {
+          "He said \\"hi\\" and it's fine"
+          issues(first: Int): Int!
+          "plain doc"
+          count: Int!
+        }
+        ''')
+    result = _restore(sdl, tmp_path)
+    assert "He said" in result
+    assert "count: int = strawberry.field(description='plain doc')" in result

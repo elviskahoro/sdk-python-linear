@@ -85,11 +85,13 @@ def test_rebuild_replaces_fields_without_mutating_inputs() -> None:
     assert definition.description is original
 
 
-def test_sanitize_sdl_strips_directives_descriptions_and_keyword_enums() -> None:
+def test_sanitize_sdl_strips_directives_and_renames_keyword_enums() -> None:
     sanitized = codegen._sanitize_sdl(SDL)
 
     assert "directive" not in sanitized  # BUG-1
-    assert '"""' not in sanitized  # BUG-2
+    # BUG-2 fixed upstream: every description survives, one per node kind.
+    for text in ("doc with an apostrophe", "field doc", "enum doc"):
+        assert text in sanitized
     for value in ("continue", "pass"):
         assert keyword.iskeyword(value)
         assert f"{value}_" in sanitized  # BUG-3: renamed to be assignable

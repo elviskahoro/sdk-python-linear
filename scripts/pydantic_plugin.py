@@ -7,7 +7,9 @@ than crashing.
 
 It also owns the mapping for Linear's custom scalars. ``PythonPlugin`` asserts that
 every non-builtin scalar has a ``python_type``, which Linear's ``JSON`` /
-``JSONObject`` / ``TimelessDate`` do not, so without this the generator aborts.
+``JSONObject`` / ``TimelessDate`` do not, so without this the generator aborts
+(U3, strawberry-graphql/strawberry#4741). ``generate_code`` also prunes the unused
+``List`` import (U4, #4738).
 """
 
 from __future__ import annotations
@@ -107,7 +109,7 @@ class PydanticPlugin(PythonPlugin):
             return mapped.type
 
         # `strawberry.Maybe[str | None]` round-trips into a doubly-wrapped optional.
-        # Collapse it: Optional[Optional[X]] and Optional[X] mean the same thing here.
+        # U5 (strawberry#4737). Collapse it: Optional[Optional[X]] and Optional[X] mean the same thing here.
         if isinstance(type_, GraphQLOptional) and isinstance(
             type_.of_type,
             GraphQLOptional,
