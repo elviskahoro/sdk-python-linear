@@ -20,7 +20,7 @@ import re
 import sys
 from typing import TYPE_CHECKING, Any
 
-import httpx
+import httpx2 as httpx
 import pytest
 import respx
 from pydantic import ValidationError

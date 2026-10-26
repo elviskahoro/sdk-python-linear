@@ -6,7 +6,7 @@ import json
 import warnings
 from typing import TYPE_CHECKING, Any, cast
 
-import httpx
+import httpx2 as httpx
 import pytest
 import respx
 

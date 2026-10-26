@@ -17,7 +17,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import httpx
+import httpx2 as httpx
 import pytest
 from graphql import build_schema, parse, validate
 

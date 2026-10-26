@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 from typing import NoReturn
 
-import httpx
+import httpx2 as httpx
 import pytest
 import respx
 

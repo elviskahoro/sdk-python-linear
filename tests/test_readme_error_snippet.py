@@ -4,7 +4,7 @@ import asyncio
 import re
 from pathlib import Path
 
-import httpx
+import httpx2 as httpx
 import respx
 
 README = Path(__file__).resolve().parent.parent / "README.md"
