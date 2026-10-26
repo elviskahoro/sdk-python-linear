@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
-import httpx
+import httpx2 as httpx
 import pytest
 import respx
 from pydantic import ValidationError

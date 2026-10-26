@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, date, datetime
 
-import httpx
+import httpx2 as httpx
 import pytest
 import respx
 from pydantic import ValidationError

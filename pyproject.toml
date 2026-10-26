@@ -53,7 +53,7 @@ gtm-linear = "gtm_linear.cli:main"
 dev = [
   "pytest>=8.0",
   "pytest-asyncio>=0.23",
-  "respx>=0.21",
+  "respx @ git+https://github.com/elviskahoro/respx@c14645dfce6d10349cd5e3dba19c1a2003fd4032",
   # Codegen toolchain. Build-time only: scripts/codegen.py turns Linear's SDL
   # into the Pydantic models under gtm_linear/_generated/.
   # graphql-core 3.3 freezes its AST dataclasses; codegen.py builds replacement
@@ -86,11 +86,7 @@ dev = [
 asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = ["network: hits the public internet; deselected by default"]
-# `-p no:respx` disables respx's pytest11 plugin entry point so nothing imports
-# real `httpx` before the root conftest's `alias_httpx()` runs. Test modules
-# still `import respx` directly — the plugin only provides `respx.mock(...)`
-# autouse behavior we replace with the explicit context-manager form.
-addopts = "-p no:respx -m 'not network'"
+addopts = "-m 'not network'"
 
 [project.urls]
 Homepage = "https://github.com/elviskahoro/sdk-python-linear"
@@ -116,3 +112,9 @@ include = [
   "README.md",
   "LICENSE",
 ]
+
+[tool.uv]
+# The respx fork prefers `httpx` when installed and falls back to `httpx2`.
+# Drop its transitive `httpx` requirement so it mocks `httpx2`.
+# Remove once respx ships httpx2 support upstream.
+override-dependencies = ["httpx ; sys_platform == 'never'"]

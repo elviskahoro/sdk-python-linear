@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import httpx
+import httpx2 as httpx
 import pytest
 import respx
 
