@@ -23,8 +23,8 @@ from gtm_linear import (
     LinearMutations,
     LinearQueries,
     LinearWorkflow,
-    TeamFields,
 )
+from gtm_linear._generated.fragments import TeamFields
 from gtm_linear.cli import _DotenvApiKey
 from gtm_linear.exceptions import LinearGraphQLError
 
