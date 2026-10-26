@@ -85,9 +85,7 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-markers = [
-  "network: hits the public internet; deselected by default",
-]
+markers = ["network: hits the public internet; deselected by default"]
 addopts = "-m 'not network'"
 
 [project.urls]
