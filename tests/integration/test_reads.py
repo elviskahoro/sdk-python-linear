@@ -21,7 +21,7 @@ async def test_viewer_and_user(queries: LinearQueries) -> None:
     assert again.id == viewer.id
 
 
-async def test_team_lookup(queries: LinearQueries, team) -> None:  # noqa: ANN001
+async def test_team_lookup(queries: LinearQueries, team) -> None:
     by_id = await queries.get_team(team.id)
     assert by_id is not None
     assert by_id.key == team.key
@@ -32,7 +32,7 @@ async def test_issue_not_found_is_none(queries: LinearQueries) -> None:
     assert await queries.get_issue("ZZZ-999999") is None
 
 
-async def test_workflow_states(queries: LinearQueries, team) -> None:  # noqa: ANN001
+async def test_workflow_states(queries: LinearQueries, team) -> None:
     states = await queries.list_workflow_states(team.id)
     assert states
     first = states[0]
@@ -40,7 +40,7 @@ async def test_workflow_states(queries: LinearQueries, team) -> None:  # noqa: A
     assert resolved.type == first.type
 
 
-async def test_list_issues_and_page(queries: LinearQueries, team) -> None:  # noqa: ANN001
+async def test_list_issues_and_page(queries: LinearQueries, team) -> None:
     issues = await queries.list_issues(team.id, first=3)
     assert len(issues) <= 3
     page = await queries.list_issues_page({"team": {"id": {"eq": team.id}}}, first=2)
@@ -54,12 +54,12 @@ async def test_list_issues_and_page(queries: LinearQueries, team) -> None:  # no
         assert isinstance(search.nodes, list)
 
 
-async def test_pagination_has_no_duplicates(queries: LinearQueries, team) -> None:  # noqa: ANN001
+async def test_pagination_has_no_duplicates(queries: LinearQueries, team) -> None:
     ids = [i.id async for i in queries.iter_team_issues(team.id, page_size=2, limit=7)]
     assert len(ids) == len(set(ids))
 
 
-async def test_sub_connections(queries: LinearQueries, team) -> None:  # noqa: ANN001
+async def test_sub_connections(queries: LinearQueries, team) -> None:
     issues = await queries.list_issues(team.id, first=1)
     if not issues:
         pytest.skip("test team has no issues")
@@ -74,7 +74,7 @@ async def test_sub_connections(queries: LinearQueries, team) -> None:  # noqa: A
         assert len(nodes) <= 3
 
 
-async def test_async_iter_workflow_states(queries: LinearQueries, team) -> None:  # noqa: ANN001
+async def test_async_iter_workflow_states(queries: LinearQueries, team) -> None:
     ids = [s.id async for s in queries.iter_workflow_states(team.id, page_size=1)]
     assert ids
     assert len(ids) == len(set(ids))

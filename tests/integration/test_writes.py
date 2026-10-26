@@ -1,4 +1,4 @@
-"""Mutating lifecycle plus janitor sweep. Needs ``LINEAR_IT_TEAM_KEY``."""
+"""Mutating issue lifecycle. Needs ``LINEAR_API_KEY``."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ pytestmark = pytest.mark.network
 async def test_issue_lifecycle(
     queries: LinearQueries,
     mutations: LinearMutations,
-    team,  # noqa: ANN001
+    team,
     title_prefix: str,
 ) -> None:
     created: list[str] = []
