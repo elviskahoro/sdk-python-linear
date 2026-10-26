@@ -4765,15 +4765,36 @@ class WorkflowStateSort:
 
 @strawberry.type
 class Attachment:
-    created_at: datetime
-    id: strawberry.ID
-    metadata: JSONObject
-    source: JSONObject | None
-    source_type: str | None
-    subtitle: str | None
-    title: str
-    updated_at: datetime
-    url: str
+    created_at: datetime = strawberry.field(
+        description="The time at which the entity was created."
+    )
+    id: strawberry.ID = strawberry.field(
+        description="The unique identifier of the entity."
+    )
+    metadata: JSONObject = strawberry.field(
+        description="Integration-specific metadata for this attachment. The schema varies by source type and may include fields such as pull request status, review counts, commit information, ticket status, or other data from the external system."
+    )
+    source: JSONObject | None = strawberry.field(
+        description="Information about the source which created the attachment."
+    )
+    source_type: str | None = strawberry.field(
+        description="The source type of the attachment, derived from the source metadata. Returns the integration type (e.g., 'github', 'slack', 'zendesk') or 'unknown' if no source is set."
+    )
+    subtitle: str | None = strawberry.field(
+        description="Content for the subtitle line in the Linear attachment widget."
+    )
+    title: str = strawberry.field(
+        description="Content for the title line in the Linear attachment widget."
+    )
+    updated_at: datetime = strawberry.field(
+        description="""\
+The last time at which the entity was meaningfully updated. This is the same as the creation time if the entity hasn't
+    been updated after creation.\
+"""
+    )
+    url: str = strawberry.field(
+        description="The URL of the external resource this attachment links to. Also serves as a unique identifier for the attachment within an issue; no two attachments on the same issue can share the same URL."
+    )
 
 
 @strawberry.type
@@ -4784,18 +4805,32 @@ class AttachmentConnection:
 
 @strawberry.type
 class AttachmentPayload:
-    attachment: Attachment
-    success: bool
+    attachment: Attachment = strawberry.field(
+        description="The issue attachment that was created."
+    )
+    success: bool = strawberry.field(
+        description="Whether the operation was successful."
+    )
 
 
 @strawberry.type
 class Comment:
-    body: str
-    created_at: datetime
-    external_user: ExternalUser | None
-    id: strawberry.ID
-    url: str
-    user: User | None
+    body: str = strawberry.field(
+        description="The comment content in markdown format. This is a derived representation of the canonical bodyData ProseMirror content."
+    )
+    created_at: datetime = strawberry.field(
+        description="The time at which the entity was created."
+    )
+    external_user: ExternalUser | None = strawberry.field(
+        description="The external user who wrote the comment, when the comment was created through an integration such as Slack or Intercom. Null for comments created by workspace users."
+    )
+    id: strawberry.ID = strawberry.field(
+        description="The unique identifier of the entity."
+    )
+    url: str = strawberry.field(description="Comment's URL.")
+    user: User | None = strawberry.field(
+        description="The user who wrote the comment. Null for comments created by integrations or bots without a user association."
+    )
 
 
 @strawberry.type
@@ -4806,23 +4841,35 @@ class CommentConnection:
 
 @strawberry.type
 class CommentPayload:
-    comment: Comment
-    success: bool
+    comment: Comment = strawberry.field(
+        description="The comment that was created or updated."
+    )
+    success: bool = strawberry.field(
+        description="Whether the operation was successful."
+    )
 
 
 @strawberry.type
 class ExternalUser:
-    display_name: str
-    email: str | None
-    id: strawberry.ID
-    name: str
+    display_name: str = strawberry.field(
+        description="The external user's display name. Unique within each workspace. Can match the display name of an actual user."
+    )
+    email: str | None = strawberry.field(
+        description="The external user's email address."
+    )
+    id: strawberry.ID = strawberry.field(
+        description="The unique identifier of the entity."
+    )
+    name: str = strawberry.field(description="The external user's full name.")
 
 
 @strawberry.type
 class Issue:
-    assignee: User | None
+    assignee: User | None = strawberry.field(
+        description="The user to whom the issue is assigned. Null if the issue is unassigned."
+    )
 
-    @strawberry.field
+    @strawberry.field(description="Attachments associated with the issue.")
     def attachments(
         self,
         after: str | None = None,
@@ -4835,7 +4882,9 @@ class Issue:
     ) -> AttachmentConnection:
         raise NotImplementedError
 
-    @strawberry.field
+    @strawberry.field(
+        description="Comments associated with the issue, including inline comments on the issue's description."
+    )
     def comments(
         self,
         after: str | None = None,
@@ -4848,11 +4897,17 @@ class Issue:
     ) -> CommentConnection:
         raise NotImplementedError
 
-    description: str | None
-    id: strawberry.ID
-    identifier: str
+    description: str | None = strawberry.field(
+        description="The issue's description in markdown format."
+    )
+    id: strawberry.ID = strawberry.field(
+        description="The unique identifier of the entity."
+    )
+    identifier: str = strawberry.field(
+        description="Issue's human readable identifier (e.g. ENG-123)."
+    )
 
-    @strawberry.field
+    @strawberry.field(description="Inverse relations associated with this issue.")
     def inverse_relations(
         self,
         after: str | None = None,
@@ -4864,9 +4919,11 @@ class Issue:
     ) -> IssueRelationConnection:
         raise NotImplementedError
 
-    priority: float
+    priority: float = strawberry.field(
+        description="The priority of the issue. 0 = No priority, 1 = Urgent, 2 = High, 3 = Medium, 4 = Low."
+    )
 
-    @strawberry.field
+    @strawberry.field(description="Relations associated with this issue.")
     def relations(
         self,
         after: str | None = None,
@@ -4878,14 +4935,20 @@ class Issue:
     ) -> IssueRelationConnection:
         raise NotImplementedError
 
-    state: WorkflowState
-    title: str
-    url: str
+    state: WorkflowState = strawberry.field(
+        description="The workflow state (issue status) that the issue is currently in. Workflow states represent the issue's progress through the team's workflow, such as Triage, Todo, In Progress, Done, or Canceled."
+    )
+    title: str = strawberry.field(
+        description="The issue's title. This is the primary human-readable summary of the work item."
+    )
+    url: str = strawberry.field(description="Issue URL.")
 
 
 @strawberry.type
 class IssueArchivePayload:
-    success: bool
+    success: bool = strawberry.field(
+        description="Whether the operation was successful."
+    )
 
 
 @strawberry.type
@@ -4896,18 +4959,37 @@ class IssueConnection:
 
 @strawberry.type
 class IssuePayload:
-    issue: Issue | None
-    success: bool
+    issue: Issue | None = strawberry.field(
+        description="The issue that was created or updated."
+    )
+    success: bool = strawberry.field(
+        description="Whether the operation was successful."
+    )
 
 
 @strawberry.type
 class IssueRelation:
-    created_at: datetime
-    id: strawberry.ID
-    issue: Issue
-    related_issue: Issue
-    type: str
-    updated_at: datetime
+    created_at: datetime = strawberry.field(
+        description="The time at which the entity was created."
+    )
+    id: strawberry.ID = strawberry.field(
+        description="The unique identifier of the entity."
+    )
+    issue: Issue = strawberry.field(
+        description="The source issue whose relationship is being described. This is the issue from which the relation originates."
+    )
+    related_issue: Issue = strawberry.field(
+        description="The target issue that the source issue is related to. The relation type describes how the source issue relates to this issue."
+    )
+    type: str = strawberry.field(
+        description="The type of relationship between the source issue and the related issue. Possible values include blocks, duplicate, and related."
+    )
+    updated_at: datetime = strawberry.field(
+        description="""\
+The last time at which the entity was meaningfully updated. This is the same as the creation time if the entity hasn't
+    been updated after creation.\
+"""
+    )
 
 
 @strawberry.type
@@ -4918,8 +5000,12 @@ class IssueRelationConnection:
 
 @strawberry.type
 class IssueRelationPayload:
-    issue_relation: IssueRelation
-    success: bool
+    issue_relation: IssueRelation = strawberry.field(
+        description="The issue relation that was created or updated."
+    )
+    success: bool = strawberry.field(
+        description="Whether the operation was successful."
+    )
 
 
 @strawberry.type
@@ -4930,40 +5016,56 @@ class IssueSearchPayload:
 
 @strawberry.type
 class IssueSearchResult:
-    assignee: User | None
-    description: str | None
-    id: strawberry.ID
-    identifier: str
-    priority: float
-    state: WorkflowState
-    title: str
-    url: str
+    assignee: User | None = strawberry.field(
+        description="The user to whom the issue is assigned. Null if the issue is unassigned."
+    )
+    description: str | None = strawberry.field(
+        description="The issue's description in markdown format."
+    )
+    id: strawberry.ID = strawberry.field(
+        description="The unique identifier of the entity."
+    )
+    identifier: str = strawberry.field(
+        description="Issue's human readable identifier (e.g. ENG-123)."
+    )
+    priority: float = strawberry.field(
+        description="The priority of the issue. 0 = No priority, 1 = Urgent, 2 = High, 3 = Medium, 4 = Low."
+    )
+    state: WorkflowState = strawberry.field(
+        description="The workflow state (issue status) that the issue is currently in. Workflow states represent the issue's progress through the team's workflow, such as Triage, Todo, In Progress, Done, or Canceled."
+    )
+    title: str = strawberry.field(
+        description="The issue's title. This is the primary human-readable summary of the work item."
+    )
+    url: str = strawberry.field(description="Issue URL.")
 
 
 @strawberry.type
 class Mutation:
-    @strawberry.field
+    @strawberry.field(
+        description="Creates a new attachment, or updates existing if the same `url` and `issueId` is used. To create an integration-aware attachment, use the integration-specific mutations such as `attachmentLinkZendesk`, `attachmentLinkSlack`, or `attachmentLinkURL` instead."
+    )
     def attachment_create(
         self,
         input: AttachmentCreateInput,
     ) -> AttachmentPayload:
         raise NotImplementedError
 
-    @strawberry.field
+    @strawberry.field(description="Creates a new comment.")
     def comment_create(
         self,
         input: CommentCreateInput,
     ) -> CommentPayload:
         raise NotImplementedError
 
-    @strawberry.field
+    @strawberry.field(description="Creates a new issue.")
     def issue_create(
         self,
         input: IssueCreateInput,
     ) -> IssuePayload:
         raise NotImplementedError
 
-    @strawberry.field
+    @strawberry.field(description="Deletes (trashes) an issue.")
     def issue_delete(
         self,
         id: str,
@@ -4971,7 +5073,7 @@ class Mutation:
     ) -> IssueArchivePayload:
         raise NotImplementedError
 
-    @strawberry.field
+    @strawberry.field(description="Creates a new issue relation.")
     def issue_relation_create(
         self,
         input: IssueRelationCreateInput,
@@ -4979,7 +5081,7 @@ class Mutation:
     ) -> IssueRelationPayload:
         raise NotImplementedError
 
-    @strawberry.field
+    @strawberry.field(description="Updates an issue.")
     def issue_update(
         self,
         id: str,
@@ -4990,22 +5092,34 @@ class Mutation:
 
 @strawberry.type
 class PageInfo:
-    end_cursor: str | None
-    has_next_page: bool
-    has_previous_page: bool
-    start_cursor: str | None
+    end_cursor: str | None = strawberry.field(
+        description="Cursor representing the last result in the paginated results."
+    )
+    has_next_page: bool = strawberry.field(
+        description="Indicates if there are more results when paginating forward."
+    )
+    has_previous_page: bool = strawberry.field(
+        description="Indicates if there are more results when paginating backward."
+    )
+    start_cursor: str | None = strawberry.field(
+        description="Cursor representing the first result in the paginated results."
+    )
 
 
 @strawberry.type
 class Query:
-    @strawberry.field
+    @strawberry.field(
+        description="One specific issue, looked up by its unique identifier."
+    )
     def issue(
         self,
         id: str,
     ) -> Issue:
         raise NotImplementedError
 
-    @strawberry.field
+    @strawberry.field(
+        description="All issues. Returns a paginated list of issues visible to the authenticated user. Can be filtered by various criteria including team, assignee, state, labels, project, and cycle."
+    )
     def issues(
         self,
         after: str | None = None,
@@ -5019,7 +5133,9 @@ class Query:
     ) -> IssueConnection:
         raise NotImplementedError
 
-    @strawberry.field
+    @strawberry.field(
+        description="Search issues by text query using full-text and vector search. Results are ranked by relevance unless an orderBy parameter is specified. Supports optional issue filters and comment inclusion. Rate-limited to 30 requests per minute."
+    )
     def search_issues(
         self,
         term: str,
@@ -5035,14 +5151,16 @@ class Query:
     ) -> IssueSearchPayload:
         raise NotImplementedError
 
-    @strawberry.field
+    @strawberry.field(description="Fetches a specific team by its ID.")
     def team(
         self,
         id: str,
     ) -> Team:
         raise NotImplementedError
 
-    @strawberry.field
+    @strawberry.field(
+        description="All teams whose issues the user can access. This includes public teams and private teams the user is a member of. This may differ from `administrableTeams`, which returns teams whose settings the user can change but whose issues they don't necessarily have access to."
+    )
     def teams(
         self,
         after: str | None = None,
@@ -5055,16 +5173,20 @@ class Query:
     ) -> TeamConnection:
         raise NotImplementedError
 
-    @strawberry.field
+    @strawberry.field(description="Fetches a specific user by their ID.")
     def user(
         self,
         id: str,
     ) -> User:
         raise NotImplementedError
 
-    viewer: User
+    viewer: User = strawberry.field(
+        description="The currently authenticated user making the API request."
+    )
 
-    @strawberry.field
+    @strawberry.field(
+        description="All issue workflow states (issue statuses). Returns a paginated list of workflow states visible to the authenticated user, across all teams they have access to."
+    )
     def workflow_states(
         self,
         after: str | None = None,
@@ -5080,9 +5202,13 @@ class Query:
 
 @strawberry.type
 class Team:
-    id: strawberry.ID
-    key: str
-    name: str
+    id: strawberry.ID = strawberry.field(
+        description="The unique identifier of the entity."
+    )
+    key: str = strawberry.field(
+        description="The team's unique key, used as a prefix in issue identifiers (e.g., 'ENG' in 'ENG-123') and in URLs."
+    )
+    name: str = strawberry.field(description="The team's name.")
 
 
 @strawberry.type
@@ -5092,19 +5218,31 @@ class TeamConnection:
 
 @strawberry.type
 class User:
-    active: bool
-    email: str
-    id: strawberry.ID
-    name: str
+    active: bool = strawberry.field(
+        description="Whether the user account is active or disabled (suspended)."
+    )
+    email: str = strawberry.field(description="The user's email address.")
+    id: strawberry.ID = strawberry.field(
+        description="The unique identifier of the entity."
+    )
+    name: str = strawberry.field(description="The user's full name.")
 
 
 @strawberry.type
 class WorkflowState:
-    color: str
-    id: strawberry.ID
-    name: str
-    position: float
-    type: str
+    color: str = strawberry.field(description="The state's UI color as a HEX string.")
+    id: strawberry.ID = strawberry.field(
+        description="The unique identifier of the entity."
+    )
+    name: str = strawberry.field(
+        description="The state's human-readable name (e.g., 'In Progress', 'Done', 'Backlog')."
+    )
+    position: float = strawberry.field(
+        description="The position of the state in the team's workflow. States are displayed in ascending order of position within their type group."
+    )
+    type: str = strawberry.field(
+        description='The type of the state. One of "triage", "backlog", "unstarted", "started", "completed", "canceled", "duplicate".'
+    )
 
 
 @strawberry.type

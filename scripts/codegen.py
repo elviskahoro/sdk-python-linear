@@ -58,6 +58,7 @@ from __future__ import annotations
 import argparse
 import ast
 import filecmp
+import json
 import keyword
 import os
 import re
@@ -382,6 +383,9 @@ def _prune(
             # than Linear's real schema (e.g. `first: Int = 50`).
             args = ", ".join(_arg_sdl(n, a) for n, a in field.args.items())
             suffix = f"({args})" if args else ""
+            if field.description:
+                # json.dumps yields a valid single-line SDL string for any text.
+                lines.append(f"  {json.dumps(field.description)}")
             lines.append(f"  {field_name}{suffix}: {field.type}")
         body = "\n".join(lines)
         chunks.append(f"type {name} {{\n{body}\n}}")
@@ -714,9 +718,7 @@ def _python_type(type_: object, *, nullable: bool = True) -> str:
 def _restore_field_arguments(source: str, sdl_path: Path) -> str:
     """Restore field arguments Strawberry schema-codegen drops (BUG-7).
 
-    Known gap: the rebuilt classes (Query, Mutation, Issue) carry no field
-    descriptions, unlike every other mirror type; threading ``field.description``
-    through both emission paths is a follow-up (#155).
+    Field descriptions from the pruned SDL are re-emitted as ``description=``.
 
     schema-codegen emits every field — root and nested alike — as a plain class
     attribute, dropping its argument list. The pruned SDL carries the full
@@ -753,8 +755,17 @@ def _restore_field_arguments(source: str, sdl_path: Path) -> str:
         for field_name, field in sdl_type.fields.items():
             python_field = _python_name(field_name)
             return_type = _python_type(field.type)
+            # repr() quotes any description safely (apostrophes, quotes, newlines).
+            described = (
+                f"description={field.description!r}" if field.description else ""
+            )
             if not field.args:
-                lines.append(f"    {python_field}: {return_type}")
+                if described:
+                    lines.append(
+                        f"    {python_field}: {return_type} = strawberry.field({described})",
+                    )
+                else:
+                    lines.append(f"    {python_field}: {return_type}")
                 continue
 
             required = [
@@ -769,7 +780,9 @@ def _restore_field_arguments(source: str, sdl_path: Path) -> str:
             ]
             lines.extend(
                 [
-                    "    @strawberry.field",
+                    f"    @strawberry.field({described})"
+                    if described
+                    else "    @strawberry.field",
                     f"    def {python_field}(self,",
                 ],
             )
