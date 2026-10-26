@@ -596,7 +596,7 @@ trunk fmt                     # autoformat
 
 CI runs on RWX: `.rwx/tests.yml` runs `pytest`, the two `--check` scripts, a lean-install task (the wheel must import without the `[strawberry]` extra), and a weekly scheduled schema-drift cron (`pytest -m network`). `.rwx/trunk-check.yml` runs `trunk check` on every PR as the lint gate (a required status in `.trunk/trunk.yaml`). `.rwx/dagger-ref-drift.yml` remains a weekly fallback that verifies the publisher tag/SHA pair and reports stale releases. `.rwx/publish.yml` builds with Dagger and publishes to PyPI on `v*` tags using a project-scoped `PYPI_TOKEN` from the `sdk-python-linear` RWX vault (`rwx vaults secrets set --vault sdk-python-linear PYPI_TOKEN=<token>`; RWX cannot use PyPI trusted publishing). GitHub Actions remains only for the Pullfrog agent harness (`pullfrog.yml`) — see `.rwx/.migration-inventory.md` for the port inventory and flip status. Renovate updates the paired SemVer tag and immutable SHA in `.rwx/publish.yml`; its custom regex manager is intentionally the only enabled Renovate manager because Dependabot handles the remaining GitHub Actions.
 
-Tests use `respx` to mock `httpx` — no network access required. `pytest-asyncio` is in `auto` mode, so async test functions don't need decoration.
+Tests use `respx` to mock `httpx2` — no network access required. `pytest-asyncio` is in `auto` mode, so async test functions don't need decoration.
 
 ### Conventions
 
