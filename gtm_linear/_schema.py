@@ -94,1924 +94,4673 @@ class TeamVisibility(Enum):
     restricted = "restricted"
 
 
-@strawberry.input
+@strawberry.input(description="Activity collection filtering options.")
 class ActivityCollectionFilter:
     and_: strawberry.Maybe[list[ActivityCollectionFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the activity.",
+        name="and",
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    every: strawberry.Maybe[ActivityFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    length: strawberry.Maybe[NumberComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    every: strawberry.Maybe[ActivityFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all activities."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
     or_: strawberry.Maybe[list[ActivityCollectionFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the activity.",
+        name="or",
     )
-    some: strawberry.Maybe[ActivityFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
-    user: strawberry.Maybe[UserFilter | None]
+    some: strawberry.Maybe[ActivityFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some activities."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
+    user: strawberry.Maybe[UserFilter | None] = strawberry.field(
+        description="Filters that the activity's user must satisfy."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Activity filtering options.")
 class ActivityFilter:
-    and_: strawberry.Maybe[list[ActivityFilter] | None] = strawberry.field(name="and")
-    created_at: strawberry.Maybe[DateComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    or_: strawberry.Maybe[list[ActivityFilter] | None] = strawberry.field(name="or")
-    updated_at: strawberry.Maybe[DateComparator | None]
-    user: strawberry.Maybe[UserFilter | None]
+    and_: strawberry.Maybe[list[ActivityFilter] | None] = strawberry.field(
+        description="Compound filters, all of which need to be matched by the activity.",
+        name="and",
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    or_: strawberry.Maybe[list[ActivityFilter] | None] = strawberry.field(
+        description="Compound filters, one of which need to be matched by the activity.",
+        name="or",
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
+    user: strawberry.Maybe[UserFilter | None] = strawberry.field(
+        description="Filters that the activity's user must satisfy."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue assignee sorting options.")
 class AssigneeSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Attachment collection filtering options.")
 class AttachmentCollectionFilter:
     and_: strawberry.Maybe[list[AttachmentCollectionFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the attachment.",
+        name="and",
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[NullableUserFilter | None]
-    every: strawberry.Maybe[AttachmentFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    length: strawberry.Maybe[NumberComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the attachments creator must satisfy."
+    )
+    every: strawberry.Maybe[AttachmentFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all attachments."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
     or_: strawberry.Maybe[list[AttachmentCollectionFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the attachment.",
+        name="or",
     )
-    some: strawberry.Maybe[AttachmentFilter | None]
-    source_type: strawberry.Maybe[SourceTypeComparator | None]
-    subtitle: strawberry.Maybe[NullableStringComparator | None]
-    title: strawberry.Maybe[StringComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
-    url: strawberry.Maybe[StringComparator | None]
+    some: strawberry.Maybe[AttachmentFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some attachments."
+    )
+    source_type: strawberry.Maybe[SourceTypeComparator | None] = strawberry.field(
+        description="Comparator for the source type."
+    )
+    subtitle: strawberry.Maybe[NullableStringComparator | None] = strawberry.field(
+        description="Comparator for the subtitle."
+    )
+    title: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the title."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
+    url: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the url."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Input for creating a new issue attachment.")
 class AttachmentCreateInput:
-    comment_body: strawberry.Maybe[str | None]
-    comment_body_data: strawberry.Maybe[JSONObject | None]
-    create_as_user: strawberry.Maybe[str | None]
-    display_icon_url: strawberry.Maybe[str | None]
-    group_by_source: strawberry.Maybe[bool | None]
-    icon_url: strawberry.Maybe[str | None]
-    id: strawberry.Maybe[str | None]
-    issue_id: str
-    metadata: strawberry.Maybe[JSONObject | None]
-    subtitle: strawberry.Maybe[str | None]
-    title: str
-    url: str
+    comment_body: strawberry.Maybe[str | None] = strawberry.field(
+        description="Create a linked comment with markdown body."
+    )
+    comment_body_data: strawberry.Maybe[JSONObject | None] = strawberry.field(
+        description="[Internal] Create a linked comment with Prosemirror body. Please use `commentBody` instead."
+    )
+    create_as_user: strawberry.Maybe[str | None] = strawberry.field(
+        description="Create attachment as a user with the provided name. This option is only available to OAuth applications creating attachments in `actor=application` mode."
+    )
+    display_icon_url: strawberry.Maybe[str | None] = strawberry.field(
+        description="Provide an external user avatar URL. Can only be used in conjunction with the `createAsUser` options. This option is only available to OAuth applications creating attachments in `actor=app` mode."
+    )
+    group_by_source: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Indicates if attachments for the same source application should be grouped in the Linear UI."
+    )
+    icon_url: strawberry.Maybe[str | None] = strawberry.field(
+        description="An icon url to display with the attachment. Should be of jpg or png format. Maximum of 1MB in size. Dimensions should be 20x20px for optimal display quality."
+    )
+    id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The identifier in UUID v4 format. If none is provided, the backend will generate one."
+    )
+    issue_id: str = strawberry.field(
+        description="The issue to associate the attachment with. Can be a UUID or issue identifier (e.g., 'LIN-123')."
+    )
+    metadata: strawberry.Maybe[JSONObject | None] = strawberry.field(
+        description="Attachment metadata object with string and number values."
+    )
+    subtitle: strawberry.Maybe[str | None] = strawberry.field(
+        description="The attachment subtitle."
+    )
+    title: str = strawberry.field(description="The attachment title.")
+    url: str = strawberry.field(
+        description="Attachment location which is also used as an unique identifier for the attachment. If another attachment is created with the same `url` value, existing record is updated instead."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Attachment filtering options.")
 class AttachmentFilter:
-    and_: strawberry.Maybe[list[AttachmentFilter] | None] = strawberry.field(name="and")
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[NullableUserFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    or_: strawberry.Maybe[list[AttachmentFilter] | None] = strawberry.field(name="or")
-    source_type: strawberry.Maybe[SourceTypeComparator | None]
-    subtitle: strawberry.Maybe[NullableStringComparator | None]
-    title: strawberry.Maybe[StringComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
-    url: strawberry.Maybe[StringComparator | None]
+    and_: strawberry.Maybe[list[AttachmentFilter] | None] = strawberry.field(
+        description="Compound filters, all of which need to be matched by the attachment.",
+        name="and",
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the attachments creator must satisfy."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    or_: strawberry.Maybe[list[AttachmentFilter] | None] = strawberry.field(
+        description="Compound filters, one of which need to be matched by the attachment.",
+        name="or",
+    )
+    source_type: strawberry.Maybe[SourceTypeComparator | None] = strawberry.field(
+        description="Comparator for the source type."
+    )
+    subtitle: strawberry.Maybe[NullableStringComparator | None] = strawberry.field(
+        description="Comparator for the subtitle."
+    )
+    title: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the title."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
+    url: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the url."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for booleans.")
 class BooleanComparator:
-    eq: strawberry.Maybe[bool | None]
-    neq: strawberry.Maybe[bool | None]
+    eq: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    neq: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Not equals constraint."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comment filtering options.")
 class CommentCollectionFilter:
     and_: strawberry.Maybe[list[CommentCollectionFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the comment.",
+        name="and",
     )
-    body: strawberry.Maybe[StringComparator | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    document_content: strawberry.Maybe[NullableDocumentContentFilter | None]
-    every: strawberry.Maybe[CommentFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    initiative: strawberry.Maybe[NullableInitiativeFilter | None]
-    initiative_update: strawberry.Maybe[NullableInitiativeUpdateFilter | None]
-    issue: strawberry.Maybe[NullableIssueFilter | None]
-    length: strawberry.Maybe[NumberComparator | None]
-    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None]
+    body: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the comment's body."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    document_content: strawberry.Maybe[NullableDocumentContentFilter | None] = (
+        strawberry.field(
+            description="Filters that the comment's document content must satisfy."
+        )
+    )
+    every: strawberry.Maybe[CommentFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all comments."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    initiative: strawberry.Maybe[NullableInitiativeFilter | None] = strawberry.field(
+        description="[Internal] Filters that the comment's initiative must satisfy."
+    )
+    initiative_update: strawberry.Maybe[NullableInitiativeUpdateFilter | None] = (
+        strawberry.field(
+            description="Filters that the comment's initiative update must satisfy."
+        )
+    )
+    issue: strawberry.Maybe[NullableIssueFilter | None] = strawberry.field(
+        description="Filters that the comment's issue must satisfy."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
+    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None] = strawberry.field(
+        description="Filters that the comment's customer needs must satisfy."
+    )
     or_: strawberry.Maybe[list[CommentCollectionFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the comment.",
+        name="or",
     )
-    parent: strawberry.Maybe[NullableCommentFilter | None]
-    project: strawberry.Maybe[NullableProjectFilter | None]
-    project_update: strawberry.Maybe[NullableProjectUpdateFilter | None]
-    reactions: strawberry.Maybe[ReactionCollectionFilter | None]
-    some: strawberry.Maybe[CommentFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
-    user: strawberry.Maybe[UserFilter | None]
+    parent: strawberry.Maybe[NullableCommentFilter | None] = strawberry.field(
+        description="Filters that the comment parent must satisfy."
+    )
+    project: strawberry.Maybe[NullableProjectFilter | None] = strawberry.field(
+        description="[Internal] Filters that the comment's project must satisfy."
+    )
+    project_update: strawberry.Maybe[NullableProjectUpdateFilter | None] = (
+        strawberry.field(
+            description="Filters that the comment's project update must satisfy."
+        )
+    )
+    reactions: strawberry.Maybe[ReactionCollectionFilter | None] = strawberry.field(
+        description="Filters that the comment's reactions must satisfy."
+    )
+    some: strawberry.Maybe[CommentFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some comments."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
+    user: strawberry.Maybe[UserFilter | None] = strawberry.field(
+        description="Filters that the comment's creator must satisfy."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Input for creating a new comment.")
 class CommentCreateInput:
-    body: strawberry.Maybe[str | None]
-    body_data: strawberry.Maybe[JSONScalar | None]
-    create_as_user: strawberry.Maybe[str | None]
-    create_on_synced_slack_thread: strawberry.Maybe[bool | None]
-    created_at: strawberry.Maybe[datetime | None]
-    display_icon_url: strawberry.Maybe[str | None]
-    do_not_subscribe_to_issue: strawberry.Maybe[bool | None]
-    document_content_id: strawberry.Maybe[str | None]
-    id: strawberry.Maybe[str | None]
-    initiative_id: strawberry.Maybe[str | None]
-    initiative_update_id: strawberry.Maybe[str | None]
-    issue_id: strawberry.Maybe[str | None]
-    parent_id: strawberry.Maybe[str | None]
-    post_id: strawberry.Maybe[str | None]
-    project_id: strawberry.Maybe[str | None]
-    project_update_id: strawberry.Maybe[str | None]
-    quoted_text: strawberry.Maybe[str | None]
-    subscriber_ids: strawberry.Maybe[list[str] | None]
+    body: strawberry.Maybe[str | None] = strawberry.field(
+        description="The comment content in markdown format."
+    )
+    body_data: strawberry.Maybe[JSONScalar | None] = strawberry.field(
+        description="[Internal] The comment content as a Prosemirror document."
+    )
+    create_as_user: strawberry.Maybe[str | None] = strawberry.field(
+        description="Create comment as a user with the provided name. This option is only available to OAuth applications creating comments in `actor=app` mode."
+    )
+    create_on_synced_slack_thread: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Flag to indicate this comment should be created on the issue's synced Slack comment thread. If no synced Slack comment thread exists, the mutation will fail. If there are multiple synced Slack threads on the issue, the oldest one will be targeted."
+    )
+    created_at: strawberry.Maybe[datetime | None] = strawberry.field(
+        description="The time at which the comment was created (e.g. if importing from another system). Must be a time in the past. If none is provided, the backend will generate the time as now."
+    )
+    display_icon_url: strawberry.Maybe[str | None] = strawberry.field(
+        description="Provide an external user avatar URL. Can only be used in conjunction with the `createAsUser` options. This option is only available to OAuth applications creating comments in `actor=app` mode."
+    )
+    do_not_subscribe_to_issue: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Flag to prevent auto subscription to the issue the comment is created on."
+    )
+    document_content_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The document content to associate the comment with."
+    )
+    id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The identifier in UUID v4 format. If none is provided, the backend will generate one."
+    )
+    initiative_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The initiative to associate the comment with."
+    )
+    initiative_update_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The initiative update to associate the comment with."
+    )
+    issue_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The issue to associate the comment with. Can be a UUID or issue identifier (e.g., 'LIN-123')."
+    )
+    parent_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The parent comment under which to nest a current comment."
+    )
+    post_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The post to associate the comment with."
+    )
+    project_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The project to associate the comment with."
+    )
+    project_update_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The project update to associate the comment with."
+    )
+    quoted_text: strawberry.Maybe[str | None] = strawberry.field(
+        description="The text that this comment references. Only defined for inline comments."
+    )
+    subscriber_ids: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="[INTERNAL] The identifiers of the users subscribing to this comment thread."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comment filtering options.")
 class CommentFilter:
-    and_: strawberry.Maybe[list[CommentFilter] | None] = strawberry.field(name="and")
-    body: strawberry.Maybe[StringComparator | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    document_content: strawberry.Maybe[NullableDocumentContentFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    initiative: strawberry.Maybe[NullableInitiativeFilter | None]
-    initiative_update: strawberry.Maybe[NullableInitiativeUpdateFilter | None]
-    issue: strawberry.Maybe[NullableIssueFilter | None]
-    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None]
-    or_: strawberry.Maybe[list[CommentFilter] | None] = strawberry.field(name="or")
-    parent: strawberry.Maybe[NullableCommentFilter | None]
-    project: strawberry.Maybe[NullableProjectFilter | None]
-    project_update: strawberry.Maybe[NullableProjectUpdateFilter | None]
-    reactions: strawberry.Maybe[ReactionCollectionFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
-    user: strawberry.Maybe[UserFilter | None]
+    and_: strawberry.Maybe[list[CommentFilter] | None] = strawberry.field(
+        description="Compound filters, all of which need to be matched by the comment.",
+        name="and",
+    )
+    body: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the comment's body."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    document_content: strawberry.Maybe[NullableDocumentContentFilter | None] = (
+        strawberry.field(
+            description="Filters that the comment's document content must satisfy."
+        )
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    initiative: strawberry.Maybe[NullableInitiativeFilter | None] = strawberry.field(
+        description="[Internal] Filters that the comment's initiative must satisfy."
+    )
+    initiative_update: strawberry.Maybe[NullableInitiativeUpdateFilter | None] = (
+        strawberry.field(
+            description="Filters that the comment's initiative update must satisfy."
+        )
+    )
+    issue: strawberry.Maybe[NullableIssueFilter | None] = strawberry.field(
+        description="Filters that the comment's issue must satisfy."
+    )
+    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None] = strawberry.field(
+        description="Filters that the comment's customer needs must satisfy."
+    )
+    or_: strawberry.Maybe[list[CommentFilter] | None] = strawberry.field(
+        description="Compound filters, one of which need to be matched by the comment.",
+        name="or",
+    )
+    parent: strawberry.Maybe[NullableCommentFilter | None] = strawberry.field(
+        description="Filters that the comment parent must satisfy."
+    )
+    project: strawberry.Maybe[NullableProjectFilter | None] = strawberry.field(
+        description="[Internal] Filters that the comment's project must satisfy."
+    )
+    project_update: strawberry.Maybe[NullableProjectUpdateFilter | None] = (
+        strawberry.field(
+            description="Filters that the comment's project update must satisfy."
+        )
+    )
+    reactions: strawberry.Maybe[ReactionCollectionFilter | None] = strawberry.field(
+        description="Filters that the comment's reactions must satisfy."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
+    user: strawberry.Maybe[UserFilter | None] = strawberry.field(
+        description="Filters that the comment's creator must satisfy."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue completion date sorting options.")
 class CompletedAtSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="[Internal] Comparator for content.")
 class ContentComparator:
-    contains: strawberry.Maybe[str | None]
-    not_contains: strawberry.Maybe[str | None]
+    contains: strawberry.Maybe[str | None] = strawberry.field(
+        description="[Internal] Contains constraint."
+    )
+    not_contains: strawberry.Maybe[str | None] = strawberry.field(
+        description="[Internal] Not-contains constraint."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue creation date sorting options.")
 class CreatedAtSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue customer count sorting options.")
 class CustomerCountSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue customer important count sorting options.")
 class CustomerImportantCountSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Customer needs filtering options.")
 class CustomerNeedCollectionFilter:
     and_: strawberry.Maybe[list[CustomerNeedCollectionFilter] | None] = (
-        strawberry.field(name="and")
+        strawberry.field(
+            description="Compound filters, all of which need to be matched by the customer needs.",
+            name="and",
+        )
     )
-    comment: strawberry.Maybe[NullableCommentFilter | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    customer: strawberry.Maybe[NullableCustomerFilter | None]
-    every: strawberry.Maybe[CustomerNeedFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    issue: strawberry.Maybe[NullableIssueFilter | None]
-    length: strawberry.Maybe[NumberComparator | None]
+    comment: strawberry.Maybe[NullableCommentFilter | None] = strawberry.field(
+        description="Filters that the need's comment must satisfy."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    customer: strawberry.Maybe[NullableCustomerFilter | None] = strawberry.field(
+        description="Filters that the need's customer must satisfy."
+    )
+    every: strawberry.Maybe[CustomerNeedFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all customer needs."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    issue: strawberry.Maybe[NullableIssueFilter | None] = strawberry.field(
+        description="Filters that the need's issue must satisfy."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
     or_: strawberry.Maybe[list[CustomerNeedCollectionFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the customer needs.",
+        name="or",
     )
-    priority: strawberry.Maybe[NumberComparator | None]
-    project: strawberry.Maybe[NullableProjectFilter | None]
-    some: strawberry.Maybe[CustomerNeedFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    priority: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the customer need priority."
+    )
+    project: strawberry.Maybe[NullableProjectFilter | None] = strawberry.field(
+        description="Filters that the need's project must satisfy."
+    )
+    some: strawberry.Maybe[CustomerNeedFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some customer needs."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Customer filtering options.")
 class CustomerNeedFilter:
     and_: strawberry.Maybe[list[CustomerNeedFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the customer need.",
+        name="and",
     )
-    comment: strawberry.Maybe[NullableCommentFilter | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    customer: strawberry.Maybe[NullableCustomerFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    issue: strawberry.Maybe[NullableIssueFilter | None]
-    or_: strawberry.Maybe[list[CustomerNeedFilter] | None] = strawberry.field(name="or")
-    priority: strawberry.Maybe[NumberComparator | None]
-    project: strawberry.Maybe[NullableProjectFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    comment: strawberry.Maybe[NullableCommentFilter | None] = strawberry.field(
+        description="Filters that the need's comment must satisfy."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    customer: strawberry.Maybe[NullableCustomerFilter | None] = strawberry.field(
+        description="Filters that the need's customer must satisfy."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    issue: strawberry.Maybe[NullableIssueFilter | None] = strawberry.field(
+        description="Filters that the need's issue must satisfy."
+    )
+    or_: strawberry.Maybe[list[CustomerNeedFilter] | None] = strawberry.field(
+        description="Compound filters, one of which need to be matched by the customer need.",
+        name="or",
+    )
+    priority: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the customer need priority."
+    )
+    project: strawberry.Maybe[NullableProjectFilter | None] = strawberry.field(
+        description="Filters that the need's project must satisfy."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue customer revenue sorting options.")
 class CustomerRevenueSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue customer sorting options.")
 class CustomerSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Customer status filtering options.")
 class CustomerStatusFilter:
     and_: strawberry.Maybe[list[CustomerStatusFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the customer status.",
+        name="and",
     )
-    color: strawberry.Maybe[StringComparator | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    description: strawberry.Maybe[StringComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
+    color: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the customer status color."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    description: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the customer status description."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the customer status name."
+    )
     or_: strawberry.Maybe[list[CustomerStatusFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which needs to be matched by the customer status.",
+        name="or",
     )
-    position: strawberry.Maybe[NumberComparator | None]
-    type: strawberry.Maybe[StringComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    position: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the customer status position."
+    )
+    type: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the customer status type."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Customer tier filtering options.")
 class CustomerTierFilter:
     and_: strawberry.Maybe[list[CustomerTierFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the customer tier.",
+        name="and",
     )
-    color: strawberry.Maybe[StringComparator | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    description: strawberry.Maybe[StringComparator | None]
-    display_name: strawberry.Maybe[StringComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    or_: strawberry.Maybe[list[CustomerTierFilter] | None] = strawberry.field(name="or")
-    position: strawberry.Maybe[NumberComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    color: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the customer tier color."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    description: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the customer tier description."
+    )
+    display_name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the customer tier display name."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    or_: strawberry.Maybe[list[CustomerTierFilter] | None] = strawberry.field(
+        description="Compound filters, one of which needs to be matched by the customer tier.",
+        name="or",
+    )
+    position: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the customer tier position."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Cycle filtering options.")
 class CycleFilter:
-    and_: strawberry.Maybe[list[CycleFilter] | None] = strawberry.field(name="and")
-    completed_at: strawberry.Maybe[DateComparator | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    ends_at: strawberry.Maybe[DateComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    inherited_from_id: strawberry.Maybe[IDComparator | None]
-    is_active: strawberry.Maybe[BooleanComparator | None]
-    is_future: strawberry.Maybe[BooleanComparator | None]
-    is_in_cooldown: strawberry.Maybe[BooleanComparator | None]
-    is_next: strawberry.Maybe[BooleanComparator | None]
-    is_past: strawberry.Maybe[BooleanComparator | None]
-    is_previous: strawberry.Maybe[BooleanComparator | None]
-    issues: strawberry.Maybe[IssueCollectionFilter | None]
-    name: strawberry.Maybe[StringComparator | None]
-    number: strawberry.Maybe[NumberComparator | None]
-    or_: strawberry.Maybe[list[CycleFilter] | None] = strawberry.field(name="or")
-    starts_at: strawberry.Maybe[DateComparator | None]
-    team: strawberry.Maybe[TeamFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    and_: strawberry.Maybe[list[CycleFilter] | None] = strawberry.field(
+        description="Compound filters, all of which need to be matched by the cycle.",
+        name="and",
+    )
+    completed_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the cycle completed at date."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    ends_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the cycle ends at date."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    inherited_from_id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the inherited cycle ID."
+    )
+    is_active: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the filtering active cycle."
+    )
+    is_future: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the filtering future cycles."
+    )
+    is_in_cooldown: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for filtering for whether the cycle is currently in cooldown."
+    )
+    is_next: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the filtering next cycle."
+    )
+    is_past: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the filtering past cycles."
+    )
+    is_previous: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the filtering previous cycle."
+    )
+    issues: strawberry.Maybe[IssueCollectionFilter | None] = strawberry.field(
+        description="Filters that the cycles issues must satisfy."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the cycle name."
+    )
+    number: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the cycle number."
+    )
+    or_: strawberry.Maybe[list[CycleFilter] | None] = strawberry.field(
+        description="Compound filters, one of which need to be matched by the cycle.",
+        name="or",
+    )
+    starts_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the cycle start date."
+    )
+    team: strawberry.Maybe[TeamFilter | None] = strawberry.field(
+        description="Filters that the cycles team must satisfy."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for period when issue was added to a cycle.")
 class CyclePeriodComparator:
-    eq: strawberry.Maybe[CyclePeriod | None]
-    in_: strawberry.Maybe[list[CyclePeriod] | None] = strawberry.field(name="in")
-    neq: strawberry.Maybe[CyclePeriod | None]
-    nin: strawberry.Maybe[list[CyclePeriod] | None]
-    null: strawberry.Maybe[bool | None]
+    eq: strawberry.Maybe[CyclePeriod | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    in_: strawberry.Maybe[list[CyclePeriod] | None] = strawberry.field(
+        description="In-array constraint.", name="in"
+    )
+    neq: strawberry.Maybe[CyclePeriod | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    nin: strawberry.Maybe[list[CyclePeriod] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Null constraint. Matches any non-null values if the given value is false, otherwise it matches null values."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue cycle sorting options.")
 class CycleSort:
-    current_cycle_first: strawberry.Maybe[bool | None] = False
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    current_cycle_first: strawberry.Maybe[bool | None] = strawberry.field(
+        description="When set to true, cycles will be ordered with a custom order. Current cycle comes first, followed by upcoming cycles in ASC order, followed by previous cycles in DESC order.",
+        default=False,
+    )
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for dates.")
 class DateComparator:
-    eq: strawberry.Maybe[DateTimeOrDuration | None]
-    gt: strawberry.Maybe[DateTimeOrDuration | None]
-    gte: strawberry.Maybe[DateTimeOrDuration | None]
-    in_: strawberry.Maybe[list[DateTimeOrDuration] | None] = strawberry.field(name="in")
-    lt: strawberry.Maybe[DateTimeOrDuration | None]
-    lte: strawberry.Maybe[DateTimeOrDuration | None]
-    neq: strawberry.Maybe[DateTimeOrDuration | None]
-    nin: strawberry.Maybe[list[DateTimeOrDuration] | None]
+    eq: strawberry.Maybe[DateTimeOrDuration | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    gt: strawberry.Maybe[DateTimeOrDuration | None] = strawberry.field(
+        description="Greater-than constraint. Matches any values that are greater than the given value."
+    )
+    gte: strawberry.Maybe[DateTimeOrDuration | None] = strawberry.field(
+        description="Greater-than-or-equal constraint. Matches any values that are greater than or equal to the given value."
+    )
+    in_: strawberry.Maybe[list[DateTimeOrDuration] | None] = strawberry.field(
+        description="In-array constraint.", name="in"
+    )
+    lt: strawberry.Maybe[DateTimeOrDuration | None] = strawberry.field(
+        description="Less-than constraint. Matches any values that are less than the given value."
+    )
+    lte: strawberry.Maybe[DateTimeOrDuration | None] = strawberry.field(
+        description="Less-than-or-equal constraint. Matches any values that are less than or equal to the given value."
+    )
+    neq: strawberry.Maybe[DateTimeOrDuration | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    nin: strawberry.Maybe[list[DateTimeOrDuration] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue delegate sorting options.")
 class DelegateSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Document filtering options.")
 class DocumentFilter:
-    and_: strawberry.Maybe[list[DocumentFilter] | None] = strawberry.field(name="and")
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[UserFilter | None]
-    cycle: strawberry.Maybe[CycleFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    initiative: strawberry.Maybe[InitiativeFilter | None]
-    issue: strawberry.Maybe[IssueFilter | None]
-    or_: strawberry.Maybe[list[DocumentFilter] | None] = strawberry.field(name="or")
-    project: strawberry.Maybe[ProjectFilter | None]
-    release: strawberry.Maybe[ReleaseFilter | None]
-    slug_id: strawberry.Maybe[StringComparator | None]
-    team: strawberry.Maybe[NullableTeamFilter | None]
-    title: strawberry.Maybe[StringComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    and_: strawberry.Maybe[list[DocumentFilter] | None] = strawberry.field(
+        description="Compound filters, all of which need to be matched by the document.",
+        name="and",
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[UserFilter | None] = strawberry.field(
+        description="Filters that the document's creator must satisfy."
+    )
+    cycle: strawberry.Maybe[CycleFilter | None] = strawberry.field(
+        description="Filters that the document's cycle must satisfy."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    initiative: strawberry.Maybe[InitiativeFilter | None] = strawberry.field(
+        description="Filters that the document's initiative must satisfy."
+    )
+    issue: strawberry.Maybe[IssueFilter | None] = strawberry.field(
+        description="Filters that the document's issue must satisfy."
+    )
+    or_: strawberry.Maybe[list[DocumentFilter] | None] = strawberry.field(
+        description="Compound filters, one of which need to be matched by the document.",
+        name="or",
+    )
+    project: strawberry.Maybe[ProjectFilter | None] = strawberry.field(
+        description="Filters that the document's project must satisfy."
+    )
+    release: strawberry.Maybe[ReleaseFilter | None] = strawberry.field(
+        description="Filters that the document's release must satisfy."
+    )
+    slug_id: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the document slug ID."
+    )
+    team: strawberry.Maybe[NullableTeamFilter | None] = strawberry.field(
+        description="Filters that the document's team must satisfy."
+    )
+    title: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the document title."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue due date sorting options.")
 class DueDateSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for estimates.")
 class EstimateComparator:
     and_: strawberry.Maybe[list[NullableNumberComparator] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, one of which need to be matched by the estimate.",
+        name="and",
     )
-    eq: strawberry.Maybe[float | None]
-    gt: strawberry.Maybe[float | None]
-    gte: strawberry.Maybe[float | None]
-    in_: strawberry.Maybe[list[float] | None] = strawberry.field(name="in")
-    lt: strawberry.Maybe[float | None]
-    lte: strawberry.Maybe[float | None]
-    neq: strawberry.Maybe[float | None]
-    nin: strawberry.Maybe[list[float] | None]
-    null: strawberry.Maybe[bool | None]
+    eq: strawberry.Maybe[float | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    gt: strawberry.Maybe[float | None] = strawberry.field(
+        description="Greater-than constraint. Matches any values that are greater than the given value."
+    )
+    gte: strawberry.Maybe[float | None] = strawberry.field(
+        description="Greater-than-or-equal constraint. Matches any values that are greater than or equal to the given value."
+    )
+    in_: strawberry.Maybe[list[float] | None] = strawberry.field(
+        description="In-array constraint.", name="in"
+    )
+    lt: strawberry.Maybe[float | None] = strawberry.field(
+        description="Less-than constraint. Matches any values that are less than the given value."
+    )
+    lte: strawberry.Maybe[float | None] = strawberry.field(
+        description="Less-than-or-equal constraint. Matches any values that are less than or equal to the given value."
+    )
+    neq: strawberry.Maybe[float | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    nin: strawberry.Maybe[list[float] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Null constraint. Matches any non-null values if the given value is false, otherwise it matches null values."
+    )
     or_: strawberry.Maybe[list[NullableNumberComparator] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, all of which need to be matched by the estimate.",
+        name="or",
     )
 
 
-@strawberry.input
+@strawberry.input(description="Issue estimate sorting options.")
 class EstimateSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for identifiers.")
 class IDComparator:
-    eq: strawberry.Maybe[strawberry.ID | None]
-    in_: strawberry.Maybe[list[strawberry.ID] | None] = strawberry.field(name="in")
-    neq: strawberry.Maybe[strawberry.ID | None]
-    nin: strawberry.Maybe[list[strawberry.ID] | None]
+    eq: strawberry.Maybe[strawberry.ID | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    in_: strawberry.Maybe[list[strawberry.ID] | None] = strawberry.field(
+        description="In-array constraint.", name="in"
+    )
+    neq: strawberry.Maybe[strawberry.ID | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    nin: strawberry.Maybe[list[strawberry.ID] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Initiative collection filtering options.")
 class InitiativeCollectionFilter:
-    activity_type: strawberry.Maybe[StringComparator | None]
-    ancestors: strawberry.Maybe[InitiativeCollectionFilter | None]
+    activity_type: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the initiative activity type."
+    )
+    ancestors: strawberry.Maybe[InitiativeCollectionFilter | None] = strawberry.field(
+        description="Filters that the initiative must be an ancestor of."
+    )
     and_: strawberry.Maybe[list[InitiativeCollectionFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the initiative.",
+        name="and",
     )
-    canceled_at: strawberry.Maybe[NullableDateComparator | None]
-    completed_at: strawberry.Maybe[NullableDateComparator | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[NullableUserFilter | None]
-    every: strawberry.Maybe[InitiativeFilter | None]
-    health: strawberry.Maybe[StringComparator | None]
-    health_with_age: strawberry.Maybe[StringComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    initiative_updates: strawberry.Maybe[InitiativeUpdatesCollectionFilter | None]
-    labels: strawberry.Maybe[InitiativeLabelCollectionFilter | None]
-    lead_team: strawberry.Maybe[NullableTeamFilter | None]
-    length: strawberry.Maybe[NumberComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
+    canceled_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="[Internal] Comparator for the initiative canceled at date."
+    )
+    completed_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the initiative completed at date."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the initiative creator must satisfy."
+    )
+    every: strawberry.Maybe[InitiativeFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all initiatives."
+    )
+    health: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the initiative health: onTrack, atRisk, offTrack"
+    )
+    health_with_age: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the initiative health (with age): onTrack, atRisk, offTrack, outdated, noUpdate"
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    initiative_updates: strawberry.Maybe[InitiativeUpdatesCollectionFilter | None] = (
+        strawberry.field(
+            description="Filters that the initiative updates must satisfy."
+        )
+    )
+    labels: strawberry.Maybe[InitiativeLabelCollectionFilter | None] = strawberry.field(
+        description="Filters that the initiative labels must satisfy."
+    )
+    lead_team: strawberry.Maybe[NullableTeamFilter | None] = strawberry.field(
+        description="[ALPHA] Filters that the initiative lead team must satisfy."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the initiative name."
+    )
     or_: strawberry.Maybe[list[InitiativeCollectionFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the initiative.",
+        name="or",
     )
-    owner: strawberry.Maybe[NullableUserFilter | None]
-    priority: strawberry.Maybe[NullableNumberComparator | None]
-    slug_id: strawberry.Maybe[StringComparator | None]
-    some: strawberry.Maybe[InitiativeFilter | None]
-    started_at: strawberry.Maybe[NullableDateComparator | None]
-    status: strawberry.Maybe[StringComparator | None]
-    target_date: strawberry.Maybe[NullableDateComparator | None]
-    teams: strawberry.Maybe[TeamCollectionFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    owner: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the initiative owner must satisfy."
+    )
+    priority: strawberry.Maybe[NullableNumberComparator | None] = strawberry.field(
+        description="Comparator for the initiative priority."
+    )
+    slug_id: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the initiative slug ID."
+    )
+    some: strawberry.Maybe[InitiativeFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some initiatives."
+    )
+    started_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the initiative started at date."
+    )
+    status: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the initiative status: Proposed, Planned, Active, Completed, Canceled"
+    )
+    target_date: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the initiative target date."
+    )
+    teams: strawberry.Maybe[TeamCollectionFilter | None] = strawberry.field(
+        description="Filters that the initiative teams must satisfy."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Initiative filtering options.")
 class InitiativeFilter:
-    activity_type: strawberry.Maybe[StringComparator | None]
-    ancestors: strawberry.Maybe[InitiativeCollectionFilter | None]
-    and_: strawberry.Maybe[list[InitiativeFilter] | None] = strawberry.field(name="and")
-    canceled_at: strawberry.Maybe[NullableDateComparator | None]
-    completed_at: strawberry.Maybe[NullableDateComparator | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[NullableUserFilter | None]
-    health: strawberry.Maybe[StringComparator | None]
-    health_with_age: strawberry.Maybe[StringComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    initiative_updates: strawberry.Maybe[InitiativeUpdatesCollectionFilter | None]
-    labels: strawberry.Maybe[InitiativeLabelCollectionFilter | None]
-    lead_team: strawberry.Maybe[NullableTeamFilter | None]
-    name: strawberry.Maybe[StringComparator | None]
-    or_: strawberry.Maybe[list[InitiativeFilter] | None] = strawberry.field(name="or")
-    owner: strawberry.Maybe[NullableUserFilter | None]
-    priority: strawberry.Maybe[NullableNumberComparator | None]
-    slug_id: strawberry.Maybe[StringComparator | None]
-    started_at: strawberry.Maybe[NullableDateComparator | None]
-    status: strawberry.Maybe[StringComparator | None]
-    target_date: strawberry.Maybe[NullableDateComparator | None]
-    teams: strawberry.Maybe[TeamCollectionFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    activity_type: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the initiative activity type."
+    )
+    ancestors: strawberry.Maybe[InitiativeCollectionFilter | None] = strawberry.field(
+        description="Filters that the initiative must be an ancestor of."
+    )
+    and_: strawberry.Maybe[list[InitiativeFilter] | None] = strawberry.field(
+        description="Compound filters, all of which need to be matched by the initiative.",
+        name="and",
+    )
+    canceled_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="[Internal] Comparator for the initiative canceled at date."
+    )
+    completed_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the initiative completed at date."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the initiative creator must satisfy."
+    )
+    health: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the initiative health: onTrack, atRisk, offTrack"
+    )
+    health_with_age: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the initiative health (with age): onTrack, atRisk, offTrack, outdated, noUpdate"
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    initiative_updates: strawberry.Maybe[InitiativeUpdatesCollectionFilter | None] = (
+        strawberry.field(
+            description="Filters that the initiative updates must satisfy."
+        )
+    )
+    labels: strawberry.Maybe[InitiativeLabelCollectionFilter | None] = strawberry.field(
+        description="Filters that the initiative labels must satisfy."
+    )
+    lead_team: strawberry.Maybe[NullableTeamFilter | None] = strawberry.field(
+        description="[ALPHA] Filters that the initiative lead team must satisfy."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the initiative name."
+    )
+    or_: strawberry.Maybe[list[InitiativeFilter] | None] = strawberry.field(
+        description="Compound filters, one of which need to be matched by the initiative.",
+        name="or",
+    )
+    owner: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the initiative owner must satisfy."
+    )
+    priority: strawberry.Maybe[NullableNumberComparator | None] = strawberry.field(
+        description="Comparator for the initiative priority."
+    )
+    slug_id: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the initiative slug ID."
+    )
+    started_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the initiative started at date."
+    )
+    status: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the initiative status: Proposed, Planned, Active, Completed, Canceled"
+    )
+    target_date: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the initiative target date."
+    )
+    teams: strawberry.Maybe[TeamCollectionFilter | None] = strawberry.field(
+        description="Filters that the initiative teams must satisfy."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Initiative label filtering options.")
 class InitiativeLabelCollectionFilter:
     and_: strawberry.Maybe[list[InitiativeLabelCollectionFilter] | None] = (
-        strawberry.field(name="and")
+        strawberry.field(
+            description="Compound filters, all of which need to be matched by the label.",
+            name="and",
+        )
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[NullableUserFilter | None]
-    every: strawberry.Maybe[InitiativeLabelFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    is_group: strawberry.Maybe[BooleanComparator | None]
-    length: strawberry.Maybe[NumberComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
-    null: strawberry.Maybe[bool | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the initiative labels creator must satisfy."
+    )
+    every: strawberry.Maybe[InitiativeLabelFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all initiative labels."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    is_group: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for whether the label is a group label."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the name."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Filter based on the existence of the relation."
+    )
     or_: strawberry.Maybe[list[InitiativeLabelCollectionFilter] | None] = (
-        strawberry.field(name="or")
+        strawberry.field(
+            description="Compound filters, one of which need to be matched by the label.",
+            name="or",
+        )
     )
-    parent: strawberry.Maybe[InitiativeLabelFilter | None]
-    some: strawberry.Maybe[InitiativeLabelCollectionFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    parent: strawberry.Maybe[InitiativeLabelFilter | None] = strawberry.field(
+        description="Filters that the initiative label's parent label must satisfy."
+    )
+    some: strawberry.Maybe[InitiativeLabelCollectionFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some initiative labels."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Initiative label filtering options.")
 class InitiativeLabelFilter:
     and_: strawberry.Maybe[list[InitiativeLabelFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the label.",
+        name="and",
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[NullableUserFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    is_group: strawberry.Maybe[BooleanComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the initiative labels creator must satisfy."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    is_group: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for whether the label is a group label."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the name."
+    )
     or_: strawberry.Maybe[list[InitiativeLabelFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the label.",
+        name="or",
     )
-    parent: strawberry.Maybe[InitiativeLabelFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    parent: strawberry.Maybe[InitiativeLabelFilter | None] = strawberry.field(
+        description="Filters that the initiative label's parent label must satisfy."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(
+    description="Collection filtering options for filtering initiatives by initiative updates."
+)
 class InitiativeUpdatesCollectionFilter:
     and_: strawberry.Maybe[list[InitiativeUpdatesCollectionFilter] | None] = (
-        strawberry.field(name="and")
+        strawberry.field(
+            description="Compound filters, all of which need to be matched by the initiative update.",
+            name="and",
+        )
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    every: strawberry.Maybe[InitiativeUpdatesFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    length: strawberry.Maybe[NumberComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    every: strawberry.Maybe[InitiativeUpdatesFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all initiative updates."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
     or_: strawberry.Maybe[list[InitiativeUpdatesCollectionFilter] | None] = (
-        strawberry.field(name="or")
+        strawberry.field(
+            description="Compound filters, one of which need to be matched by the update.",
+            name="or",
+        )
     )
-    some: strawberry.Maybe[InitiativeUpdatesFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    some: strawberry.Maybe[InitiativeUpdatesFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some initiative updates."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(
+    description="Options for filtering initiatives by initiative updates."
+)
 class InitiativeUpdatesFilter:
     and_: strawberry.Maybe[list[InitiativeUpdatesFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the initiative updates.",
+        name="and",
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
     or_: strawberry.Maybe[list[InitiativeUpdatesFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the initiative updates.",
+        name="or",
     )
-    updated_at: strawberry.Maybe[DateComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue filtering options.")
 class IssueCollectionFilter:
-    accumulated_state_updated_at: strawberry.Maybe[NullableDateComparator | None]
-    activity: strawberry.Maybe[ActivityCollectionFilter | None]
-    added_to_cycle_at: strawberry.Maybe[NullableDateComparator | None]
-    added_to_cycle_period: strawberry.Maybe[CyclePeriodComparator | None]
-    age_time: strawberry.Maybe[NullableDurationComparator | None]
+    accumulated_state_updated_at: strawberry.Maybe[NullableDateComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for the issue's accumulatedStateUpdatedAt date."
+        )
+    )
+    activity: strawberry.Maybe[ActivityCollectionFilter | None] = strawberry.field(
+        description="Filters that the issue's activities must satisfy."
+    )
+    added_to_cycle_at: strawberry.Maybe[NullableDateComparator | None] = (
+        strawberry.field(
+            description="Comparator for the issues added to cycle at date."
+        )
+    )
+    added_to_cycle_period: strawberry.Maybe[CyclePeriodComparator | None] = (
+        strawberry.field(
+            description="Comparator for the period when issue was added to a cycle."
+        )
+    )
+    age_time: strawberry.Maybe[NullableDurationComparator | None] = strawberry.field(
+        description="[Internal] Age (created -> now) comparator, defined if the issue is still open."
+    )
     and_: strawberry.Maybe[list[IssueCollectionFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the issue.",
+        name="and",
     )
-    archived_at: strawberry.Maybe[NullableDateComparator | None]
-    assignee: strawberry.Maybe[NullableUserFilter | None]
-    attachments: strawberry.Maybe[AttachmentCollectionFilter | None]
-    auto_archived_at: strawberry.Maybe[NullableDateComparator | None]
-    auto_closed_at: strawberry.Maybe[NullableDateComparator | None]
-    canceled_at: strawberry.Maybe[NullableDateComparator | None]
-    children: strawberry.Maybe[IssueCollectionFilter | None]
-    comments: strawberry.Maybe[CommentCollectionFilter | None]
-    completed_at: strawberry.Maybe[NullableDateComparator | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[NullableUserFilter | None]
-    customer_count: strawberry.Maybe[NumberComparator | None]
-    customer_important_count: strawberry.Maybe[NumberComparator | None]
-    cycle: strawberry.Maybe[NullableCycleFilter | None]
-    cycle_time: strawberry.Maybe[NullableDurationComparator | None]
-    delegate: strawberry.Maybe[NullableUserFilter | None]
-    description: strawberry.Maybe[NullableStringComparator | None]
-    due_date: strawberry.Maybe[NullableTimelessDateComparator | None]
-    estimate: strawberry.Maybe[EstimateComparator | None]
-    every: strawberry.Maybe[IssueFilter | None]
-    has_active_agent_sessions: strawberry.Maybe[RelationExistsComparator | None]
-    has_blocked_by_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_blocking_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_dismissed_agent_sessions: strawberry.Maybe[RelationExistsComparator | None]
-    has_duplicate_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_errored_agent_sessions: strawberry.Maybe[RelationExistsComparator | None]
-    has_merged_agent_pull_requests: strawberry.Maybe[RelationExistsComparator | None]
-    has_related_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_shared_users: strawberry.Maybe[RelationExistsComparator | None]
-    has_suggested_assignees: strawberry.Maybe[RelationExistsComparator | None]
-    has_suggested_labels: strawberry.Maybe[RelationExistsComparator | None]
-    has_suggested_projects: strawberry.Maybe[RelationExistsComparator | None]
-    has_suggested_related_issues: strawberry.Maybe[RelationExistsComparator | None]
-    has_suggested_similar_issues: strawberry.Maybe[RelationExistsComparator | None]
-    has_suggested_teams: strawberry.Maybe[RelationExistsComparator | None]
-    id: strawberry.Maybe[IssueIDComparator | None]
-    labels: strawberry.Maybe[IssueLabelCollectionFilter | None]
-    last_applied_template: strawberry.Maybe[NullableTemplateFilter | None]
-    lead_time: strawberry.Maybe[NullableDurationComparator | None]
-    length: strawberry.Maybe[NumberComparator | None]
-    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None]
-    number: strawberry.Maybe[NumberComparator | None]
+    archived_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the issues archived at date."
+    )
+    assignee: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the issues assignee must satisfy."
+    )
+    attachments: strawberry.Maybe[AttachmentCollectionFilter | None] = strawberry.field(
+        description="Filters that the issues attachments must satisfy."
+    )
+    auto_archived_at: strawberry.Maybe[NullableDateComparator | None] = (
+        strawberry.field(description="Comparator for the issues auto archived at date.")
+    )
+    auto_closed_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the issues auto closed at date."
+    )
+    canceled_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the issues canceled at date."
+    )
+    children: strawberry.Maybe[IssueCollectionFilter | None] = strawberry.field(
+        description="Filters that the child issues must satisfy."
+    )
+    comments: strawberry.Maybe[CommentCollectionFilter | None] = strawberry.field(
+        description="Filters that the issues comments must satisfy."
+    )
+    completed_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the issues completed at date."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the issues creator must satisfy."
+    )
+    customer_count: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Count of customers"
+    )
+    customer_important_count: strawberry.Maybe[NumberComparator | None] = (
+        strawberry.field(description="Count of important customers")
+    )
+    cycle: strawberry.Maybe[NullableCycleFilter | None] = strawberry.field(
+        description="Filters that the issues cycle must satisfy."
+    )
+    cycle_time: strawberry.Maybe[NullableDurationComparator | None] = strawberry.field(
+        description="[Internal] Cycle time (started -> completed) comparator."
+    )
+    delegate: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the issue's delegated agent must satisfy."
+    )
+    description: strawberry.Maybe[NullableStringComparator | None] = strawberry.field(
+        description="Comparator for the issues description."
+    )
+    due_date: strawberry.Maybe[NullableTimelessDateComparator | None] = (
+        strawberry.field(description="Comparator for the issues due date.")
+    )
+    estimate: strawberry.Maybe[EstimateComparator | None] = strawberry.field(
+        description="Comparator for the issues estimate."
+    )
+    every: strawberry.Maybe[IssueFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all issues."
+    )
+    has_active_agent_sessions: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for filtering issues bucketed as having active agent sessions, no closed agent pull requests, and no merged agent pull requests."
+        )
+    )
+    has_blocked_by_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering issues which are blocked."
+        )
+    )
+    has_blocking_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering issues which are blocking."
+        )
+    )
+    has_dismissed_agent_sessions: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for filtering issues bucketed as having all agent sessions dismissed or closed, and no merged agent pull requests."
+        )
+    )
+    has_duplicate_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering issues which are duplicates."
+        )
+    )
+    has_errored_agent_sessions: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for filtering issues bucketed as having an errored agent session, no active sessions, and no merged agent pull requests."
+        )
+    )
+    has_merged_agent_pull_requests: strawberry.Maybe[
+        RelationExistsComparator | None
+    ] = strawberry.field(
+        description="[Internal] Comparator for filtering issues which have agent-session-linked pull requests that were merged."
+    )
+    has_related_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(description="Comparator for filtering issues with relations.")
+    )
+    has_shared_users: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering issues which have been shared with users outside of the team."
+        )
+    )
+    has_suggested_assignees: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for filtering issues which have suggested assignees."
+        )
+    )
+    has_suggested_labels: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for filtering issues which have suggested labels."
+        )
+    )
+    has_suggested_projects: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for filtering issues which have suggested projects."
+        )
+    )
+    has_suggested_related_issues: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for filtering issues which have suggested related issues."
+        )
+    )
+    has_suggested_similar_issues: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for filtering issues which have suggested similar issues."
+        )
+    )
+    has_suggested_teams: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for filtering issues which have suggested teams."
+        )
+    )
+    id: strawberry.Maybe[IssueIDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    labels: strawberry.Maybe[IssueLabelCollectionFilter | None] = strawberry.field(
+        description="Filters that issue labels must satisfy."
+    )
+    last_applied_template: strawberry.Maybe[NullableTemplateFilter | None] = (
+        strawberry.field(
+            description="Filters that the last applied template must satisfy."
+        )
+    )
+    lead_time: strawberry.Maybe[NullableDurationComparator | None] = strawberry.field(
+        description="[Internal] Lead time (created -> completed) comparator."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
+    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None] = strawberry.field(
+        description="Filters that the issue's customer needs must satisfy."
+    )
+    number: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the issues number."
+    )
     or_: strawberry.Maybe[list[IssueCollectionFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the issue.",
+        name="or",
     )
-    parent: strawberry.Maybe[NullableIssueFilter | None]
-    priority: strawberry.Maybe[NullableNumberComparator | None]
-    project: strawberry.Maybe[NullableProjectFilter | None]
-    project_milestone: strawberry.Maybe[NullableProjectMilestoneFilter | None]
-    reactions: strawberry.Maybe[ReactionCollectionFilter | None]
-    recurring_issue_template: strawberry.Maybe[NullableTemplateFilter | None]
-    releases: strawberry.Maybe[ReleaseCollectionFilter | None]
-    searchable_content: strawberry.Maybe[ContentComparator | None]
-    shared_with: strawberry.Maybe[UserCollectionFilter | None]
-    sla_breaches_at: strawberry.Maybe[NullableDateComparator | None]
-    sla_status: strawberry.Maybe[SlaStatusComparator | None]
-    snoozed_by: strawberry.Maybe[NullableUserFilter | None]
-    snoozed_until_at: strawberry.Maybe[NullableDateComparator | None]
-    some: strawberry.Maybe[IssueFilter | None]
-    source_metadata: strawberry.Maybe[SourceMetadataComparator | None]
-    started_at: strawberry.Maybe[NullableDateComparator | None]
-    state: strawberry.Maybe[WorkflowStateFilter | None]
-    subscribers: strawberry.Maybe[UserCollectionFilter | None]
-    suggestions: strawberry.Maybe[IssueSuggestionCollectionFilter | None]
-    team: strawberry.Maybe[TeamFilter | None]
-    title: strawberry.Maybe[StringComparator | None]
-    triage_time: strawberry.Maybe[NullableDurationComparator | None]
-    triaged_at: strawberry.Maybe[NullableDateComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    parent: strawberry.Maybe[NullableIssueFilter | None] = strawberry.field(
+        description="Filters that the issue parent must satisfy."
+    )
+    priority: strawberry.Maybe[NullableNumberComparator | None] = strawberry.field(
+        description="Comparator for the issues priority. 0 = No priority, 1 = Urgent, 2 = High, 3 = Medium, 4 = Low."
+    )
+    project: strawberry.Maybe[NullableProjectFilter | None] = strawberry.field(
+        description="Filters that the issues project must satisfy."
+    )
+    project_milestone: strawberry.Maybe[NullableProjectMilestoneFilter | None] = (
+        strawberry.field(
+            description="Filters that the issues project milestone must satisfy."
+        )
+    )
+    reactions: strawberry.Maybe[ReactionCollectionFilter | None] = strawberry.field(
+        description="Filters that the issues reactions must satisfy."
+    )
+    recurring_issue_template: strawberry.Maybe[NullableTemplateFilter | None] = (
+        strawberry.field(
+            description="[ALPHA] Filters that the recurring issue template must satisfy."
+        )
+    )
+    releases: strawberry.Maybe[ReleaseCollectionFilter | None] = strawberry.field(
+        description="Filters that the issue's releases must satisfy."
+    )
+    searchable_content: strawberry.Maybe[ContentComparator | None] = strawberry.field(
+        description="[Internal] Comparator for the issues content."
+    )
+    shared_with: strawberry.Maybe[UserCollectionFilter | None] = strawberry.field(
+        description="Filters that users the issue has been shared with must satisfy."
+    )
+    sla_breaches_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the issue's SLA breach date."
+    )
+    sla_status: strawberry.Maybe[SlaStatusComparator | None] = strawberry.field(
+        description="Comparator for the issues sla status."
+    )
+    snoozed_by: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the issues snoozer must satisfy."
+    )
+    snoozed_until_at: strawberry.Maybe[NullableDateComparator | None] = (
+        strawberry.field(description="Comparator for the issues snoozed until date.")
+    )
+    some: strawberry.Maybe[IssueFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some issues."
+    )
+    source_metadata: strawberry.Maybe[SourceMetadataComparator | None] = (
+        strawberry.field(description="Filters that the source must satisfy.")
+    )
+    started_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the issues started at date."
+    )
+    state: strawberry.Maybe[WorkflowStateFilter | None] = strawberry.field(
+        description="Filters that the issues state must satisfy."
+    )
+    subscribers: strawberry.Maybe[UserCollectionFilter | None] = strawberry.field(
+        description="Filters that issue subscribers must satisfy."
+    )
+    suggestions: strawberry.Maybe[IssueSuggestionCollectionFilter | None] = (
+        strawberry.field(
+            description="[Internal] Filters that the issue's suggestions must satisfy."
+        )
+    )
+    team: strawberry.Maybe[TeamFilter | None] = strawberry.field(
+        description="Filters that the issues team must satisfy."
+    )
+    title: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the issues title."
+    )
+    triage_time: strawberry.Maybe[NullableDurationComparator | None] = strawberry.field(
+        description="[Internal] Triage time (entered triaged -> triaged) comparator."
+    )
+    triaged_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the issues triaged at date."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(
+    description="Input for creating a new issue. At minimum, a team must be specified. A title is required unless a template is provided. All other fields are optional and will use defaults from the team or template if not specified."
+)
 class IssueCreateInput:
-    assignee_id: strawberry.Maybe[str | None]
-    completed_at: strawberry.Maybe[datetime | None]
-    create_as_user: strawberry.Maybe[str | None]
-    created_at: strawberry.Maybe[datetime | None]
-    cycle_id: strawberry.Maybe[str | None]
-    delegate_id: strawberry.Maybe[str | None]
-    description: strawberry.Maybe[str | None]
-    description_data: strawberry.Maybe[JSONScalar | None]
-    display_icon_url: strawberry.Maybe[str | None]
-    due_date: strawberry.Maybe[TimelessDate | None]
-    estimate: strawberry.Maybe[int | None]
-    id: strawberry.Maybe[str | None]
-    inherits_shared_access: strawberry.Maybe[bool | None]
-    label_ids: strawberry.Maybe[list[str] | None]
-    last_applied_template_id: strawberry.Maybe[str | None]
-    parent_id: strawberry.Maybe[str | None]
-    preserve_sort_order_on_create: strawberry.Maybe[bool | None]
-    priority: strawberry.Maybe[int | None]
-    priority_sort_order: strawberry.Maybe[float | None]
-    project_id: strawberry.Maybe[str | None]
-    project_milestone_id: strawberry.Maybe[str | None]
-    reference_comment_id: strawberry.Maybe[str | None]
-    release_ids: strawberry.Maybe[list[str] | None]
-    sla_breaches_at: strawberry.Maybe[datetime | None]
-    sla_started_at: strawberry.Maybe[datetime | None]
-    sla_type: strawberry.Maybe[SLADayCountType | None]
-    sort_order: strawberry.Maybe[float | None]
-    source_comment_id: strawberry.Maybe[str | None]
-    source_pull_request_comment_id: strawberry.Maybe[str | None]
-    state_id: strawberry.Maybe[str | None]
-    sub_issue_sort_order: strawberry.Maybe[float | None]
-    subscriber_ids: strawberry.Maybe[list[str] | None]
-    team_id: str
-    template_id: strawberry.Maybe[str | None]
-    title: strawberry.Maybe[str | None]
-    use_default_template: strawberry.Maybe[bool | None]
+    assignee_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The identifier of the user to assign the issue to."
+    )
+    completed_at: strawberry.Maybe[datetime | None] = strawberry.field(
+        description="The time at which the issue was completed (e.g. if importing from another system). Must be a time in the past and after createdAt. Cannot be provided with an incompatible workflow state."
+    )
+    create_as_user: strawberry.Maybe[str | None] = strawberry.field(
+        description="Create issue as a user with the provided name. This option is only available to OAuth applications creating issues in `actor=app` mode."
+    )
+    created_at: strawberry.Maybe[datetime | None] = strawberry.field(
+        description="The time at which the issue was created (e.g. if importing from another system). Must be a time in the past. If none is provided, the backend will generate the time as now."
+    )
+    cycle_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The cycle associated with the issue."
+    )
+    delegate_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The identifier of the agent user to delegate the issue to."
+    )
+    description: strawberry.Maybe[str | None] = strawberry.field(
+        description="The issue description in markdown format."
+    )
+    description_data: strawberry.Maybe[JSONScalar | None] = strawberry.field(
+        description="[Internal] The issue description as a Prosemirror document."
+    )
+    display_icon_url: strawberry.Maybe[str | None] = strawberry.field(
+        description="Provide an external user avatar URL. Can only be used in conjunction with the `createAsUser` options. This option is only available to OAuth applications creating comments in `actor=app` mode."
+    )
+    due_date: strawberry.Maybe[TimelessDate | None] = strawberry.field(
+        description="The date at which the issue is due."
+    )
+    estimate: strawberry.Maybe[int | None] = strawberry.field(
+        description="The estimated complexity of the issue."
+    )
+    id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The identifier in UUID v4 format. If none is provided, the backend will generate one."
+    )
+    inherits_shared_access: strawberry.Maybe[bool | None] = strawberry.field(
+        description="[Internal] Whether this issue should inherit shared access from its parent issue. Set to false to opt out of automatic shared access inheritance when creating a sub-issue."
+    )
+    label_ids: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="The identifiers of the issue labels associated with this ticket."
+    )
+    last_applied_template_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The ID of the last template applied to the issue."
+    )
+    parent_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The identifier of the parent issue. Can be a UUID or issue identifier (e.g., 'LIN-123')."
+    )
+    preserve_sort_order_on_create: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Whether the passed sort order should be preserved."
+    )
+    priority: strawberry.Maybe[int | None] = strawberry.field(
+        description="The priority of the issue. 0 = No priority, 1 = Urgent, 2 = High, 3 = Medium, 4 = Low."
+    )
+    priority_sort_order: strawberry.Maybe[float | None] = strawberry.field(
+        description="The position of the issue related to other issues, when ordered by priority."
+    )
+    project_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The project associated with the issue."
+    )
+    project_milestone_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The project milestone associated with the issue."
+    )
+    reference_comment_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The comment the issue is referencing."
+    )
+    release_ids: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="The identifiers of the releases to associate with this issue."
+    )
+    sla_breaches_at: strawberry.Maybe[datetime | None] = strawberry.field(
+        description="[Internal] The time at which an issue will be considered in breach of SLA."
+    )
+    sla_started_at: strawberry.Maybe[datetime | None] = strawberry.field(
+        description="[Internal] The time at which the issue's SLA was started."
+    )
+    sla_type: strawberry.Maybe[SLADayCountType | None] = strawberry.field(
+        description="The SLA day count type for the issue. Whether SLA should be business days only or calendar days (default)."
+    )
+    sort_order: strawberry.Maybe[float | None] = strawberry.field(
+        description="The position of the issue related to other issues."
+    )
+    source_comment_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The comment the issue is created from."
+    )
+    source_pull_request_comment_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="[Internal] The pull request comment the issue is created from."
+    )
+    state_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The team state of the issue."
+    )
+    sub_issue_sort_order: strawberry.Maybe[float | None] = strawberry.field(
+        description="The position of the issue in parent's sub-issue list."
+    )
+    subscriber_ids: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="The identifiers of the users subscribing to this ticket."
+    )
+    team_id: str = strawberry.field(
+        description="The identifier of the team associated with the issue."
+    )
+    template_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The identifier of a template the issue should be created from. If other values are provided in the input, they will override template values."
+    )
+    title: strawberry.Maybe[str | None] = strawberry.field(
+        description="The title of the issue."
+    )
+    use_default_template: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Whether to use the default template for the team. When set to true, the default template of this team based on user's membership will be applied."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for issue identifiers.")
 class IssueIDComparator:
-    eq: strawberry.Maybe[strawberry.ID | None]
-    in_: strawberry.Maybe[list[strawberry.ID] | None] = strawberry.field(name="in")
-    neq: strawberry.Maybe[strawberry.ID | None]
-    nin: strawberry.Maybe[list[strawberry.ID] | None]
+    eq: strawberry.Maybe[strawberry.ID | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    in_: strawberry.Maybe[list[strawberry.ID] | None] = strawberry.field(
+        description="In-array constraint.", name="in"
+    )
+    neq: strawberry.Maybe[strawberry.ID | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    nin: strawberry.Maybe[list[strawberry.ID] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue label filtering options.")
 class IssueLabelCollectionFilter:
     and_: strawberry.Maybe[list[IssueLabelCollectionFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the label.",
+        name="and",
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[NullableUserFilter | None]
-    every: strawberry.Maybe[IssueLabelFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    is_group: strawberry.Maybe[BooleanComparator | None]
-    length: strawberry.Maybe[NumberComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
-    null: strawberry.Maybe[bool | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the issue labels creator must satisfy."
+    )
+    every: strawberry.Maybe[IssueLabelFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all issue labels."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    is_group: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for whether the label is a group label."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the name."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Filter based on the existence of the relation."
+    )
     or_: strawberry.Maybe[list[IssueLabelCollectionFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the label.",
+        name="or",
     )
-    parent: strawberry.Maybe[IssueLabelFilter | None]
-    some: strawberry.Maybe[IssueLabelFilter | None]
-    team: strawberry.Maybe[NullableTeamFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    parent: strawberry.Maybe[IssueLabelFilter | None] = strawberry.field(
+        description="Filters that the issue label's parent label must satisfy."
+    )
+    some: strawberry.Maybe[IssueLabelFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some issue labels."
+    )
+    team: strawberry.Maybe[NullableTeamFilter | None] = strawberry.field(
+        description="Filters that the issue labels team must satisfy."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue label filtering options.")
 class IssueLabelFilter:
-    and_: strawberry.Maybe[list[IssueLabelFilter] | None] = strawberry.field(name="and")
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[NullableUserFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    is_group: strawberry.Maybe[BooleanComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
-    or_: strawberry.Maybe[list[IssueLabelFilter] | None] = strawberry.field(name="or")
-    parent: strawberry.Maybe[IssueLabelFilter | None]
-    team: strawberry.Maybe[NullableTeamFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    and_: strawberry.Maybe[list[IssueLabelFilter] | None] = strawberry.field(
+        description="Compound filters, all of which need to be matched by the label.",
+        name="and",
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the issue labels creator must satisfy."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    is_group: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for whether the label is a group label."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the name."
+    )
+    or_: strawberry.Maybe[list[IssueLabelFilter] | None] = strawberry.field(
+        description="Compound filters, one of which need to be matched by the label.",
+        name="or",
+    )
+    parent: strawberry.Maybe[IssueLabelFilter | None] = strawberry.field(
+        description="Filters that the issue label's parent label must satisfy."
+    )
+    team: strawberry.Maybe[NullableTeamFilter | None] = strawberry.field(
+        description="Filters that the issue labels team must satisfy."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(
+    description="Input for creating a new issue relation between two issues. Both the source issue and related issue must be specified along with the relationship type."
+)
 class IssueRelationCreateInput:
-    id: strawberry.Maybe[str | None]
-    issue_id: str
-    related_issue_id: str
-    type: IssueRelationType
+    id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The identifier in UUID v4 format. If none is provided, the backend will generate one."
+    )
+    issue_id: str = strawberry.field(
+        description="The identifier of the issue that is related to another issue. Can be a UUID or issue identifier (e.g., 'LIN-123')."
+    )
+    related_issue_id: str = strawberry.field(
+        description="The identifier of the related issue. Can be a UUID or issue identifier (e.g., 'LIN-123')."
+    )
+    type: IssueRelationType = strawberry.field(
+        description="The type of relation of the issue to the related issue."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue sorting options.")
 class IssueSortInput:
-    accumulated_state_updated_at: strawberry.Maybe[TimeInStatusSort | None]
-    assignee: strawberry.Maybe[AssigneeSort | None]
-    completed_at: strawberry.Maybe[CompletedAtSort | None]
-    created_at: strawberry.Maybe[CreatedAtSort | None]
-    customer: strawberry.Maybe[CustomerSort | None]
-    customer_count: strawberry.Maybe[CustomerCountSort | None]
-    customer_important_count: strawberry.Maybe[CustomerImportantCountSort | None]
-    customer_revenue: strawberry.Maybe[CustomerRevenueSort | None]
-    cycle: strawberry.Maybe[CycleSort | None]
-    delegate: strawberry.Maybe[DelegateSort | None]
-    due_date: strawberry.Maybe[DueDateSort | None]
-    estimate: strawberry.Maybe[EstimateSort | None]
-    label: strawberry.Maybe[LabelSort | None]
-    label_group: strawberry.Maybe[LabelGroupSort | None]
-    link_count: strawberry.Maybe[LinkCountSort | None]
-    manual: strawberry.Maybe[ManualSort | None]
-    milestone: strawberry.Maybe[MilestoneSort | None]
-    priority: strawberry.Maybe[PrioritySort | None]
-    project: strawberry.Maybe[ProjectSort | None]
-    release: strawberry.Maybe[ReleaseSort | None]
-    root_issue: strawberry.Maybe[RootIssueSort | None]
-    sla_status: strawberry.Maybe[SlaStatusSort | None]
-    team: strawberry.Maybe[TeamSort | None]
-    title: strawberry.Maybe[TitleSort | None]
-    updated_at: strawberry.Maybe[UpdatedAtSort | None]
-    workflow_state: strawberry.Maybe[WorkflowStateSort | None]
+    accumulated_state_updated_at: strawberry.Maybe[TimeInStatusSort | None] = (
+        strawberry.field(
+            description="[Internal] Sort by the accumulated time in the current workflow state"
+        )
+    )
+    assignee: strawberry.Maybe[AssigneeSort | None] = strawberry.field(
+        description="Sort by assignee name"
+    )
+    completed_at: strawberry.Maybe[CompletedAtSort | None] = strawberry.field(
+        description="Sort by issue completion date"
+    )
+    created_at: strawberry.Maybe[CreatedAtSort | None] = strawberry.field(
+        description="Sort by issue creation date"
+    )
+    customer: strawberry.Maybe[CustomerSort | None] = strawberry.field(
+        description="Sort by customer name"
+    )
+    customer_count: strawberry.Maybe[CustomerCountSort | None] = strawberry.field(
+        description="Sort by number of customers associated with the issue"
+    )
+    customer_important_count: strawberry.Maybe[CustomerImportantCountSort | None] = (
+        strawberry.field(
+            description="Sort by number of important customers associated with the issue"
+        )
+    )
+    customer_revenue: strawberry.Maybe[CustomerRevenueSort | None] = strawberry.field(
+        description="Sort by customer revenue"
+    )
+    cycle: strawberry.Maybe[CycleSort | None] = strawberry.field(
+        description="Sort by Cycle start date"
+    )
+    delegate: strawberry.Maybe[DelegateSort | None] = strawberry.field(
+        description="Sort by delegate name"
+    )
+    due_date: strawberry.Maybe[DueDateSort | None] = strawberry.field(
+        description="Sort by issue due date"
+    )
+    estimate: strawberry.Maybe[EstimateSort | None] = strawberry.field(
+        description="Sort by estimate"
+    )
+    label: strawberry.Maybe[LabelSort | None] = strawberry.field(
+        description="Sort by label"
+    )
+    label_group: strawberry.Maybe[LabelGroupSort | None] = strawberry.field(
+        description="Sort by label group"
+    )
+    link_count: strawberry.Maybe[LinkCountSort | None] = strawberry.field(
+        description="[ALPHA] Sort by number of links associated with the issue"
+    )
+    manual: strawberry.Maybe[ManualSort | None] = strawberry.field(
+        description="Sort by manual order"
+    )
+    milestone: strawberry.Maybe[MilestoneSort | None] = strawberry.field(
+        description="Sort by Project Milestone target date"
+    )
+    priority: strawberry.Maybe[PrioritySort | None] = strawberry.field(
+        description="Sort by priority"
+    )
+    project: strawberry.Maybe[ProjectSort | None] = strawberry.field(
+        description="Sort by Project name"
+    )
+    release: strawberry.Maybe[ReleaseSort | None] = strawberry.field(
+        description="Sort by most recent release date"
+    )
+    root_issue: strawberry.Maybe[RootIssueSort | None] = strawberry.field(
+        description="Sort by the root issue"
+    )
+    sla_status: strawberry.Maybe[SlaStatusSort | None] = strawberry.field(
+        description="Sort by SLA status"
+    )
+    team: strawberry.Maybe[TeamSort | None] = strawberry.field(
+        description="Sort by Team name"
+    )
+    title: strawberry.Maybe[TitleSort | None] = strawberry.field(
+        description="Sort by issue title"
+    )
+    updated_at: strawberry.Maybe[UpdatedAtSort | None] = strawberry.field(
+        description="Sort by issue update date"
+    )
+    workflow_state: strawberry.Maybe[WorkflowStateSort | None] = strawberry.field(
+        description="Sort by workflow state type"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="IssueSuggestion collection filtering options.")
 class IssueSuggestionCollectionFilter:
     and_: strawberry.Maybe[list[IssueSuggestionCollectionFilter] | None] = (
-        strawberry.field(name="and")
+        strawberry.field(
+            description="Compound filters, all of which need to be matched by the suggestion.",
+            name="and",
+        )
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    every: strawberry.Maybe[IssueSuggestionFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    length: strawberry.Maybe[NumberComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    every: strawberry.Maybe[IssueSuggestionFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all suggestions."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
     or_: strawberry.Maybe[list[IssueSuggestionCollectionFilter] | None] = (
-        strawberry.field(name="or")
+        strawberry.field(
+            description="Compound filters, one of which need to be matched by the suggestion.",
+            name="or",
+        )
     )
-    some: strawberry.Maybe[IssueSuggestionFilter | None]
-    state: strawberry.Maybe[StringComparator | None]
-    suggested_label: strawberry.Maybe[IssueLabelFilter | None]
-    suggested_project: strawberry.Maybe[NullableProjectFilter | None]
-    suggested_team: strawberry.Maybe[NullableTeamFilter | None]
-    suggested_user: strawberry.Maybe[NullableUserFilter | None]
-    type: strawberry.Maybe[StringComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    some: strawberry.Maybe[IssueSuggestionFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some suggestions."
+    )
+    state: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the suggestion state."
+    )
+    suggested_label: strawberry.Maybe[IssueLabelFilter | None] = strawberry.field(
+        description="Filters that the suggested label must satisfy."
+    )
+    suggested_project: strawberry.Maybe[NullableProjectFilter | None] = (
+        strawberry.field(description="Filters that the suggested project must satisfy.")
+    )
+    suggested_team: strawberry.Maybe[NullableTeamFilter | None] = strawberry.field(
+        description="Filters that the suggested team must satisfy."
+    )
+    suggested_user: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the suggested user must satisfy."
+    )
+    type: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the suggestion type."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="IssueSuggestion filtering options.")
 class IssueSuggestionFilter:
     and_: strawberry.Maybe[list[IssueSuggestionFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the suggestion.",
+        name="and",
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
     or_: strawberry.Maybe[list[IssueSuggestionFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the suggestion.",
+        name="or",
     )
-    state: strawberry.Maybe[StringComparator | None]
-    suggested_label: strawberry.Maybe[IssueLabelFilter | None]
-    suggested_project: strawberry.Maybe[NullableProjectFilter | None]
-    suggested_team: strawberry.Maybe[NullableTeamFilter | None]
-    suggested_user: strawberry.Maybe[NullableUserFilter | None]
-    type: strawberry.Maybe[StringComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    state: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the suggestion state."
+    )
+    suggested_label: strawberry.Maybe[IssueLabelFilter | None] = strawberry.field(
+        description="Filters that the suggested label must satisfy."
+    )
+    suggested_project: strawberry.Maybe[NullableProjectFilter | None] = (
+        strawberry.field(description="Filters that the suggested project must satisfy.")
+    )
+    suggested_team: strawberry.Maybe[NullableTeamFilter | None] = strawberry.field(
+        description="Filters that the suggested team must satisfy."
+    )
+    suggested_user: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the suggested user must satisfy."
+    )
+    type: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the suggestion type."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(
+    description="Input for updating an existing issue. All fields are optional; only provided fields will be updated. Setting a field to null (where supported) will clear the value."
+)
 class IssueUpdateInput:
-    added_label_ids: strawberry.Maybe[list[str] | None]
-    added_release_ids: strawberry.Maybe[list[str] | None]
-    assignee_id: strawberry.Maybe[str | None]
-    auto_closed_by_parent_closing: strawberry.Maybe[bool | None]
-    cycle_id: strawberry.Maybe[str | None]
-    delegate_id: strawberry.Maybe[str | None]
-    description: strawberry.Maybe[str | None]
-    description_data: strawberry.Maybe[JSONScalar | None]
-    due_date: strawberry.Maybe[TimelessDate | None]
-    estimate: strawberry.Maybe[int | None]
-    inherits_shared_access: strawberry.Maybe[bool | None]
-    label_ids: strawberry.Maybe[list[str] | None]
-    last_applied_template_id: strawberry.Maybe[str | None]
-    parent_id: strawberry.Maybe[str | None]
-    priority: strawberry.Maybe[int | None]
-    priority_sort_order: strawberry.Maybe[float | None]
-    project_id: strawberry.Maybe[str | None]
-    project_milestone_id: strawberry.Maybe[str | None]
-    release_ids: strawberry.Maybe[list[str] | None]
-    removed_label_ids: strawberry.Maybe[list[str] | None]
-    removed_release_ids: strawberry.Maybe[list[str] | None]
-    sla_breaches_at: strawberry.Maybe[datetime | None]
-    sla_started_at: strawberry.Maybe[datetime | None]
-    sla_type: strawberry.Maybe[SLADayCountType | None]
-    snoozed_by_id: strawberry.Maybe[str | None]
-    snoozed_until_at: strawberry.Maybe[datetime | None]
-    sort_order: strawberry.Maybe[float | None]
-    state_id: strawberry.Maybe[str | None]
-    sub_issue_sort_order: strawberry.Maybe[float | None]
-    subscriber_ids: strawberry.Maybe[list[str] | None]
-    team_id: strawberry.Maybe[str | None]
-    title: strawberry.Maybe[str | None]
-    trashed: strawberry.Maybe[bool | None]
-    trusted: strawberry.Maybe[bool | None]
+    added_label_ids: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="The identifiers of the issue labels to be added to this issue."
+    )
+    added_release_ids: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="The identifiers of the releases to be added to this issue."
+    )
+    assignee_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The identifier of the user to assign the issue to."
+    )
+    auto_closed_by_parent_closing: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Whether the issue was automatically closed because its parent issue was closed."
+    )
+    cycle_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The cycle associated with the issue."
+    )
+    delegate_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The identifier of the agent user to delegate the issue to."
+    )
+    description: strawberry.Maybe[str | None] = strawberry.field(
+        description="The issue description in markdown format."
+    )
+    description_data: strawberry.Maybe[JSONScalar | None] = strawberry.field(
+        description="[Internal] The issue description as a Prosemirror document."
+    )
+    due_date: strawberry.Maybe[TimelessDate | None] = strawberry.field(
+        description="The date at which the issue is due."
+    )
+    estimate: strawberry.Maybe[int | None] = strawberry.field(
+        description="The estimated complexity of the issue."
+    )
+    inherits_shared_access: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Whether this issue should inherit shared access from its parent issue."
+    )
+    label_ids: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="The identifiers of the issue labels associated with this ticket."
+    )
+    last_applied_template_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The ID of the last template applied to the issue."
+    )
+    parent_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The identifier of the parent issue. Can be a UUID or issue identifier (e.g., 'LIN-123')."
+    )
+    priority: strawberry.Maybe[int | None] = strawberry.field(
+        description="The priority of the issue. 0 = No priority, 1 = Urgent, 2 = High, 3 = Medium, 4 = Low."
+    )
+    priority_sort_order: strawberry.Maybe[float | None] = strawberry.field(
+        description="The position of the issue related to other issues, when ordered by priority."
+    )
+    project_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The project associated with the issue."
+    )
+    project_milestone_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The project milestone associated with the issue."
+    )
+    release_ids: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="The identifiers of the releases associated with this issue."
+    )
+    removed_label_ids: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="The identifiers of the issue labels to be removed from this issue."
+    )
+    removed_release_ids: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="The identifiers of the releases to be removed from this issue."
+    )
+    sla_breaches_at: strawberry.Maybe[datetime | None] = strawberry.field(
+        description="[Internal] The time at which an issue will be considered in breach of SLA."
+    )
+    sla_started_at: strawberry.Maybe[datetime | None] = strawberry.field(
+        description="[Internal] The time at which the issue's SLA was started."
+    )
+    sla_type: strawberry.Maybe[SLADayCountType | None] = strawberry.field(
+        description="The SLA day count type for the issue. Whether SLA should be business days only or calendar days (default)."
+    )
+    snoozed_by_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The identifier of the user who snoozed the issue."
+    )
+    snoozed_until_at: strawberry.Maybe[datetime | None] = strawberry.field(
+        description="The time until which the issue will be snoozed in Triage view."
+    )
+    sort_order: strawberry.Maybe[float | None] = strawberry.field(
+        description="The position of the issue related to other issues."
+    )
+    state_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The team state of the issue."
+    )
+    sub_issue_sort_order: strawberry.Maybe[float | None] = strawberry.field(
+        description="The position of the issue in parent's sub-issue list."
+    )
+    subscriber_ids: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="The identifiers of the users subscribing to this ticket."
+    )
+    team_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The identifier of the team associated with the issue."
+    )
+    title: strawberry.Maybe[str | None] = strawberry.field(
+        description="The issue title."
+    )
+    trashed: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Whether the issue has been trashed. Set to true to trash, or null to restore."
+    )
+    trusted: strawberry.Maybe[bool | None] = strawberry.field(
+        description="[Internal] Whether this issue has been explicitly marked as trusted."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue label-group sorting options.")
 class LabelGroupSort:
-    label_group_id: str
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    label_group_id: str = strawberry.field(description="The label-group id to sort by")
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue label sorting options.")
 class LabelSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="[ALPHA] Issue link count sorting options.")
 class LinkCountSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue manual sorting options.")
 class ManualSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue project milestone options.")
 class MilestoneSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comment filtering options.")
 class NullableCommentFilter:
     and_: strawberry.Maybe[list[NullableCommentFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the comment.",
+        name="and",
     )
-    body: strawberry.Maybe[StringComparator | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    document_content: strawberry.Maybe[NullableDocumentContentFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    initiative: strawberry.Maybe[NullableInitiativeFilter | None]
-    initiative_update: strawberry.Maybe[NullableInitiativeUpdateFilter | None]
-    issue: strawberry.Maybe[NullableIssueFilter | None]
-    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None]
-    null: strawberry.Maybe[bool | None]
+    body: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the comment's body."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    document_content: strawberry.Maybe[NullableDocumentContentFilter | None] = (
+        strawberry.field(
+            description="Filters that the comment's document content must satisfy."
+        )
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    initiative: strawberry.Maybe[NullableInitiativeFilter | None] = strawberry.field(
+        description="[Internal] Filters that the comment's initiative must satisfy."
+    )
+    initiative_update: strawberry.Maybe[NullableInitiativeUpdateFilter | None] = (
+        strawberry.field(
+            description="Filters that the comment's initiative update must satisfy."
+        )
+    )
+    issue: strawberry.Maybe[NullableIssueFilter | None] = strawberry.field(
+        description="Filters that the comment's issue must satisfy."
+    )
+    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None] = strawberry.field(
+        description="Filters that the comment's customer needs must satisfy."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Filter based on the existence of the relation."
+    )
     or_: strawberry.Maybe[list[NullableCommentFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the comment.",
+        name="or",
     )
-    parent: strawberry.Maybe[NullableCommentFilter | None]
-    project: strawberry.Maybe[NullableProjectFilter | None]
-    project_update: strawberry.Maybe[NullableProjectUpdateFilter | None]
-    reactions: strawberry.Maybe[ReactionCollectionFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
-    user: strawberry.Maybe[UserFilter | None]
+    parent: strawberry.Maybe[NullableCommentFilter | None] = strawberry.field(
+        description="Filters that the comment parent must satisfy."
+    )
+    project: strawberry.Maybe[NullableProjectFilter | None] = strawberry.field(
+        description="[Internal] Filters that the comment's project must satisfy."
+    )
+    project_update: strawberry.Maybe[NullableProjectUpdateFilter | None] = (
+        strawberry.field(
+            description="Filters that the comment's project update must satisfy."
+        )
+    )
+    reactions: strawberry.Maybe[ReactionCollectionFilter | None] = strawberry.field(
+        description="Filters that the comment's reactions must satisfy."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
+    user: strawberry.Maybe[UserFilter | None] = strawberry.field(
+        description="Filters that the comment's creator must satisfy."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Customer filtering options.")
 class NullableCustomerFilter:
     and_: strawberry.Maybe[list[NullableCustomerFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the customer.",
+        name="and",
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    domains: strawberry.Maybe[StringArrayComparator | None]
-    external_ids: strawberry.Maybe[StringArrayComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
-    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None]
-    null: strawberry.Maybe[bool | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    domains: strawberry.Maybe[StringArrayComparator | None] = strawberry.field(
+        description="Comparator for the customer's domains."
+    )
+    external_ids: strawberry.Maybe[StringArrayComparator | None] = strawberry.field(
+        description="Comparator for the customer's external IDs."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the customer name."
+    )
+    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None] = strawberry.field(
+        description="Filters that the customer's needs must satisfy."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Filter based on the existence of the relation."
+    )
     or_: strawberry.Maybe[list[NullableCustomerFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the customer.",
+        name="or",
     )
-    owner: strawberry.Maybe[NullableUserFilter | None]
-    revenue: strawberry.Maybe[NumberComparator | None]
-    size: strawberry.Maybe[NumberComparator | None]
-    slack_channel_id: strawberry.Maybe[StringComparator | None]
-    status: strawberry.Maybe[CustomerStatusFilter | None]
-    tier: strawberry.Maybe[CustomerTierFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    owner: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the customer owner must satisfy."
+    )
+    revenue: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the customer generated revenue."
+    )
+    size: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the customer size."
+    )
+    slack_channel_id: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the customer slack channel ID."
+    )
+    status: strawberry.Maybe[CustomerStatusFilter | None] = strawberry.field(
+        description="Filters that the customer's status must satisfy."
+    )
+    tier: strawberry.Maybe[CustomerTierFilter | None] = strawberry.field(
+        description="Filters that the customer's tier must satisfy."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Cycle filtering options.")
 class NullableCycleFilter:
     and_: strawberry.Maybe[list[NullableCycleFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the cycle.",
+        name="and",
     )
-    completed_at: strawberry.Maybe[DateComparator | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    ends_at: strawberry.Maybe[DateComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    inherited_from_id: strawberry.Maybe[IDComparator | None]
-    is_active: strawberry.Maybe[BooleanComparator | None]
-    is_future: strawberry.Maybe[BooleanComparator | None]
-    is_in_cooldown: strawberry.Maybe[BooleanComparator | None]
-    is_next: strawberry.Maybe[BooleanComparator | None]
-    is_past: strawberry.Maybe[BooleanComparator | None]
-    is_previous: strawberry.Maybe[BooleanComparator | None]
-    issues: strawberry.Maybe[IssueCollectionFilter | None]
-    name: strawberry.Maybe[StringComparator | None]
-    null: strawberry.Maybe[bool | None]
-    number: strawberry.Maybe[NumberComparator | None]
+    completed_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the cycle completed at date."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    ends_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the cycle ends at date."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    inherited_from_id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the inherited cycle ID."
+    )
+    is_active: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the filtering active cycle."
+    )
+    is_future: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the filtering future cycles."
+    )
+    is_in_cooldown: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for filtering for whether the cycle is currently in cooldown."
+    )
+    is_next: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the filtering next cycle."
+    )
+    is_past: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the filtering past cycles."
+    )
+    is_previous: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the filtering previous cycle."
+    )
+    issues: strawberry.Maybe[IssueCollectionFilter | None] = strawberry.field(
+        description="Filters that the cycles issues must satisfy."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the cycle name."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Filter based on the existence of the relation."
+    )
+    number: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the cycle number."
+    )
     or_: strawberry.Maybe[list[NullableCycleFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the cycle.",
+        name="or",
     )
-    starts_at: strawberry.Maybe[DateComparator | None]
-    team: strawberry.Maybe[TeamFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    starts_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the cycle start date."
+    )
+    team: strawberry.Maybe[TeamFilter | None] = strawberry.field(
+        description="Filters that the cycles team must satisfy."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for optional dates.")
 class NullableDateComparator:
-    eq: strawberry.Maybe[DateTimeOrDuration | None]
-    gt: strawberry.Maybe[DateTimeOrDuration | None]
-    gte: strawberry.Maybe[DateTimeOrDuration | None]
-    in_: strawberry.Maybe[list[DateTimeOrDuration] | None] = strawberry.field(name="in")
-    lt: strawberry.Maybe[DateTimeOrDuration | None]
-    lte: strawberry.Maybe[DateTimeOrDuration | None]
-    neq: strawberry.Maybe[DateTimeOrDuration | None]
-    nin: strawberry.Maybe[list[DateTimeOrDuration] | None]
-    null: strawberry.Maybe[bool | None]
+    eq: strawberry.Maybe[DateTimeOrDuration | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    gt: strawberry.Maybe[DateTimeOrDuration | None] = strawberry.field(
+        description="Greater-than constraint. Matches any values that are greater than the given value."
+    )
+    gte: strawberry.Maybe[DateTimeOrDuration | None] = strawberry.field(
+        description="Greater-than-or-equal constraint. Matches any values that are greater than or equal to the given value."
+    )
+    in_: strawberry.Maybe[list[DateTimeOrDuration] | None] = strawberry.field(
+        description="In-array constraint.", name="in"
+    )
+    lt: strawberry.Maybe[DateTimeOrDuration | None] = strawberry.field(
+        description="Less-than constraint. Matches any values that are less than the given value."
+    )
+    lte: strawberry.Maybe[DateTimeOrDuration | None] = strawberry.field(
+        description="Less-than-or-equal constraint. Matches any values that are less than or equal to the given value."
+    )
+    neq: strawberry.Maybe[DateTimeOrDuration | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    nin: strawberry.Maybe[list[DateTimeOrDuration] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Null constraint. Matches any non-null values if the given value is false, otherwise it matches null values."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Document content filtering options.")
 class NullableDocumentContentFilter:
     and_: strawberry.Maybe[list[NullableDocumentContentFilter] | None] = (
-        strawberry.field(name="and")
+        strawberry.field(
+            description="Compound filters, all of which need to be matched by the user.",
+            name="and",
+        )
     )
-    content: strawberry.Maybe[NullableStringComparator | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    document: strawberry.Maybe[DocumentFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    initiative: strawberry.Maybe[InitiativeFilter | None]
-    issue: strawberry.Maybe[IssueFilter | None]
-    null: strawberry.Maybe[bool | None]
+    content: strawberry.Maybe[NullableStringComparator | None] = strawberry.field(
+        description="Comparator for the document content."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    document: strawberry.Maybe[DocumentFilter | None] = strawberry.field(
+        description="Filters that the document content document must satisfy."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    initiative: strawberry.Maybe[InitiativeFilter | None] = strawberry.field(
+        description="Filters that the document content initiative must satisfy."
+    )
+    issue: strawberry.Maybe[IssueFilter | None] = strawberry.field(
+        description="Filters that the document content issue must satisfy."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Filter based on the existence of the relation."
+    )
     or_: strawberry.Maybe[list[NullableDocumentContentFilter] | None] = (
-        strawberry.field(name="or")
+        strawberry.field(
+            description="Compound filters, one of which need to be matched by the user.",
+            name="or",
+        )
     )
-    project: strawberry.Maybe[ProjectFilter | None]
-    project_milestone: strawberry.Maybe[ProjectMilestoneFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    project: strawberry.Maybe[ProjectFilter | None] = strawberry.field(
+        description="Filters that the document content project must satisfy."
+    )
+    project_milestone: strawberry.Maybe[ProjectMilestoneFilter | None] = (
+        strawberry.field(
+            description="Filters that the document content project milestone must satisfy."
+        )
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Nullable comparator for optional durations.")
 class NullableDurationComparator:
-    eq: strawberry.Maybe[Duration | None]
-    gt: strawberry.Maybe[Duration | None]
-    gte: strawberry.Maybe[Duration | None]
-    in_: strawberry.Maybe[list[Duration] | None] = strawberry.field(name="in")
-    lt: strawberry.Maybe[Duration | None]
-    lte: strawberry.Maybe[Duration | None]
-    neq: strawberry.Maybe[Duration | None]
-    nin: strawberry.Maybe[list[Duration] | None]
-    null: strawberry.Maybe[bool | None]
+    eq: strawberry.Maybe[Duration | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    gt: strawberry.Maybe[Duration | None] = strawberry.field(
+        description="Greater-than constraint. Matches any values that are greater than the given value."
+    )
+    gte: strawberry.Maybe[Duration | None] = strawberry.field(
+        description="Greater-than-or-equal constraint. Matches any values that are greater than or equal to the given value."
+    )
+    in_: strawberry.Maybe[list[Duration] | None] = strawberry.field(
+        description="In-array constraint.", name="in"
+    )
+    lt: strawberry.Maybe[Duration | None] = strawberry.field(
+        description="Less-than constraint. Matches any values that are less than the given value."
+    )
+    lte: strawberry.Maybe[Duration | None] = strawberry.field(
+        description="Less-than-or-equal constraint. Matches any values that are less than or equal to the given value."
+    )
+    neq: strawberry.Maybe[Duration | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    nin: strawberry.Maybe[list[Duration] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Null constraint. Matches any non-null values if the given value is false, otherwise it matches null values."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Initiative filtering options.")
 class NullableInitiativeFilter:
-    activity_type: strawberry.Maybe[StringComparator | None]
-    ancestors: strawberry.Maybe[InitiativeCollectionFilter | None]
+    activity_type: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the initiative activity type."
+    )
+    ancestors: strawberry.Maybe[InitiativeCollectionFilter | None] = strawberry.field(
+        description="Filters that the initiative must be an ancestor of."
+    )
     and_: strawberry.Maybe[list[NullableInitiativeFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the initiative.",
+        name="and",
     )
-    canceled_at: strawberry.Maybe[NullableDateComparator | None]
-    completed_at: strawberry.Maybe[NullableDateComparator | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[NullableUserFilter | None]
-    health: strawberry.Maybe[StringComparator | None]
-    health_with_age: strawberry.Maybe[StringComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    initiative_updates: strawberry.Maybe[InitiativeUpdatesCollectionFilter | None]
-    labels: strawberry.Maybe[InitiativeLabelCollectionFilter | None]
-    lead_team: strawberry.Maybe[NullableTeamFilter | None]
-    name: strawberry.Maybe[StringComparator | None]
-    null: strawberry.Maybe[bool | None]
+    canceled_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="[Internal] Comparator for the initiative canceled at date."
+    )
+    completed_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the initiative completed at date."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the initiative creator must satisfy."
+    )
+    health: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the initiative health: onTrack, atRisk, offTrack"
+    )
+    health_with_age: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the initiative health (with age): onTrack, atRisk, offTrack, outdated, noUpdate"
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    initiative_updates: strawberry.Maybe[InitiativeUpdatesCollectionFilter | None] = (
+        strawberry.field(
+            description="Filters that the initiative updates must satisfy."
+        )
+    )
+    labels: strawberry.Maybe[InitiativeLabelCollectionFilter | None] = strawberry.field(
+        description="Filters that the initiative labels must satisfy."
+    )
+    lead_team: strawberry.Maybe[NullableTeamFilter | None] = strawberry.field(
+        description="[ALPHA] Filters that the initiative lead team must satisfy."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the initiative name."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Filter based on the existence of the relation."
+    )
     or_: strawberry.Maybe[list[NullableInitiativeFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the initiative.",
+        name="or",
     )
-    owner: strawberry.Maybe[NullableUserFilter | None]
-    priority: strawberry.Maybe[NullableNumberComparator | None]
-    slug_id: strawberry.Maybe[StringComparator | None]
-    started_at: strawberry.Maybe[NullableDateComparator | None]
-    status: strawberry.Maybe[StringComparator | None]
-    target_date: strawberry.Maybe[NullableDateComparator | None]
-    teams: strawberry.Maybe[TeamCollectionFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    owner: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the initiative owner must satisfy."
+    )
+    priority: strawberry.Maybe[NullableNumberComparator | None] = strawberry.field(
+        description="Comparator for the initiative priority."
+    )
+    slug_id: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the initiative slug ID."
+    )
+    started_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the initiative started at date."
+    )
+    status: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the initiative status: Proposed, Planned, Active, Completed, Canceled"
+    )
+    target_date: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the initiative target date."
+    )
+    teams: strawberry.Maybe[TeamCollectionFilter | None] = strawberry.field(
+        description="Filters that the initiative teams must satisfy."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Nullable initiative update filtering options.")
 class NullableInitiativeUpdateFilter:
     and_: strawberry.Maybe[list[NullableInitiativeUpdateFilter] | None] = (
-        strawberry.field(name="and")
+        strawberry.field(
+            description="Compound filters, all of which need to be matched by the initiative update.",
+            name="and",
+        )
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    initiative: strawberry.Maybe[InitiativeFilter | None]
-    null: strawberry.Maybe[bool | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    initiative: strawberry.Maybe[InitiativeFilter | None] = strawberry.field(
+        description="Filters that the initiative update initiative must satisfy."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Filter based on the existence of the relation."
+    )
     or_: strawberry.Maybe[list[NullableInitiativeUpdateFilter] | None] = (
-        strawberry.field(name="or")
+        strawberry.field(
+            description="Compound filters, one of which need to be matched by the initiative update.",
+            name="or",
+        )
     )
-    reactions: strawberry.Maybe[ReactionCollectionFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
-    user: strawberry.Maybe[UserFilter | None]
+    reactions: strawberry.Maybe[ReactionCollectionFilter | None] = strawberry.field(
+        description="Filters that the initiative updates reactions must satisfy."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
+    user: strawberry.Maybe[UserFilter | None] = strawberry.field(
+        description="Filters that the initiative update creator must satisfy."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue filtering options.")
 class NullableIssueFilter:
-    accumulated_state_updated_at: strawberry.Maybe[NullableDateComparator | None]
-    activity: strawberry.Maybe[ActivityCollectionFilter | None]
-    added_to_cycle_at: strawberry.Maybe[NullableDateComparator | None]
-    added_to_cycle_period: strawberry.Maybe[CyclePeriodComparator | None]
-    age_time: strawberry.Maybe[NullableDurationComparator | None]
+    accumulated_state_updated_at: strawberry.Maybe[NullableDateComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for the issue's accumulatedStateUpdatedAt date."
+        )
+    )
+    activity: strawberry.Maybe[ActivityCollectionFilter | None] = strawberry.field(
+        description="Filters that the issue's activities must satisfy."
+    )
+    added_to_cycle_at: strawberry.Maybe[NullableDateComparator | None] = (
+        strawberry.field(
+            description="Comparator for the issues added to cycle at date."
+        )
+    )
+    added_to_cycle_period: strawberry.Maybe[CyclePeriodComparator | None] = (
+        strawberry.field(
+            description="Comparator for the period when issue was added to a cycle."
+        )
+    )
+    age_time: strawberry.Maybe[NullableDurationComparator | None] = strawberry.field(
+        description="[Internal] Age (created -> now) comparator, defined if the issue is still open."
+    )
     and_: strawberry.Maybe[list[NullableIssueFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the issue.",
+        name="and",
     )
-    archived_at: strawberry.Maybe[NullableDateComparator | None]
-    assignee: strawberry.Maybe[NullableUserFilter | None]
-    attachments: strawberry.Maybe[AttachmentCollectionFilter | None]
-    auto_archived_at: strawberry.Maybe[NullableDateComparator | None]
-    auto_closed_at: strawberry.Maybe[NullableDateComparator | None]
-    canceled_at: strawberry.Maybe[NullableDateComparator | None]
-    children: strawberry.Maybe[IssueCollectionFilter | None]
-    comments: strawberry.Maybe[CommentCollectionFilter | None]
-    completed_at: strawberry.Maybe[NullableDateComparator | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[NullableUserFilter | None]
-    customer_count: strawberry.Maybe[NumberComparator | None]
-    customer_important_count: strawberry.Maybe[NumberComparator | None]
-    cycle: strawberry.Maybe[NullableCycleFilter | None]
-    cycle_time: strawberry.Maybe[NullableDurationComparator | None]
-    delegate: strawberry.Maybe[NullableUserFilter | None]
-    description: strawberry.Maybe[NullableStringComparator | None]
-    due_date: strawberry.Maybe[NullableTimelessDateComparator | None]
-    estimate: strawberry.Maybe[EstimateComparator | None]
-    has_active_agent_sessions: strawberry.Maybe[RelationExistsComparator | None]
-    has_blocked_by_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_blocking_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_dismissed_agent_sessions: strawberry.Maybe[RelationExistsComparator | None]
-    has_duplicate_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_errored_agent_sessions: strawberry.Maybe[RelationExistsComparator | None]
-    has_merged_agent_pull_requests: strawberry.Maybe[RelationExistsComparator | None]
-    has_related_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_shared_users: strawberry.Maybe[RelationExistsComparator | None]
-    has_suggested_assignees: strawberry.Maybe[RelationExistsComparator | None]
-    has_suggested_labels: strawberry.Maybe[RelationExistsComparator | None]
-    has_suggested_projects: strawberry.Maybe[RelationExistsComparator | None]
-    has_suggested_related_issues: strawberry.Maybe[RelationExistsComparator | None]
-    has_suggested_similar_issues: strawberry.Maybe[RelationExistsComparator | None]
-    has_suggested_teams: strawberry.Maybe[RelationExistsComparator | None]
-    id: strawberry.Maybe[IssueIDComparator | None]
-    labels: strawberry.Maybe[IssueLabelCollectionFilter | None]
-    last_applied_template: strawberry.Maybe[NullableTemplateFilter | None]
-    lead_time: strawberry.Maybe[NullableDurationComparator | None]
-    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None]
-    null: strawberry.Maybe[bool | None]
-    number: strawberry.Maybe[NumberComparator | None]
+    archived_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the issues archived at date."
+    )
+    assignee: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the issues assignee must satisfy."
+    )
+    attachments: strawberry.Maybe[AttachmentCollectionFilter | None] = strawberry.field(
+        description="Filters that the issues attachments must satisfy."
+    )
+    auto_archived_at: strawberry.Maybe[NullableDateComparator | None] = (
+        strawberry.field(description="Comparator for the issues auto archived at date.")
+    )
+    auto_closed_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the issues auto closed at date."
+    )
+    canceled_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the issues canceled at date."
+    )
+    children: strawberry.Maybe[IssueCollectionFilter | None] = strawberry.field(
+        description="Filters that the child issues must satisfy."
+    )
+    comments: strawberry.Maybe[CommentCollectionFilter | None] = strawberry.field(
+        description="Filters that the issues comments must satisfy."
+    )
+    completed_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the issues completed at date."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the issues creator must satisfy."
+    )
+    customer_count: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Count of customers"
+    )
+    customer_important_count: strawberry.Maybe[NumberComparator | None] = (
+        strawberry.field(description="Count of important customers")
+    )
+    cycle: strawberry.Maybe[NullableCycleFilter | None] = strawberry.field(
+        description="Filters that the issues cycle must satisfy."
+    )
+    cycle_time: strawberry.Maybe[NullableDurationComparator | None] = strawberry.field(
+        description="[Internal] Cycle time (started -> completed) comparator."
+    )
+    delegate: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the issue's delegated agent must satisfy."
+    )
+    description: strawberry.Maybe[NullableStringComparator | None] = strawberry.field(
+        description="Comparator for the issues description."
+    )
+    due_date: strawberry.Maybe[NullableTimelessDateComparator | None] = (
+        strawberry.field(description="Comparator for the issues due date.")
+    )
+    estimate: strawberry.Maybe[EstimateComparator | None] = strawberry.field(
+        description="Comparator for the issues estimate."
+    )
+    has_active_agent_sessions: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for filtering issues bucketed as having active agent sessions, no closed agent pull requests, and no merged agent pull requests."
+        )
+    )
+    has_blocked_by_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering issues which are blocked."
+        )
+    )
+    has_blocking_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering issues which are blocking."
+        )
+    )
+    has_dismissed_agent_sessions: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for filtering issues bucketed as having all agent sessions dismissed or closed, and no merged agent pull requests."
+        )
+    )
+    has_duplicate_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering issues which are duplicates."
+        )
+    )
+    has_errored_agent_sessions: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for filtering issues bucketed as having an errored agent session, no active sessions, and no merged agent pull requests."
+        )
+    )
+    has_merged_agent_pull_requests: strawberry.Maybe[
+        RelationExistsComparator | None
+    ] = strawberry.field(
+        description="[Internal] Comparator for filtering issues which have agent-session-linked pull requests that were merged."
+    )
+    has_related_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(description="Comparator for filtering issues with relations.")
+    )
+    has_shared_users: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering issues which have been shared with users outside of the team."
+        )
+    )
+    has_suggested_assignees: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for filtering issues which have suggested assignees."
+        )
+    )
+    has_suggested_labels: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for filtering issues which have suggested labels."
+        )
+    )
+    has_suggested_projects: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for filtering issues which have suggested projects."
+        )
+    )
+    has_suggested_related_issues: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for filtering issues which have suggested related issues."
+        )
+    )
+    has_suggested_similar_issues: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for filtering issues which have suggested similar issues."
+        )
+    )
+    has_suggested_teams: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Internal] Comparator for filtering issues which have suggested teams."
+        )
+    )
+    id: strawberry.Maybe[IssueIDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    labels: strawberry.Maybe[IssueLabelCollectionFilter | None] = strawberry.field(
+        description="Filters that issue labels must satisfy."
+    )
+    last_applied_template: strawberry.Maybe[NullableTemplateFilter | None] = (
+        strawberry.field(
+            description="Filters that the last applied template must satisfy."
+        )
+    )
+    lead_time: strawberry.Maybe[NullableDurationComparator | None] = strawberry.field(
+        description="[Internal] Lead time (created -> completed) comparator."
+    )
+    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None] = strawberry.field(
+        description="Filters that the issue's customer needs must satisfy."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Filter based on the existence of the relation."
+    )
+    number: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the issues number."
+    )
     or_: strawberry.Maybe[list[NullableIssueFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the issue.",
+        name="or",
     )
-    parent: strawberry.Maybe[NullableIssueFilter | None]
-    priority: strawberry.Maybe[NullableNumberComparator | None]
-    project: strawberry.Maybe[NullableProjectFilter | None]
-    project_milestone: strawberry.Maybe[NullableProjectMilestoneFilter | None]
-    reactions: strawberry.Maybe[ReactionCollectionFilter | None]
-    recurring_issue_template: strawberry.Maybe[NullableTemplateFilter | None]
-    releases: strawberry.Maybe[ReleaseCollectionFilter | None]
-    searchable_content: strawberry.Maybe[ContentComparator | None]
-    shared_with: strawberry.Maybe[UserCollectionFilter | None]
-    sla_breaches_at: strawberry.Maybe[NullableDateComparator | None]
-    sla_status: strawberry.Maybe[SlaStatusComparator | None]
-    snoozed_by: strawberry.Maybe[NullableUserFilter | None]
-    snoozed_until_at: strawberry.Maybe[NullableDateComparator | None]
-    source_metadata: strawberry.Maybe[SourceMetadataComparator | None]
-    started_at: strawberry.Maybe[NullableDateComparator | None]
-    state: strawberry.Maybe[WorkflowStateFilter | None]
-    subscribers: strawberry.Maybe[UserCollectionFilter | None]
-    suggestions: strawberry.Maybe[IssueSuggestionCollectionFilter | None]
-    team: strawberry.Maybe[TeamFilter | None]
-    title: strawberry.Maybe[StringComparator | None]
-    triage_time: strawberry.Maybe[NullableDurationComparator | None]
-    triaged_at: strawberry.Maybe[NullableDateComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    parent: strawberry.Maybe[NullableIssueFilter | None] = strawberry.field(
+        description="Filters that the issue parent must satisfy."
+    )
+    priority: strawberry.Maybe[NullableNumberComparator | None] = strawberry.field(
+        description="Comparator for the issues priority. 0 = No priority, 1 = Urgent, 2 = High, 3 = Medium, 4 = Low."
+    )
+    project: strawberry.Maybe[NullableProjectFilter | None] = strawberry.field(
+        description="Filters that the issues project must satisfy."
+    )
+    project_milestone: strawberry.Maybe[NullableProjectMilestoneFilter | None] = (
+        strawberry.field(
+            description="Filters that the issues project milestone must satisfy."
+        )
+    )
+    reactions: strawberry.Maybe[ReactionCollectionFilter | None] = strawberry.field(
+        description="Filters that the issues reactions must satisfy."
+    )
+    recurring_issue_template: strawberry.Maybe[NullableTemplateFilter | None] = (
+        strawberry.field(
+            description="[ALPHA] Filters that the recurring issue template must satisfy."
+        )
+    )
+    releases: strawberry.Maybe[ReleaseCollectionFilter | None] = strawberry.field(
+        description="Filters that the issue's releases must satisfy."
+    )
+    searchable_content: strawberry.Maybe[ContentComparator | None] = strawberry.field(
+        description="[Internal] Comparator for the issues content."
+    )
+    shared_with: strawberry.Maybe[UserCollectionFilter | None] = strawberry.field(
+        description="Filters that users the issue has been shared with must satisfy."
+    )
+    sla_breaches_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the issue's SLA breach date."
+    )
+    sla_status: strawberry.Maybe[SlaStatusComparator | None] = strawberry.field(
+        description="Comparator for the issues sla status."
+    )
+    snoozed_by: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the issues snoozer must satisfy."
+    )
+    snoozed_until_at: strawberry.Maybe[NullableDateComparator | None] = (
+        strawberry.field(description="Comparator for the issues snoozed until date.")
+    )
+    source_metadata: strawberry.Maybe[SourceMetadataComparator | None] = (
+        strawberry.field(description="Filters that the source must satisfy.")
+    )
+    started_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the issues started at date."
+    )
+    state: strawberry.Maybe[WorkflowStateFilter | None] = strawberry.field(
+        description="Filters that the issues state must satisfy."
+    )
+    subscribers: strawberry.Maybe[UserCollectionFilter | None] = strawberry.field(
+        description="Filters that issue subscribers must satisfy."
+    )
+    suggestions: strawberry.Maybe[IssueSuggestionCollectionFilter | None] = (
+        strawberry.field(
+            description="[Internal] Filters that the issue's suggestions must satisfy."
+        )
+    )
+    team: strawberry.Maybe[TeamFilter | None] = strawberry.field(
+        description="Filters that the issues team must satisfy."
+    )
+    title: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the issues title."
+    )
+    triage_time: strawberry.Maybe[NullableDurationComparator | None] = strawberry.field(
+        description="[Internal] Triage time (entered triaged -> triaged) comparator."
+    )
+    triaged_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the issues triaged at date."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for optional numbers.")
 class NullableNumberComparator:
-    eq: strawberry.Maybe[float | None]
-    gt: strawberry.Maybe[float | None]
-    gte: strawberry.Maybe[float | None]
-    in_: strawberry.Maybe[list[float] | None] = strawberry.field(name="in")
-    lt: strawberry.Maybe[float | None]
-    lte: strawberry.Maybe[float | None]
-    neq: strawberry.Maybe[float | None]
-    nin: strawberry.Maybe[list[float] | None]
-    null: strawberry.Maybe[bool | None]
-
-
-@strawberry.input
-class NullableProjectFilter:
-    accessible_teams: strawberry.Maybe[TeamCollectionFilter | None]
-    activity_type: strawberry.Maybe[StringComparator | None]
-    and_: strawberry.Maybe[list[NullableProjectFilter] | None] = strawberry.field(
-        name="and"
+    eq: strawberry.Maybe[float | None] = strawberry.field(
+        description="Equals constraint."
     )
-    canceled_at: strawberry.Maybe[NullableDateComparator | None]
-    completed_at: strawberry.Maybe[NullableDateComparator | None]
+    gt: strawberry.Maybe[float | None] = strawberry.field(
+        description="Greater-than constraint. Matches any values that are greater than the given value."
+    )
+    gte: strawberry.Maybe[float | None] = strawberry.field(
+        description="Greater-than-or-equal constraint. Matches any values that are greater than or equal to the given value."
+    )
+    in_: strawberry.Maybe[list[float] | None] = strawberry.field(
+        description="In-array constraint.", name="in"
+    )
+    lt: strawberry.Maybe[float | None] = strawberry.field(
+        description="Less-than constraint. Matches any values that are less than the given value."
+    )
+    lte: strawberry.Maybe[float | None] = strawberry.field(
+        description="Less-than-or-equal constraint. Matches any values that are less than or equal to the given value."
+    )
+    neq: strawberry.Maybe[float | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    nin: strawberry.Maybe[list[float] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Null constraint. Matches any non-null values if the given value is false, otherwise it matches null values."
+    )
+
+
+@strawberry.input(description="Project filtering options.")
+class NullableProjectFilter:
+    accessible_teams: strawberry.Maybe[TeamCollectionFilter | None] = strawberry.field(
+        description="Filters that the project's team must satisfy."
+    )
+    activity_type: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="[ALPHA] Comparator for the project activity type: buzzin, active, some, none"
+    )
+    and_: strawberry.Maybe[list[NullableProjectFilter] | None] = strawberry.field(
+        description="Compound filters, all of which need to be matched by the project.",
+        name="and",
+    )
+    canceled_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the project cancelation date."
+    )
+    completed_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the project completion date."
+    )
     completed_project_milestones: strawberry.Maybe[
         ProjectMilestoneCollectionFilter | None
-    ]
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[UserFilter | None]
-    customer_count: strawberry.Maybe[NumberComparator | None]
-    customer_important_count: strawberry.Maybe[NumberComparator | None]
-    has_blocked_by_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_blocking_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_depended_on_by_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_depends_on_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_related_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_violated_relations: strawberry.Maybe[RelationExistsComparator | None]
-    health: strawberry.Maybe[StringComparator | None]
-    health_with_age: strawberry.Maybe[StringComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    initiatives: strawberry.Maybe[InitiativeCollectionFilter | None]
-    issues: strawberry.Maybe[IssueCollectionFilter | None]
-    labels: strawberry.Maybe[ProjectLabelCollectionFilter | None]
-    last_applied_template: strawberry.Maybe[NullableTemplateFilter | None]
-    lead: strawberry.Maybe[NullableUserFilter | None]
-    members: strawberry.Maybe[UserCollectionFilter | None]
-    name: strawberry.Maybe[StringComparator | None]
-    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None]
-    next_project_milestone: strawberry.Maybe[ProjectMilestoneFilter | None]
-    null: strawberry.Maybe[bool | None]
-    or_: strawberry.Maybe[list[NullableProjectFilter] | None] = strawberry.field(
-        name="or"
+    ] = strawberry.field(
+        description="Filters that the project's completed milestones must satisfy."
     )
-    priority: strawberry.Maybe[NullableNumberComparator | None]
-    project_milestones: strawberry.Maybe[ProjectMilestoneCollectionFilter | None]
-    project_updates: strawberry.Maybe[ProjectUpdatesCollectionFilter | None]
-    roadmaps: strawberry.Maybe[RoadmapCollectionFilter | None]
-    searchable_content: strawberry.Maybe[ContentComparator | None]
-    slug_id: strawberry.Maybe[StringComparator | None]
-    start_date: strawberry.Maybe[NullableDateComparator | None]
-    started_at: strawberry.Maybe[NullableDateComparator | None]
-    state: strawberry.Maybe[StringComparator | None]
-    status: strawberry.Maybe[ProjectStatusFilter | None]
-    target_date: strawberry.Maybe[NullableDateComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[UserFilter | None] = strawberry.field(
+        description="Filters that the projects creator must satisfy."
+    )
+    customer_count: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Count of customers"
+    )
+    customer_important_count: strawberry.Maybe[NumberComparator | None] = (
+        strawberry.field(description="Count of important customers")
+    )
+    has_blocked_by_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering projects which are blocked."
+        )
+    )
+    has_blocking_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering projects which are blocking."
+        )
+    )
+    has_depended_on_by_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Deprecated] Comparator for filtering projects which this is depended on by."
+        )
+    )
+    has_depends_on_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Deprecated]Comparator for filtering projects which this depends on."
+        )
+    )
+    has_related_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering projects with relations."
+        )
+    )
+    has_violated_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering projects with violated dependencies."
+        )
+    )
+    health: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the project health: onTrack, atRisk, offTrack"
+    )
+    health_with_age: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the project health (with age): onTrack, atRisk, offTrack, outdated, noUpdate"
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    initiatives: strawberry.Maybe[InitiativeCollectionFilter | None] = strawberry.field(
+        description="Filters that the projects initiatives must satisfy."
+    )
+    issues: strawberry.Maybe[IssueCollectionFilter | None] = strawberry.field(
+        description="Filters that the projects issues must satisfy."
+    )
+    labels: strawberry.Maybe[ProjectLabelCollectionFilter | None] = strawberry.field(
+        description="Filters that project labels must satisfy."
+    )
+    last_applied_template: strawberry.Maybe[NullableTemplateFilter | None] = (
+        strawberry.field(
+            description="Filters that the last applied template must satisfy."
+        )
+    )
+    lead: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the projects lead must satisfy."
+    )
+    members: strawberry.Maybe[UserCollectionFilter | None] = strawberry.field(
+        description="Filters that the projects members must satisfy."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the project name."
+    )
+    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None] = strawberry.field(
+        description="Filters that the project's customer needs must satisfy."
+    )
+    next_project_milestone: strawberry.Maybe[ProjectMilestoneFilter | None] = (
+        strawberry.field(
+            description="Filters that the project's next milestone must satisfy."
+        )
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Filter based on the existence of the relation."
+    )
+    or_: strawberry.Maybe[list[NullableProjectFilter] | None] = strawberry.field(
+        description="Compound filters, one of which need to be matched by the project.",
+        name="or",
+    )
+    priority: strawberry.Maybe[NullableNumberComparator | None] = strawberry.field(
+        description="Comparator for the project priority."
+    )
+    project_milestones: strawberry.Maybe[ProjectMilestoneCollectionFilter | None] = (
+        strawberry.field(
+            description="Filters that the project's milestones must satisfy."
+        )
+    )
+    project_updates: strawberry.Maybe[ProjectUpdatesCollectionFilter | None] = (
+        strawberry.field(description="Comparator for the project updates.")
+    )
+    roadmaps: strawberry.Maybe[RoadmapCollectionFilter | None] = strawberry.field(
+        description="Filters that the projects roadmaps must satisfy."
+    )
+    searchable_content: strawberry.Maybe[ContentComparator | None] = strawberry.field(
+        description="[Internal] Comparator for the project's content."
+    )
+    slug_id: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the project slug ID."
+    )
+    start_date: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the project start date."
+    )
+    started_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description='Comparator for the project started date (when it was moved to an "In Progress" status).'
+    )
+    state: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="[DEPRECATED] Comparator for the project state."
+    )
+    status: strawberry.Maybe[ProjectStatusFilter | None] = strawberry.field(
+        description="Filters that the project status must satisfy."
+    )
+    target_date: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the project target date."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Project milestone filtering options.")
 class NullableProjectMilestoneFilter:
     and_: strawberry.Maybe[list[NullableProjectMilestoneFilter] | None] = (
-        strawberry.field(name="and")
+        strawberry.field(
+            description="Compound filters, all of which need to be matched by the project milestone.",
+            name="and",
+        )
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    name: strawberry.Maybe[NullableStringComparator | None]
-    null: strawberry.Maybe[bool | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    name: strawberry.Maybe[NullableStringComparator | None] = strawberry.field(
+        description="Comparator for the project milestone name."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Filter based on the existence of the relation."
+    )
     or_: strawberry.Maybe[list[NullableProjectMilestoneFilter] | None] = (
-        strawberry.field(name="or")
+        strawberry.field(
+            description="Compound filters, one of which need to be matched by the project milestone.",
+            name="or",
+        )
     )
-    project: strawberry.Maybe[NullableProjectFilter | None]
-    target_date: strawberry.Maybe[NullableDateComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    project: strawberry.Maybe[NullableProjectFilter | None] = strawberry.field(
+        description="Filters that the project milestone's project must satisfy."
+    )
+    target_date: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the project milestone target date."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Nullable project update filtering options.")
 class NullableProjectUpdateFilter:
     and_: strawberry.Maybe[list[NullableProjectUpdateFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the project update.",
+        name="and",
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    null: strawberry.Maybe[bool | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Filter based on the existence of the relation."
+    )
     or_: strawberry.Maybe[list[NullableProjectUpdateFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the project update.",
+        name="or",
     )
-    project: strawberry.Maybe[ProjectFilter | None]
-    reactions: strawberry.Maybe[ReactionCollectionFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
-    user: strawberry.Maybe[UserFilter | None]
+    project: strawberry.Maybe[ProjectFilter | None] = strawberry.field(
+        description="Filters that the project update project must satisfy."
+    )
+    reactions: strawberry.Maybe[ReactionCollectionFilter | None] = strawberry.field(
+        description="Filters that the project updates reactions must satisfy."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
+    user: strawberry.Maybe[UserFilter | None] = strawberry.field(
+        description="Filters that the project update creator must satisfy."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for optional strings.")
 class NullableStringComparator:
-    contains: strawberry.Maybe[str | None]
-    contains_ignore_case: strawberry.Maybe[str | None]
-    contains_ignore_case_and_accent: strawberry.Maybe[str | None]
-    ends_with: strawberry.Maybe[str | None]
-    eq: strawberry.Maybe[str | None]
-    eq_ignore_case: strawberry.Maybe[str | None]
-    in_: strawberry.Maybe[list[str] | None] = strawberry.field(name="in")
-    neq: strawberry.Maybe[str | None]
-    neq_ignore_case: strawberry.Maybe[str | None]
-    nin: strawberry.Maybe[list[str] | None]
-    not_contains: strawberry.Maybe[str | None]
-    not_contains_ignore_case: strawberry.Maybe[str | None]
-    not_ends_with: strawberry.Maybe[str | None]
-    not_starts_with: strawberry.Maybe[str | None]
-    null: strawberry.Maybe[bool | None]
-    starts_with: strawberry.Maybe[str | None]
-    starts_with_ignore_case: strawberry.Maybe[str | None]
-
-
-@strawberry.input
-class NullableTeamFilter:
-    ancestors: strawberry.Maybe[TeamCollectionFilter | None]
-    and_: strawberry.Maybe[list[NullableTeamFilter] | None] = strawberry.field(
-        name="and"
+    contains: strawberry.Maybe[str | None] = strawberry.field(
+        description="Contains constraint. Matches any values that contain the given string."
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    description: strawberry.Maybe[NullableStringComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    issues: strawberry.Maybe[IssueCollectionFilter | None]
-    key: strawberry.Maybe[StringComparator | None]
-    members: strawberry.Maybe[UserCollectionFilter | None]
-    name: strawberry.Maybe[StringComparator | None]
-    null: strawberry.Maybe[bool | None]
-    or_: strawberry.Maybe[list[NullableTeamFilter] | None] = strawberry.field(name="or")
-    owners: strawberry.Maybe[UserCollectionFilter | None]
-    parent: strawberry.Maybe[NullableTeamFilter | None]
-    private: strawberry.Maybe[BooleanComparator | None]
-    release_pipelines: strawberry.Maybe[ReleasePipelineCollectionFilter | None]
-    restricted_by: strawberry.Maybe[NullableTeamFilter | None]
-    retired_at: strawberry.Maybe[NullableDateComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
-    users: strawberry.Maybe[UserCollectionFilter | None]
-    visibility: strawberry.Maybe[TeamVisibilityComparator | None]
+    contains_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Contains case insensitive constraint. Matches any values that contain the given string case insensitive."
+    )
+    contains_ignore_case_and_accent: strawberry.Maybe[str | None] = strawberry.field(
+        description="Contains case and accent insensitive constraint. Matches any values that contain the given string case and accent insensitive."
+    )
+    ends_with: strawberry.Maybe[str | None] = strawberry.field(
+        description="Ends with constraint. Matches any values that end with the given string."
+    )
+    eq: strawberry.Maybe[str | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    eq_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Equals case insensitive. Matches any values that matches the given string case insensitive."
+    )
+    in_: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="In-array constraint.", name="in"
+    )
+    neq: strawberry.Maybe[str | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    neq_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Not-equals case insensitive. Matches any values that don't match the given string case insensitive."
+    )
+    nin: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
+    not_contains: strawberry.Maybe[str | None] = strawberry.field(
+        description="Doesn't contain constraint. Matches any values that don't contain the given string."
+    )
+    not_contains_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Doesn't contain case insensitive constraint. Matches any values that don't contain the given string case insensitive."
+    )
+    not_ends_with: strawberry.Maybe[str | None] = strawberry.field(
+        description="Doesn't end with constraint. Matches any values that don't end with the given string."
+    )
+    not_starts_with: strawberry.Maybe[str | None] = strawberry.field(
+        description="Doesn't start with constraint. Matches any values that don't start with the given string."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Null constraint. Matches any non-null values if the given value is false, otherwise it matches null values."
+    )
+    starts_with: strawberry.Maybe[str | None] = strawberry.field(
+        description="Starts with constraint. Matches any values that start with the given string."
+    )
+    starts_with_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Starts with case insensitive constraint. Matches any values that start with the given string."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Team filtering options.")
+class NullableTeamFilter:
+    ancestors: strawberry.Maybe[TeamCollectionFilter | None] = strawberry.field(
+        description="Filters that the team's ancestors must satisfy."
+    )
+    and_: strawberry.Maybe[list[NullableTeamFilter] | None] = strawberry.field(
+        description="Compound filters, all of which need to be matched by the team.",
+        name="and",
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    description: strawberry.Maybe[NullableStringComparator | None] = strawberry.field(
+        description="Comparator for the team description."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    issues: strawberry.Maybe[IssueCollectionFilter | None] = strawberry.field(
+        description="Filters that the team's issues must satisfy."
+    )
+    key: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the team key."
+    )
+    members: strawberry.Maybe[UserCollectionFilter | None] = strawberry.field(
+        description="Filters that the team's members must satisfy."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the team name."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Filter based on the existence of the relation."
+    )
+    or_: strawberry.Maybe[list[NullableTeamFilter] | None] = strawberry.field(
+        description="Compound filters, one of which need to be matched by the team.",
+        name="or",
+    )
+    owners: strawberry.Maybe[UserCollectionFilter | None] = strawberry.field(
+        description="Filters that the team's owners must satisfy."
+    )
+    parent: strawberry.Maybe[NullableTeamFilter | None] = strawberry.field(
+        description="Filters that the team's parent must satisfy."
+    )
+    private: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="[DEPRECATED] Comparator for the team privacy."
+    )
+    release_pipelines: strawberry.Maybe[ReleasePipelineCollectionFilter | None] = (
+        strawberry.field(
+            description="Filters that the team's release pipelines must satisfy."
+        )
+    )
+    restricted_by: strawberry.Maybe[NullableTeamFilter | None] = strawberry.field(
+        description="[Internal] Filters that the private team forming this team's visibility boundary must satisfy. Only relevant for non-public teams."
+    )
+    retired_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the time at which the team was retired."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
+    users: strawberry.Maybe[UserCollectionFilter | None] = strawberry.field(
+        description="[Internal] Filters that the team's members must satisfy. Alias of `members` matching the filter shape produced by the app; prefer `members`."
+    )
+    visibility: strawberry.Maybe[TeamVisibilityComparator | None] = strawberry.field(
+        description="Comparator for the team visibility."
+    )
+
+
+@strawberry.input(description="Template filtering options.")
 class NullableTemplateFilter:
     and_: strawberry.Maybe[list[NullableTemplateFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the template.",
+        name="and",
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    inherited_from_id: strawberry.Maybe[IDComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
-    null: strawberry.Maybe[bool | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    inherited_from_id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the inherited template's ID."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the template's name."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Filter based on the existence of the relation."
+    )
     or_: strawberry.Maybe[list[NullableTemplateFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the template.",
+        name="or",
     )
-    type: strawberry.Maybe[StringComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    type: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the template's type."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for optional timeless dates.")
 class NullableTimelessDateComparator:
-    eq: strawberry.Maybe[TimelessDateOrDuration | None]
-    gt: strawberry.Maybe[TimelessDateOrDuration | None]
-    gte: strawberry.Maybe[TimelessDateOrDuration | None]
+    eq: strawberry.Maybe[TimelessDateOrDuration | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    gt: strawberry.Maybe[TimelessDateOrDuration | None] = strawberry.field(
+        description="Greater-than constraint. Matches any values that are greater than the given value."
+    )
+    gte: strawberry.Maybe[TimelessDateOrDuration | None] = strawberry.field(
+        description="Greater-than-or-equal constraint. Matches any values that are greater than or equal to the given value."
+    )
     in_: strawberry.Maybe[list[TimelessDateOrDuration] | None] = strawberry.field(
-        name="in"
+        description="In-array constraint.", name="in"
     )
-    lt: strawberry.Maybe[TimelessDateOrDuration | None]
-    lte: strawberry.Maybe[TimelessDateOrDuration | None]
-    neq: strawberry.Maybe[TimelessDateOrDuration | None]
-    nin: strawberry.Maybe[list[TimelessDateOrDuration] | None]
-    null: strawberry.Maybe[bool | None]
+    lt: strawberry.Maybe[TimelessDateOrDuration | None] = strawberry.field(
+        description="Less-than constraint. Matches any values that are less than the given value."
+    )
+    lte: strawberry.Maybe[TimelessDateOrDuration | None] = strawberry.field(
+        description="Less-than-or-equal constraint. Matches any values that are less than or equal to the given value."
+    )
+    neq: strawberry.Maybe[TimelessDateOrDuration | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    nin: strawberry.Maybe[list[TimelessDateOrDuration] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Null constraint. Matches any non-null values if the given value is false, otherwise it matches null values."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="User filtering options.")
 class NullableUserFilter:
-    active: strawberry.Maybe[BooleanComparator | None]
-    admin: strawberry.Maybe[BooleanComparator | None]
+    active: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the user's activity status."
+    )
+    admin: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the user's admin status."
+    )
     and_: strawberry.Maybe[list[NullableUserFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the user.",
+        name="and",
     )
-    app: strawberry.Maybe[BooleanComparator | None]
-    assigned_issues: strawberry.Maybe[IssueCollectionFilter | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    display_name: strawberry.Maybe[StringComparator | None]
-    email: strawberry.Maybe[StringComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    invited: strawberry.Maybe[BooleanComparator | None]
-    is_invited: strawberry.Maybe[BooleanComparator | None]
-    is_me: strawberry.Maybe[BooleanComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
-    null: strawberry.Maybe[bool | None]
-    or_: strawberry.Maybe[list[NullableUserFilter] | None] = strawberry.field(name="or")
-    owner: strawberry.Maybe[BooleanComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    app: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the user's app status."
+    )
+    assigned_issues: strawberry.Maybe[IssueCollectionFilter | None] = strawberry.field(
+        description="Filters that the users assigned issues must satisfy."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    display_name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the user's display name."
+    )
+    email: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the user's email."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    invited: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the user's invited status."
+    )
+    is_invited: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the user's invited status."
+    )
+    is_me: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Filter based on the currently authenticated user. Set to true to filter for the authenticated user, false for any other user."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the user's name."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Filter based on the existence of the relation."
+    )
+    or_: strawberry.Maybe[list[NullableUserFilter] | None] = strawberry.field(
+        description="Compound filters, one of which need to be matched by the user.",
+        name="or",
+    )
+    owner: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the user's owner status."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for numbers.")
 class NumberComparator:
-    eq: strawberry.Maybe[float | None]
-    gt: strawberry.Maybe[float | None]
-    gte: strawberry.Maybe[float | None]
-    in_: strawberry.Maybe[list[float] | None] = strawberry.field(name="in")
-    lt: strawberry.Maybe[float | None]
-    lte: strawberry.Maybe[float | None]
-    neq: strawberry.Maybe[float | None]
-    nin: strawberry.Maybe[list[float] | None]
+    eq: strawberry.Maybe[float | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    gt: strawberry.Maybe[float | None] = strawberry.field(
+        description="Greater-than constraint. Matches any values that are greater than the given value."
+    )
+    gte: strawberry.Maybe[float | None] = strawberry.field(
+        description="Greater-than-or-equal constraint. Matches any values that are greater than or equal to the given value."
+    )
+    in_: strawberry.Maybe[list[float] | None] = strawberry.field(
+        description="In-array constraint.", name="in"
+    )
+    lt: strawberry.Maybe[float | None] = strawberry.field(
+        description="Less-than constraint. Matches any values that are less than the given value."
+    )
+    lte: strawberry.Maybe[float | None] = strawberry.field(
+        description="Less-than-or-equal constraint. Matches any values that are less than or equal to the given value."
+    )
+    neq: strawberry.Maybe[float | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    nin: strawberry.Maybe[list[float] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue priority sorting options.")
 class PrioritySort:
-    no_priority_first: strawberry.Maybe[bool | None] = False
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
-    use_priority_sort_order_tiebreaker: strawberry.Maybe[bool | None] = True
+    no_priority_first: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Whether to consider no priority as the highest or lowest priority",
+        default=False,
+    )
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
+    use_priority_sort_order_tiebreaker: strawberry.Maybe[bool | None] = (
+        strawberry.field(
+            description="Whether to tiebreak issues sharing a priority by their priority sort order",
+            default=True,
+        )
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Project filtering options.")
 class ProjectCollectionFilter:
-    accessible_teams: strawberry.Maybe[TeamCollectionFilter | None]
-    activity_type: strawberry.Maybe[StringComparator | None]
+    accessible_teams: strawberry.Maybe[TeamCollectionFilter | None] = strawberry.field(
+        description="Filters that the project's team must satisfy."
+    )
+    activity_type: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="[ALPHA] Comparator for the project activity type: buzzin, active, some, none"
+    )
     and_: strawberry.Maybe[list[ProjectCollectionFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the project.",
+        name="and",
     )
-    canceled_at: strawberry.Maybe[NullableDateComparator | None]
-    completed_at: strawberry.Maybe[NullableDateComparator | None]
+    canceled_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the project cancelation date."
+    )
+    completed_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the project completion date."
+    )
     completed_project_milestones: strawberry.Maybe[
         ProjectMilestoneCollectionFilter | None
-    ]
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[UserFilter | None]
-    customer_count: strawberry.Maybe[NumberComparator | None]
-    customer_important_count: strawberry.Maybe[NumberComparator | None]
-    every: strawberry.Maybe[ProjectFilter | None]
-    has_blocked_by_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_blocking_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_depended_on_by_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_depends_on_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_related_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_violated_relations: strawberry.Maybe[RelationExistsComparator | None]
-    health: strawberry.Maybe[StringComparator | None]
-    health_with_age: strawberry.Maybe[StringComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    initiatives: strawberry.Maybe[InitiativeCollectionFilter | None]
-    issues: strawberry.Maybe[IssueCollectionFilter | None]
-    labels: strawberry.Maybe[ProjectLabelCollectionFilter | None]
-    last_applied_template: strawberry.Maybe[NullableTemplateFilter | None]
-    lead: strawberry.Maybe[NullableUserFilter | None]
-    length: strawberry.Maybe[NumberComparator | None]
-    members: strawberry.Maybe[UserCollectionFilter | None]
-    name: strawberry.Maybe[StringComparator | None]
-    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None]
-    next_project_milestone: strawberry.Maybe[ProjectMilestoneFilter | None]
+    ] = strawberry.field(
+        description="Filters that the project's completed milestones must satisfy."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[UserFilter | None] = strawberry.field(
+        description="Filters that the projects creator must satisfy."
+    )
+    customer_count: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Count of customers"
+    )
+    customer_important_count: strawberry.Maybe[NumberComparator | None] = (
+        strawberry.field(description="Count of important customers")
+    )
+    every: strawberry.Maybe[ProjectFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all projects."
+    )
+    has_blocked_by_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering projects which are blocked."
+        )
+    )
+    has_blocking_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering projects which are blocking."
+        )
+    )
+    has_depended_on_by_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Deprecated] Comparator for filtering projects which this is depended on by."
+        )
+    )
+    has_depends_on_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Deprecated]Comparator for filtering projects which this depends on."
+        )
+    )
+    has_related_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering projects with relations."
+        )
+    )
+    has_violated_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering projects with violated dependencies."
+        )
+    )
+    health: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the project health: onTrack, atRisk, offTrack"
+    )
+    health_with_age: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the project health (with age): onTrack, atRisk, offTrack, outdated, noUpdate"
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    initiatives: strawberry.Maybe[InitiativeCollectionFilter | None] = strawberry.field(
+        description="Filters that the projects initiatives must satisfy."
+    )
+    issues: strawberry.Maybe[IssueCollectionFilter | None] = strawberry.field(
+        description="Filters that the projects issues must satisfy."
+    )
+    labels: strawberry.Maybe[ProjectLabelCollectionFilter | None] = strawberry.field(
+        description="Filters that project labels must satisfy."
+    )
+    last_applied_template: strawberry.Maybe[NullableTemplateFilter | None] = (
+        strawberry.field(
+            description="Filters that the last applied template must satisfy."
+        )
+    )
+    lead: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the projects lead must satisfy."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
+    members: strawberry.Maybe[UserCollectionFilter | None] = strawberry.field(
+        description="Filters that the projects members must satisfy."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the project name."
+    )
+    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None] = strawberry.field(
+        description="Filters that the project's customer needs must satisfy."
+    )
+    next_project_milestone: strawberry.Maybe[ProjectMilestoneFilter | None] = (
+        strawberry.field(
+            description="Filters that the project's next milestone must satisfy."
+        )
+    )
     or_: strawberry.Maybe[list[ProjectCollectionFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the project.",
+        name="or",
     )
-    priority: strawberry.Maybe[NullableNumberComparator | None]
-    project_milestones: strawberry.Maybe[ProjectMilestoneCollectionFilter | None]
-    project_updates: strawberry.Maybe[ProjectUpdatesCollectionFilter | None]
-    roadmaps: strawberry.Maybe[RoadmapCollectionFilter | None]
-    searchable_content: strawberry.Maybe[ContentComparator | None]
-    slug_id: strawberry.Maybe[StringComparator | None]
-    some: strawberry.Maybe[ProjectFilter | None]
-    start_date: strawberry.Maybe[NullableDateComparator | None]
-    started_at: strawberry.Maybe[NullableDateComparator | None]
-    state: strawberry.Maybe[StringComparator | None]
-    status: strawberry.Maybe[ProjectStatusFilter | None]
-    target_date: strawberry.Maybe[NullableDateComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    priority: strawberry.Maybe[NullableNumberComparator | None] = strawberry.field(
+        description="Comparator for the project priority."
+    )
+    project_milestones: strawberry.Maybe[ProjectMilestoneCollectionFilter | None] = (
+        strawberry.field(
+            description="Filters that the project's milestones must satisfy."
+        )
+    )
+    project_updates: strawberry.Maybe[ProjectUpdatesCollectionFilter | None] = (
+        strawberry.field(description="Comparator for the project updates.")
+    )
+    roadmaps: strawberry.Maybe[RoadmapCollectionFilter | None] = strawberry.field(
+        description="Filters that the projects roadmaps must satisfy."
+    )
+    searchable_content: strawberry.Maybe[ContentComparator | None] = strawberry.field(
+        description="[Internal] Comparator for the project's content."
+    )
+    slug_id: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the project slug ID."
+    )
+    some: strawberry.Maybe[ProjectFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some projects."
+    )
+    start_date: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the project start date."
+    )
+    started_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description='Comparator for the project started date (when it was moved to an "In Progress" status).'
+    )
+    state: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="[DEPRECATED] Comparator for the project state."
+    )
+    status: strawberry.Maybe[ProjectStatusFilter | None] = strawberry.field(
+        description="Filters that the project status must satisfy."
+    )
+    target_date: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the project target date."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Project filtering options.")
 class ProjectFilter:
-    accessible_teams: strawberry.Maybe[TeamCollectionFilter | None]
-    activity_type: strawberry.Maybe[StringComparator | None]
-    and_: strawberry.Maybe[list[ProjectFilter] | None] = strawberry.field(name="and")
-    canceled_at: strawberry.Maybe[NullableDateComparator | None]
-    completed_at: strawberry.Maybe[NullableDateComparator | None]
+    accessible_teams: strawberry.Maybe[TeamCollectionFilter | None] = strawberry.field(
+        description="Filters that the project's team must satisfy."
+    )
+    activity_type: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="[ALPHA] Comparator for the project activity type: buzzin, active, some, none"
+    )
+    and_: strawberry.Maybe[list[ProjectFilter] | None] = strawberry.field(
+        description="Compound filters, all of which need to be matched by the project.",
+        name="and",
+    )
+    canceled_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the project cancelation date."
+    )
+    completed_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the project completion date."
+    )
     completed_project_milestones: strawberry.Maybe[
         ProjectMilestoneCollectionFilter | None
-    ]
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[UserFilter | None]
-    customer_count: strawberry.Maybe[NumberComparator | None]
-    customer_important_count: strawberry.Maybe[NumberComparator | None]
-    has_blocked_by_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_blocking_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_depended_on_by_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_depends_on_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_related_relations: strawberry.Maybe[RelationExistsComparator | None]
-    has_violated_relations: strawberry.Maybe[RelationExistsComparator | None]
-    health: strawberry.Maybe[StringComparator | None]
-    health_with_age: strawberry.Maybe[StringComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    initiatives: strawberry.Maybe[InitiativeCollectionFilter | None]
-    issues: strawberry.Maybe[IssueCollectionFilter | None]
-    labels: strawberry.Maybe[ProjectLabelCollectionFilter | None]
-    last_applied_template: strawberry.Maybe[NullableTemplateFilter | None]
-    lead: strawberry.Maybe[NullableUserFilter | None]
-    members: strawberry.Maybe[UserCollectionFilter | None]
-    name: strawberry.Maybe[StringComparator | None]
-    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None]
-    next_project_milestone: strawberry.Maybe[ProjectMilestoneFilter | None]
-    or_: strawberry.Maybe[list[ProjectFilter] | None] = strawberry.field(name="or")
-    priority: strawberry.Maybe[NullableNumberComparator | None]
-    project_milestones: strawberry.Maybe[ProjectMilestoneCollectionFilter | None]
-    project_updates: strawberry.Maybe[ProjectUpdatesCollectionFilter | None]
-    roadmaps: strawberry.Maybe[RoadmapCollectionFilter | None]
-    searchable_content: strawberry.Maybe[ContentComparator | None]
-    slug_id: strawberry.Maybe[StringComparator | None]
-    start_date: strawberry.Maybe[NullableDateComparator | None]
-    started_at: strawberry.Maybe[NullableDateComparator | None]
-    state: strawberry.Maybe[StringComparator | None]
-    status: strawberry.Maybe[ProjectStatusFilter | None]
-    target_date: strawberry.Maybe[NullableDateComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    ] = strawberry.field(
+        description="Filters that the project's completed milestones must satisfy."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[UserFilter | None] = strawberry.field(
+        description="Filters that the projects creator must satisfy."
+    )
+    customer_count: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Count of customers"
+    )
+    customer_important_count: strawberry.Maybe[NumberComparator | None] = (
+        strawberry.field(description="Count of important customers")
+    )
+    has_blocked_by_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering projects which are blocked."
+        )
+    )
+    has_blocking_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering projects which are blocking."
+        )
+    )
+    has_depended_on_by_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Deprecated] Comparator for filtering projects which this is depended on by."
+        )
+    )
+    has_depends_on_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="[Deprecated]Comparator for filtering projects which this depends on."
+        )
+    )
+    has_related_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering projects with relations."
+        )
+    )
+    has_violated_relations: strawberry.Maybe[RelationExistsComparator | None] = (
+        strawberry.field(
+            description="Comparator for filtering projects with violated dependencies."
+        )
+    )
+    health: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the project health: onTrack, atRisk, offTrack"
+    )
+    health_with_age: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the project health (with age): onTrack, atRisk, offTrack, outdated, noUpdate"
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    initiatives: strawberry.Maybe[InitiativeCollectionFilter | None] = strawberry.field(
+        description="Filters that the projects initiatives must satisfy."
+    )
+    issues: strawberry.Maybe[IssueCollectionFilter | None] = strawberry.field(
+        description="Filters that the projects issues must satisfy."
+    )
+    labels: strawberry.Maybe[ProjectLabelCollectionFilter | None] = strawberry.field(
+        description="Filters that project labels must satisfy."
+    )
+    last_applied_template: strawberry.Maybe[NullableTemplateFilter | None] = (
+        strawberry.field(
+            description="Filters that the last applied template must satisfy."
+        )
+    )
+    lead: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the projects lead must satisfy."
+    )
+    members: strawberry.Maybe[UserCollectionFilter | None] = strawberry.field(
+        description="Filters that the projects members must satisfy."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the project name."
+    )
+    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None] = strawberry.field(
+        description="Filters that the project's customer needs must satisfy."
+    )
+    next_project_milestone: strawberry.Maybe[ProjectMilestoneFilter | None] = (
+        strawberry.field(
+            description="Filters that the project's next milestone must satisfy."
+        )
+    )
+    or_: strawberry.Maybe[list[ProjectFilter] | None] = strawberry.field(
+        description="Compound filters, one of which need to be matched by the project.",
+        name="or",
+    )
+    priority: strawberry.Maybe[NullableNumberComparator | None] = strawberry.field(
+        description="Comparator for the project priority."
+    )
+    project_milestones: strawberry.Maybe[ProjectMilestoneCollectionFilter | None] = (
+        strawberry.field(
+            description="Filters that the project's milestones must satisfy."
+        )
+    )
+    project_updates: strawberry.Maybe[ProjectUpdatesCollectionFilter | None] = (
+        strawberry.field(description="Comparator for the project updates.")
+    )
+    roadmaps: strawberry.Maybe[RoadmapCollectionFilter | None] = strawberry.field(
+        description="Filters that the projects roadmaps must satisfy."
+    )
+    searchable_content: strawberry.Maybe[ContentComparator | None] = strawberry.field(
+        description="[Internal] Comparator for the project's content."
+    )
+    slug_id: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the project slug ID."
+    )
+    start_date: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the project start date."
+    )
+    started_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description='Comparator for the project started date (when it was moved to an "In Progress" status).'
+    )
+    state: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="[DEPRECATED] Comparator for the project state."
+    )
+    status: strawberry.Maybe[ProjectStatusFilter | None] = strawberry.field(
+        description="Filters that the project status must satisfy."
+    )
+    target_date: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the project target date."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Project label filtering options.")
 class ProjectLabelCollectionFilter:
     and_: strawberry.Maybe[list[ProjectLabelCollectionFilter] | None] = (
-        strawberry.field(name="and")
+        strawberry.field(
+            description="Compound filters, all of which need to be matched by the label.",
+            name="and",
+        )
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[NullableUserFilter | None]
-    every: strawberry.Maybe[ProjectLabelFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    is_group: strawberry.Maybe[BooleanComparator | None]
-    length: strawberry.Maybe[NumberComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
-    null: strawberry.Maybe[bool | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the project labels creator must satisfy."
+    )
+    every: strawberry.Maybe[ProjectLabelFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all project labels."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    is_group: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for whether the label is a group label."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the name."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Filter based on the existence of the relation."
+    )
     or_: strawberry.Maybe[list[ProjectLabelCollectionFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the label.",
+        name="or",
     )
-    parent: strawberry.Maybe[ProjectLabelFilter | None]
-    some: strawberry.Maybe[ProjectLabelCollectionFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    parent: strawberry.Maybe[ProjectLabelFilter | None] = strawberry.field(
+        description="Filters that the project label's parent label must satisfy."
+    )
+    some: strawberry.Maybe[ProjectLabelCollectionFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some project labels."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Project label filtering options.")
 class ProjectLabelFilter:
     and_: strawberry.Maybe[list[ProjectLabelFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the label.",
+        name="and",
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[NullableUserFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    is_group: strawberry.Maybe[BooleanComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
-    or_: strawberry.Maybe[list[ProjectLabelFilter] | None] = strawberry.field(name="or")
-    parent: strawberry.Maybe[ProjectLabelFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
+        description="Filters that the project labels creator must satisfy."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    is_group: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for whether the label is a group label."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the name."
+    )
+    or_: strawberry.Maybe[list[ProjectLabelFilter] | None] = strawberry.field(
+        description="Compound filters, one of which need to be matched by the label.",
+        name="or",
+    )
+    parent: strawberry.Maybe[ProjectLabelFilter | None] = strawberry.field(
+        description="Filters that the project label's parent label must satisfy."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Milestone collection filtering options.")
 class ProjectMilestoneCollectionFilter:
     and_: strawberry.Maybe[list[ProjectMilestoneCollectionFilter] | None] = (
-        strawberry.field(name="and")
+        strawberry.field(
+            description="Compound filters, all of which need to be matched by the milestone.",
+            name="and",
+        )
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    every: strawberry.Maybe[ProjectMilestoneFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    length: strawberry.Maybe[NumberComparator | None]
-    name: strawberry.Maybe[NullableStringComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    every: strawberry.Maybe[ProjectMilestoneFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all milestones."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
+    name: strawberry.Maybe[NullableStringComparator | None] = strawberry.field(
+        description="Comparator for the project milestone name."
+    )
     or_: strawberry.Maybe[list[ProjectMilestoneCollectionFilter] | None] = (
-        strawberry.field(name="or")
+        strawberry.field(
+            description="Compound filters, one of which need to be matched by the milestone.",
+            name="or",
+        )
     )
-    project: strawberry.Maybe[NullableProjectFilter | None]
-    some: strawberry.Maybe[ProjectMilestoneFilter | None]
-    target_date: strawberry.Maybe[NullableDateComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    project: strawberry.Maybe[NullableProjectFilter | None] = strawberry.field(
+        description="Filters that the project milestone's project must satisfy."
+    )
+    some: strawberry.Maybe[ProjectMilestoneFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some milestones."
+    )
+    target_date: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the project milestone target date."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Project milestone filtering options.")
 class ProjectMilestoneFilter:
     and_: strawberry.Maybe[list[ProjectMilestoneFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the project milestone.",
+        name="and",
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    name: strawberry.Maybe[NullableStringComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    name: strawberry.Maybe[NullableStringComparator | None] = strawberry.field(
+        description="Comparator for the project milestone name."
+    )
     or_: strawberry.Maybe[list[ProjectMilestoneFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the project milestone.",
+        name="or",
     )
-    project: strawberry.Maybe[NullableProjectFilter | None]
-    target_date: strawberry.Maybe[NullableDateComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    project: strawberry.Maybe[NullableProjectFilter | None] = strawberry.field(
+        description="Filters that the project milestone's project must satisfy."
+    )
+    target_date: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the project milestone target date."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue project sorting options.")
 class ProjectSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Project status filtering options.")
 class ProjectStatusFilter:
     and_: strawberry.Maybe[list[ProjectStatusFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the project status.",
+        name="and",
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    description: strawberry.Maybe[StringComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    description: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the project status description."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the project status name."
+    )
     or_: strawberry.Maybe[list[ProjectStatusFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which needs to be matched by the project status.",
+        name="or",
     )
-    position: strawberry.Maybe[NumberComparator | None]
-    projects: strawberry.Maybe[ProjectCollectionFilter | None]
-    type: strawberry.Maybe[StringComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    position: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the project status position."
+    )
+    projects: strawberry.Maybe[ProjectCollectionFilter | None] = strawberry.field(
+        description="Filters that the project status projects must satisfy."
+    )
+    type: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the project status type."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(
+    description="Collection filtering options for filtering projects by project updates."
+)
 class ProjectUpdatesCollectionFilter:
     and_: strawberry.Maybe[list[ProjectUpdatesCollectionFilter] | None] = (
-        strawberry.field(name="and")
+        strawberry.field(
+            description="Compound filters, all of which need to be matched by the project update.",
+            name="and",
+        )
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    every: strawberry.Maybe[ProjectUpdatesFilter | None]
-    health: strawberry.Maybe[StringComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    length: strawberry.Maybe[NumberComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    every: strawberry.Maybe[ProjectUpdatesFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all updates."
+    )
+    health: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the project update health."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
     or_: strawberry.Maybe[list[ProjectUpdatesCollectionFilter] | None] = (
-        strawberry.field(name="or")
+        strawberry.field(
+            description="Compound filters, one of which need to be matched by the update.",
+            name="or",
+        )
     )
-    some: strawberry.Maybe[ProjectUpdatesFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    some: strawberry.Maybe[ProjectUpdatesFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some updates."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Options for filtering projects by project updates.")
 class ProjectUpdatesFilter:
     and_: strawberry.Maybe[list[ProjectUpdatesFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the project updates.",
+        name="and",
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    health: strawberry.Maybe[StringComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    health: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the project update health."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
     or_: strawberry.Maybe[list[ProjectUpdatesFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the project updates.",
+        name="or",
     )
-    updated_at: strawberry.Maybe[DateComparator | None]
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Reaction filtering options.")
 class ReactionCollectionFilter:
     and_: strawberry.Maybe[list[ReactionCollectionFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the reaction.",
+        name="and",
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    custom_emoji_id: strawberry.Maybe[IDComparator | None]
-    emoji: strawberry.Maybe[StringComparator | None]
-    every: strawberry.Maybe[ReactionFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    length: strawberry.Maybe[NumberComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    custom_emoji_id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the reactions custom emoji."
+    )
+    emoji: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the reactions emoji."
+    )
+    every: strawberry.Maybe[ReactionFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all reactions."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
     or_: strawberry.Maybe[list[ReactionCollectionFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the reaction.",
+        name="or",
     )
-    some: strawberry.Maybe[ReactionFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    some: strawberry.Maybe[ReactionFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some reactions."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Reaction filtering options.")
 class ReactionFilter:
-    and_: strawberry.Maybe[list[ReactionFilter] | None] = strawberry.field(name="and")
-    created_at: strawberry.Maybe[DateComparator | None]
-    custom_emoji_id: strawberry.Maybe[IDComparator | None]
-    emoji: strawberry.Maybe[StringComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    or_: strawberry.Maybe[list[ReactionFilter] | None] = strawberry.field(name="or")
-    updated_at: strawberry.Maybe[DateComparator | None]
+    and_: strawberry.Maybe[list[ReactionFilter] | None] = strawberry.field(
+        description="Compound filters, all of which need to be matched by the reaction.",
+        name="and",
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    custom_emoji_id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the reactions custom emoji."
+    )
+    emoji: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the reactions emoji."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    or_: strawberry.Maybe[list[ReactionFilter] | None] = strawberry.field(
+        description="Compound filters, one of which need to be matched by the reaction.",
+        name="or",
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for relation existence.")
 class RelationExistsComparator:
-    eq: strawberry.Maybe[bool | None]
-    neq: strawberry.Maybe[bool | None]
+    eq: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    neq: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Not equals constraint."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Release collection filtering options.")
 class ReleaseCollectionFilter:
     and_: strawberry.Maybe[list[ReleaseCollectionFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the release.",
+        name="and",
     )
-    completed_at: strawberry.Maybe[NullableDateComparator | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    every: strawberry.Maybe[ReleaseFilter | None]
-    has_release_notes: strawberry.Maybe[BooleanComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    length: strawberry.Maybe[NumberComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
+    completed_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the release completion date."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    every: strawberry.Maybe[ReleaseFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all releases."
+    )
+    has_release_notes: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for whether the release is covered by any (non-archived) release note. Filter with `{ eq: false }` to retrieve releases that do not yet have release notes attached."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the release name."
+    )
     or_: strawberry.Maybe[list[ReleaseCollectionFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the release.",
+        name="or",
     )
-    pipeline: strawberry.Maybe[ReleasePipelineFilter | None]
-    some: strawberry.Maybe[ReleaseFilter | None]
-    stage: strawberry.Maybe[ReleaseStageFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
-    version: strawberry.Maybe[StringComparator | None]
+    pipeline: strawberry.Maybe[ReleasePipelineFilter | None] = strawberry.field(
+        description="Filters that the release's pipeline must satisfy."
+    )
+    some: strawberry.Maybe[ReleaseFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some releases."
+    )
+    stage: strawberry.Maybe[ReleaseStageFilter | None] = strawberry.field(
+        description="Filters that the release's stage must satisfy."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
+    version: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the release version."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Release filtering options.")
 class ReleaseFilter:
-    and_: strawberry.Maybe[list[ReleaseFilter] | None] = strawberry.field(name="and")
-    completed_at: strawberry.Maybe[NullableDateComparator | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    has_release_notes: strawberry.Maybe[BooleanComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
-    or_: strawberry.Maybe[list[ReleaseFilter] | None] = strawberry.field(name="or")
-    pipeline: strawberry.Maybe[ReleasePipelineFilter | None]
-    stage: strawberry.Maybe[ReleaseStageFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
-    version: strawberry.Maybe[StringComparator | None]
+    and_: strawberry.Maybe[list[ReleaseFilter] | None] = strawberry.field(
+        description="Compound filters, all of which need to be matched by the release.",
+        name="and",
+    )
+    completed_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
+        description="Comparator for the release completion date."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    has_release_notes: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for whether the release is covered by any (non-archived) release note. Filter with `{ eq: false }` to retrieve releases that do not yet have release notes attached."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the release name."
+    )
+    or_: strawberry.Maybe[list[ReleaseFilter] | None] = strawberry.field(
+        description="Compound filters, one of which need to be matched by the release.",
+        name="or",
+    )
+    pipeline: strawberry.Maybe[ReleasePipelineFilter | None] = strawberry.field(
+        description="Filters that the release's pipeline must satisfy."
+    )
+    stage: strawberry.Maybe[ReleaseStageFilter | None] = strawberry.field(
+        description="Filters that the release's stage must satisfy."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
+    version: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the release version."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Release pipeline collection filtering options.")
 class ReleasePipelineCollectionFilter:
     and_: strawberry.Maybe[list[ReleasePipelineCollectionFilter] | None] = (
-        strawberry.field(name="and")
+        strawberry.field(
+            description="Compound filters, all of which need to be matched by the release pipeline.",
+            name="and",
+        )
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    every: strawberry.Maybe[ReleasePipelineFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    is_production: strawberry.Maybe[BooleanComparator | None]
-    length: strawberry.Maybe[NumberComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    every: strawberry.Maybe[ReleasePipelineFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all release pipelines."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    is_production: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the pipeline production flag."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the pipeline name."
+    )
     or_: strawberry.Maybe[list[ReleasePipelineCollectionFilter] | None] = (
-        strawberry.field(name="or")
+        strawberry.field(
+            description="Compound filters, one of which need to be matched by the release pipeline.",
+            name="or",
+        )
     )
-    some: strawberry.Maybe[ReleasePipelineFilter | None]
-    teams: strawberry.Maybe[TeamCollectionFilter | None]
-    type: strawberry.Maybe[ReleasePipelineTypeComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    some: strawberry.Maybe[ReleasePipelineFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some release pipelines."
+    )
+    teams: strawberry.Maybe[TeamCollectionFilter | None] = strawberry.field(
+        description="Filters that the release pipeline's teams must satisfy."
+    )
+    type: strawberry.Maybe[ReleasePipelineTypeComparator | None] = strawberry.field(
+        description="Comparator for the pipeline type."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Release pipeline filtering options.")
 class ReleasePipelineFilter:
     and_: strawberry.Maybe[list[ReleasePipelineFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the pipeline.",
+        name="and",
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    is_production: strawberry.Maybe[BooleanComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    is_production: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the pipeline production flag."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the pipeline name."
+    )
     or_: strawberry.Maybe[list[ReleasePipelineFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the pipeline.",
+        name="or",
     )
-    teams: strawberry.Maybe[TeamCollectionFilter | None]
-    type: strawberry.Maybe[ReleasePipelineTypeComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    teams: strawberry.Maybe[TeamCollectionFilter | None] = strawberry.field(
+        description="Filters that the release pipeline's teams must satisfy."
+    )
+    type: strawberry.Maybe[ReleasePipelineTypeComparator | None] = strawberry.field(
+        description="Comparator for the pipeline type."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for release pipeline type.")
 class ReleasePipelineTypeComparator:
-    eq: strawberry.Maybe[ReleasePipelineType | None]
-    in_: strawberry.Maybe[list[ReleasePipelineType] | None] = strawberry.field(
-        name="in"
+    eq: strawberry.Maybe[ReleasePipelineType | None] = strawberry.field(
+        description="Equals constraint."
     )
-    neq: strawberry.Maybe[ReleasePipelineType | None]
-    nin: strawberry.Maybe[list[ReleasePipelineType] | None]
-    null: strawberry.Maybe[bool | None]
+    in_: strawberry.Maybe[list[ReleasePipelineType] | None] = strawberry.field(
+        description="In-array constraint.", name="in"
+    )
+    neq: strawberry.Maybe[ReleasePipelineType | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    nin: strawberry.Maybe[list[ReleasePipelineType] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Null constraint. Matches any non-null values if the given value is false, otherwise it matches null values."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue release sorting options.")
 class ReleaseSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Release stage filtering options.")
 class ReleaseStageFilter:
     and_: strawberry.Maybe[list[ReleaseStageFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the stage.",
+        name="and",
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
-    or_: strawberry.Maybe[list[ReleaseStageFilter] | None] = strawberry.field(name="or")
-    type: strawberry.Maybe[ReleaseStageTypeComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the stage name."
+    )
+    or_: strawberry.Maybe[list[ReleaseStageFilter] | None] = strawberry.field(
+        description="Compound filters, one of which need to be matched by the stage.",
+        name="or",
+    )
+    type: strawberry.Maybe[ReleaseStageTypeComparator | None] = strawberry.field(
+        description="Comparator for the stage type."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for release stage type.")
 class ReleaseStageTypeComparator:
-    eq: strawberry.Maybe[ReleaseStageType | None]
-    in_: strawberry.Maybe[list[ReleaseStageType] | None] = strawberry.field(name="in")
-    neq: strawberry.Maybe[ReleaseStageType | None]
-    nin: strawberry.Maybe[list[ReleaseStageType] | None]
-    null: strawberry.Maybe[bool | None]
+    eq: strawberry.Maybe[ReleaseStageType | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    in_: strawberry.Maybe[list[ReleaseStageType] | None] = strawberry.field(
+        description="In-array constraint.", name="in"
+    )
+    neq: strawberry.Maybe[ReleaseStageType | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    nin: strawberry.Maybe[list[ReleaseStageType] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Null constraint. Matches any non-null values if the given value is false, otherwise it matches null values."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Roadmap collection filtering options.")
 class RoadmapCollectionFilter:
     and_: strawberry.Maybe[list[RoadmapCollectionFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the roadmap.",
+        name="and",
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[UserFilter | None]
-    every: strawberry.Maybe[RoadmapFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    length: strawberry.Maybe[NumberComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[UserFilter | None] = strawberry.field(
+        description="Filters that the roadmap creator must satisfy."
+    )
+    every: strawberry.Maybe[RoadmapFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all roadmaps."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the roadmap name."
+    )
     or_: strawberry.Maybe[list[RoadmapCollectionFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the roadmap.",
+        name="or",
     )
-    slug_id: strawberry.Maybe[StringComparator | None]
-    some: strawberry.Maybe[RoadmapFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    slug_id: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the roadmap slug ID."
+    )
+    some: strawberry.Maybe[RoadmapFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some roadmaps."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Roadmap filtering options.")
 class RoadmapFilter:
-    and_: strawberry.Maybe[list[RoadmapFilter] | None] = strawberry.field(name="and")
-    created_at: strawberry.Maybe[DateComparator | None]
-    creator: strawberry.Maybe[UserFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
-    or_: strawberry.Maybe[list[RoadmapFilter] | None] = strawberry.field(name="or")
-    slug_id: strawberry.Maybe[StringComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    and_: strawberry.Maybe[list[RoadmapFilter] | None] = strawberry.field(
+        description="Compound filters, all of which need to be matched by the roadmap.",
+        name="and",
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    creator: strawberry.Maybe[UserFilter | None] = strawberry.field(
+        description="Filters that the roadmap creator must satisfy."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the roadmap name."
+    )
+    or_: strawberry.Maybe[list[RoadmapFilter] | None] = strawberry.field(
+        description="Compound filters, one of which need to be matched by the roadmap.",
+        name="or",
+    )
+    slug_id: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the roadmap slug ID."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue root-issue sorting options.")
 class RootIssueSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
-    sort: IssueSortInput
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
+    sort: IssueSortInput = strawberry.field(
+        description="The sort to apply to the root issues"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="[INTERNAL] Comparator for Salesforce metadata.")
 class SalesforceMetadataIntegrationComparator:
-    case_metadata: strawberry.Maybe[JSONObject | None]
+    case_metadata: strawberry.Maybe[JSONObject | None] = strawberry.field(
+        description="Salesforce Case metadata filter"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for sla status.")
 class SlaStatusComparator:
-    eq: strawberry.Maybe[SlaStatus | None]
-    in_: strawberry.Maybe[list[SlaStatus] | None] = strawberry.field(name="in")
-    neq: strawberry.Maybe[SlaStatus | None]
-    nin: strawberry.Maybe[list[SlaStatus] | None]
-    null: strawberry.Maybe[bool | None]
+    eq: strawberry.Maybe[SlaStatus | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    in_: strawberry.Maybe[list[SlaStatus] | None] = strawberry.field(
+        description="In-array constraint.", name="in"
+    )
+    neq: strawberry.Maybe[SlaStatus | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    nin: strawberry.Maybe[list[SlaStatus] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Null constraint. Matches any non-null values if the given value is false, otherwise it matches null values."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue SLA status sorting options.")
 class SlaStatusSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for issue source type.")
 class SourceMetadataComparator:
-    null: strawberry.Maybe[bool | None]
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Null constraint. Matches any non-null values if the given value is false, otherwise it matches null values."
+    )
     salesforce_metadata: strawberry.Maybe[
         SalesforceMetadataIntegrationComparator | None
-    ]
-    sub_type: strawberry.Maybe[SubTypeComparator | None]
+    ] = strawberry.field(
+        description="[INTERNAL] Comparator for the salesforce metadata."
+    )
+    sub_type: strawberry.Maybe[SubTypeComparator | None] = strawberry.field(
+        description="Comparator for the sub type."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for `sourceType` field.")
 class SourceTypeComparator:
-    contains: strawberry.Maybe[str | None]
-    contains_ignore_case: strawberry.Maybe[str | None]
-    contains_ignore_case_and_accent: strawberry.Maybe[str | None]
-    ends_with: strawberry.Maybe[str | None]
-    eq: strawberry.Maybe[str | None]
-    eq_ignore_case: strawberry.Maybe[str | None]
-    in_: strawberry.Maybe[list[str] | None] = strawberry.field(name="in")
-    neq: strawberry.Maybe[str | None]
-    neq_ignore_case: strawberry.Maybe[str | None]
-    nin: strawberry.Maybe[list[str] | None]
-    not_contains: strawberry.Maybe[str | None]
-    not_contains_ignore_case: strawberry.Maybe[str | None]
-    not_ends_with: strawberry.Maybe[str | None]
-    not_starts_with: strawberry.Maybe[str | None]
-    starts_with: strawberry.Maybe[str | None]
-    starts_with_ignore_case: strawberry.Maybe[str | None]
+    contains: strawberry.Maybe[str | None] = strawberry.field(
+        description="Contains constraint. Matches any values that contain the given string."
+    )
+    contains_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Contains case insensitive constraint. Matches any values that contain the given string case insensitive."
+    )
+    contains_ignore_case_and_accent: strawberry.Maybe[str | None] = strawberry.field(
+        description="Contains case and accent insensitive constraint. Matches any values that contain the given string case and accent insensitive."
+    )
+    ends_with: strawberry.Maybe[str | None] = strawberry.field(
+        description="Ends with constraint. Matches any values that end with the given string."
+    )
+    eq: strawberry.Maybe[str | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    eq_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Equals case insensitive. Matches any values that matches the given string case insensitive."
+    )
+    in_: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="In-array constraint.", name="in"
+    )
+    neq: strawberry.Maybe[str | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    neq_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Not-equals case insensitive. Matches any values that don't match the given string case insensitive."
+    )
+    nin: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
+    not_contains: strawberry.Maybe[str | None] = strawberry.field(
+        description="Doesn't contain constraint. Matches any values that don't contain the given string."
+    )
+    not_contains_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Doesn't contain case insensitive constraint. Matches any values that don't contain the given string case insensitive."
+    )
+    not_ends_with: strawberry.Maybe[str | None] = strawberry.field(
+        description="Doesn't end with constraint. Matches any values that don't end with the given string."
+    )
+    not_starts_with: strawberry.Maybe[str | None] = strawberry.field(
+        description="Doesn't start with constraint. Matches any values that don't start with the given string."
+    )
+    starts_with: strawberry.Maybe[str | None] = strawberry.field(
+        description="Starts with constraint. Matches any values that start with the given string."
+    )
+    starts_with_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Starts with case insensitive constraint. Matches any values that start with the given string."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for strings.")
 class StringArrayComparator:
-    every: strawberry.Maybe[StringItemComparator | None]
-    length: strawberry.Maybe[NumberComparator | None]
-    some: strawberry.Maybe[StringItemComparator | None]
+    every: strawberry.Maybe[StringItemComparator | None] = strawberry.field(
+        description="Compound filters, all of which need to be matched."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Length of the array. Matches any values that have the given length."
+    )
+    some: strawberry.Maybe[StringItemComparator | None] = strawberry.field(
+        description="Compound filters, one of which needs to be matched."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for strings.")
 class StringComparator:
-    contains: strawberry.Maybe[str | None]
-    contains_ignore_case: strawberry.Maybe[str | None]
-    contains_ignore_case_and_accent: strawberry.Maybe[str | None]
-    ends_with: strawberry.Maybe[str | None]
-    eq: strawberry.Maybe[str | None]
-    eq_ignore_case: strawberry.Maybe[str | None]
-    in_: strawberry.Maybe[list[str] | None] = strawberry.field(name="in")
-    neq: strawberry.Maybe[str | None]
-    neq_ignore_case: strawberry.Maybe[str | None]
-    nin: strawberry.Maybe[list[str] | None]
-    not_contains: strawberry.Maybe[str | None]
-    not_contains_ignore_case: strawberry.Maybe[str | None]
-    not_ends_with: strawberry.Maybe[str | None]
-    not_starts_with: strawberry.Maybe[str | None]
-    starts_with: strawberry.Maybe[str | None]
-    starts_with_ignore_case: strawberry.Maybe[str | None]
+    contains: strawberry.Maybe[str | None] = strawberry.field(
+        description="Contains constraint. Matches any values that contain the given string."
+    )
+    contains_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Contains case insensitive constraint. Matches any values that contain the given string case insensitive."
+    )
+    contains_ignore_case_and_accent: strawberry.Maybe[str | None] = strawberry.field(
+        description="Contains case and accent insensitive constraint. Matches any values that contain the given string case and accent insensitive."
+    )
+    ends_with: strawberry.Maybe[str | None] = strawberry.field(
+        description="Ends with constraint. Matches any values that end with the given string."
+    )
+    eq: strawberry.Maybe[str | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    eq_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Equals case insensitive. Matches any values that matches the given string case insensitive."
+    )
+    in_: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="In-array constraint.", name="in"
+    )
+    neq: strawberry.Maybe[str | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    neq_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Not-equals case insensitive. Matches any values that don't match the given string case insensitive."
+    )
+    nin: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
+    not_contains: strawberry.Maybe[str | None] = strawberry.field(
+        description="Doesn't contain constraint. Matches any values that don't contain the given string."
+    )
+    not_contains_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Doesn't contain case insensitive constraint. Matches any values that don't contain the given string case insensitive."
+    )
+    not_ends_with: strawberry.Maybe[str | None] = strawberry.field(
+        description="Doesn't end with constraint. Matches any values that don't end with the given string."
+    )
+    not_starts_with: strawberry.Maybe[str | None] = strawberry.field(
+        description="Doesn't start with constraint. Matches any values that don't start with the given string."
+    )
+    starts_with: strawberry.Maybe[str | None] = strawberry.field(
+        description="Starts with constraint. Matches any values that start with the given string."
+    )
+    starts_with_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Starts with case insensitive constraint. Matches any values that start with the given string."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for strings in arrays.")
 class StringItemComparator:
-    contains: strawberry.Maybe[str | None]
-    contains_ignore_case: strawberry.Maybe[str | None]
-    contains_ignore_case_and_accent: strawberry.Maybe[str | None]
-    ends_with: strawberry.Maybe[str | None]
-    eq: strawberry.Maybe[str | None]
-    eq_ignore_case: strawberry.Maybe[str | None]
-    in_: strawberry.Maybe[list[str] | None] = strawberry.field(name="in")
-    neq: strawberry.Maybe[str | None]
-    neq_ignore_case: strawberry.Maybe[str | None]
-    nin: strawberry.Maybe[list[str] | None]
-    not_contains: strawberry.Maybe[str | None]
-    not_contains_ignore_case: strawberry.Maybe[str | None]
-    not_ends_with: strawberry.Maybe[str | None]
-    not_starts_with: strawberry.Maybe[str | None]
-    starts_with: strawberry.Maybe[str | None]
-    starts_with_ignore_case: strawberry.Maybe[str | None]
+    contains: strawberry.Maybe[str | None] = strawberry.field(
+        description="Contains constraint. Matches any values that contain the given string."
+    )
+    contains_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Contains case insensitive constraint. Matches any values that contain the given string case insensitive."
+    )
+    contains_ignore_case_and_accent: strawberry.Maybe[str | None] = strawberry.field(
+        description="Contains case and accent insensitive constraint. Matches any values that contain the given string case and accent insensitive."
+    )
+    ends_with: strawberry.Maybe[str | None] = strawberry.field(
+        description="Ends with constraint. Matches any values that end with the given string."
+    )
+    eq: strawberry.Maybe[str | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    eq_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Equals case insensitive. Matches any values that matches the given string case insensitive."
+    )
+    in_: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="In-array constraint.", name="in"
+    )
+    neq: strawberry.Maybe[str | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    neq_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Not-equals case insensitive. Matches any values that don't match the given string case insensitive."
+    )
+    nin: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
+    not_contains: strawberry.Maybe[str | None] = strawberry.field(
+        description="Doesn't contain constraint. Matches any values that don't contain the given string."
+    )
+    not_contains_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Doesn't contain case insensitive constraint. Matches any values that don't contain the given string case insensitive."
+    )
+    not_ends_with: strawberry.Maybe[str | None] = strawberry.field(
+        description="Doesn't end with constraint. Matches any values that don't end with the given string."
+    )
+    not_starts_with: strawberry.Maybe[str | None] = strawberry.field(
+        description="Doesn't start with constraint. Matches any values that don't start with the given string."
+    )
+    starts_with: strawberry.Maybe[str | None] = strawberry.field(
+        description="Starts with constraint. Matches any values that start with the given string."
+    )
+    starts_with_ignore_case: strawberry.Maybe[str | None] = strawberry.field(
+        description="Starts with case insensitive constraint. Matches any values that start with the given string."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for source type.")
 class SubTypeComparator:
-    eq: strawberry.Maybe[str | None]
-    in_: strawberry.Maybe[list[str] | None] = strawberry.field(name="in")
-    neq: strawberry.Maybe[str | None]
-    nin: strawberry.Maybe[list[str] | None]
-    null: strawberry.Maybe[bool | None]
+    eq: strawberry.Maybe[str | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    in_: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="In-array constraint.", name="in"
+    )
+    neq: strawberry.Maybe[str | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    nin: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
+    null: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Null constraint. Matches any non-null values if the given value is false, otherwise it matches null values."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Team collection filtering options.")
 class TeamCollectionFilter:
-    ancestors: strawberry.Maybe[TeamCollectionFilter | None]
+    ancestors: strawberry.Maybe[TeamCollectionFilter | None] = strawberry.field(
+        description="Filters that the team's ancestors must satisfy."
+    )
     and_: strawberry.Maybe[list[TeamCollectionFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the team.",
+        name="and",
     )
-    created_at: strawberry.Maybe[DateComparator | None]
-    every: strawberry.Maybe[TeamFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    length: strawberry.Maybe[NumberComparator | None]
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    every: strawberry.Maybe[TeamFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all teams."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
     or_: strawberry.Maybe[list[TeamCollectionFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the team.",
+        name="or",
     )
-    parent: strawberry.Maybe[NullableTeamFilter | None]
-    some: strawberry.Maybe[TeamFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    parent: strawberry.Maybe[NullableTeamFilter | None] = strawberry.field(
+        description="Filters that the teams parent must satisfy."
+    )
+    some: strawberry.Maybe[TeamFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some teams."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue team sorting options.")
 class TeamSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Comparator for team visibility.")
 class TeamVisibilityComparator:
-    eq: strawberry.Maybe[TeamVisibility | None]
-    in_: strawberry.Maybe[list[TeamVisibility] | None] = strawberry.field(name="in")
-    neq: strawberry.Maybe[TeamVisibility | None]
-    nin: strawberry.Maybe[list[TeamVisibility] | None]
+    eq: strawberry.Maybe[TeamVisibility | None] = strawberry.field(
+        description="Equals constraint."
+    )
+    in_: strawberry.Maybe[list[TeamVisibility] | None] = strawberry.field(
+        description="In-array constraint.", name="in"
+    )
+    neq: strawberry.Maybe[TeamVisibility | None] = strawberry.field(
+        description="Not-equals constraint."
+    )
+    nin: strawberry.Maybe[list[TeamVisibility] | None] = strawberry.field(
+        description="Not-in-array constraint."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue time in status sorting options.")
 class TimeInStatusSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue title sorting options.")
 class TitleSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue update date sorting options.")
 class UpdatedAtSort:
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
-@strawberry.input
+@strawberry.input(description="User filtering options.")
 class UserCollectionFilter:
-    active: strawberry.Maybe[BooleanComparator | None]
-    admin: strawberry.Maybe[BooleanComparator | None]
+    active: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the user's activity status."
+    )
+    admin: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the user's admin status."
+    )
     and_: strawberry.Maybe[list[UserCollectionFilter] | None] = strawberry.field(
-        name="and"
+        description="Compound filters, all of which need to be matched by the user.",
+        name="and",
     )
-    app: strawberry.Maybe[BooleanComparator | None]
-    assigned_issues: strawberry.Maybe[IssueCollectionFilter | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    display_name: strawberry.Maybe[StringComparator | None]
-    email: strawberry.Maybe[StringComparator | None]
-    every: strawberry.Maybe[UserFilter | None]
-    id: strawberry.Maybe[IDComparator | None]
-    invited: strawberry.Maybe[BooleanComparator | None]
-    is_invited: strawberry.Maybe[BooleanComparator | None]
-    is_me: strawberry.Maybe[BooleanComparator | None]
-    length: strawberry.Maybe[NumberComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
+    app: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the user's app status."
+    )
+    assigned_issues: strawberry.Maybe[IssueCollectionFilter | None] = strawberry.field(
+        description="Filters that the users assigned issues must satisfy."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    display_name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the user's display name."
+    )
+    email: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the user's email."
+    )
+    every: strawberry.Maybe[UserFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by all users."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    invited: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the user's invited status."
+    )
+    is_invited: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the user's invited status."
+    )
+    is_me: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Filter based on the currently authenticated user. Set to true to filter for the authenticated user, false for any other user."
+    )
+    length: strawberry.Maybe[NumberComparator | None] = strawberry.field(
+        description="Comparator for the collection length."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the user's name."
+    )
     or_: strawberry.Maybe[list[UserCollectionFilter] | None] = strawberry.field(
-        name="or"
+        description="Compound filters, one of which need to be matched by the user.",
+        name="or",
     )
-    owner: strawberry.Maybe[BooleanComparator | None]
-    some: strawberry.Maybe[UserFilter | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    owner: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the user's owner status."
+    )
+    some: strawberry.Maybe[UserFilter | None] = strawberry.field(
+        description="Filters that needs to be matched by some users."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="User filtering options.")
 class UserFilter:
-    active: strawberry.Maybe[BooleanComparator | None]
-    admin: strawberry.Maybe[BooleanComparator | None]
-    and_: strawberry.Maybe[list[UserFilter] | None] = strawberry.field(name="and")
-    app: strawberry.Maybe[BooleanComparator | None]
-    assigned_issues: strawberry.Maybe[IssueCollectionFilter | None]
-    created_at: strawberry.Maybe[DateComparator | None]
-    display_name: strawberry.Maybe[StringComparator | None]
-    email: strawberry.Maybe[StringComparator | None]
-    id: strawberry.Maybe[IDComparator | None]
-    invited: strawberry.Maybe[BooleanComparator | None]
-    is_invited: strawberry.Maybe[BooleanComparator | None]
-    is_me: strawberry.Maybe[BooleanComparator | None]
-    name: strawberry.Maybe[StringComparator | None]
-    or_: strawberry.Maybe[list[UserFilter] | None] = strawberry.field(name="or")
-    owner: strawberry.Maybe[BooleanComparator | None]
-    updated_at: strawberry.Maybe[DateComparator | None]
+    active: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the user's activity status."
+    )
+    admin: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the user's admin status."
+    )
+    and_: strawberry.Maybe[list[UserFilter] | None] = strawberry.field(
+        description="Compound filters, all of which need to be matched by the user.",
+        name="and",
+    )
+    app: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the user's app status."
+    )
+    assigned_issues: strawberry.Maybe[IssueCollectionFilter | None] = strawberry.field(
+        description="Filters that the users assigned issues must satisfy."
+    )
+    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the created at date."
+    )
+    display_name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the user's display name."
+    )
+    email: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the user's email."
+    )
+    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
+        description="Comparator for the identifier."
+    )
+    invited: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the user's invited status."
+    )
+    is_invited: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the user's invited status."
+    )
+    is_me: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Filter based on the currently authenticated user. Set to true to filter for the authenticated user, false for any other user."
+    )
+    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
+        description="Comparator for the user's name."
+    )
+    or_: strawberry.Maybe[list[UserFilter] | None] = strawberry.field(
+        description="Compound filters, one of which need to be matched by the user.",
+        name="or",
+    )
+    owner: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
+        description="Comparator for the user's owner status."
+    )
+    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
+        description="Comparator for the updated at date."
+    )
 
 
-@strawberry.input
+@strawberry.input(description="Issue workflow state sorting options.")
 class WorkflowStateSort:
-    closed_issues_ordered_by_recency: strawberry.Maybe[bool | None] = False
-    nulls: strawberry.Maybe[PaginationNulls | None] = PaginationNulls.last
-    order: strawberry.Maybe[PaginationSortOrder | None]
+    closed_issues_ordered_by_recency: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Whether to sort closed issues by recency", default=False
+    )
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
 
 
 @strawberry.type
@@ -2371,26 +5120,37 @@ schema = strawberry.Schema(
         scalar_map={
             DateTimeOrDuration: strawberry.scalar(
                 name="DateTimeOrDuration",
+                description="Represents a date and time in ISO 8601 format. Accepts shortcuts like `2021` to represent midnight Fri Jan 01 2021. Also accepts ISO 8601 durations strings which are added to the current date to create the represented date (e.g '-P2W1D' represents the date that was two weeks and 1 day ago)",
                 serialize=lambda v: v,
                 parse_value=lambda v: v,
             ),
             Duration: strawberry.scalar(
-                name="Duration", serialize=lambda v: v, parse_value=lambda v: v
+                name="Duration",
+                description="Represents a duration in ISO 8601 format. Accepts ISO 8601 duration strings or integers in milliseconds.",
+                serialize=lambda v: v,
+                parse_value=lambda v: v,
             ),
             IssueFilter: strawberry.scalar(
                 name="IssueFilter", serialize=lambda v: v, parse_value=lambda v: v
             ),
             JSONObject: strawberry.scalar(
-                name="JSONObject", serialize=lambda v: v, parse_value=lambda v: v
+                name="JSONObject",
+                description="The `JSONObject` scalar type represents arbitrary values as *embedded* JSON",
+                serialize=lambda v: v,
+                parse_value=lambda v: v,
             ),
             TeamFilter: strawberry.scalar(
                 name="TeamFilter", serialize=lambda v: v, parse_value=lambda v: v
             ),
             TimelessDate: strawberry.scalar(
-                name="TimelessDate", serialize=lambda v: v, parse_value=lambda v: v
+                name="TimelessDate",
+                description="Represents a date in ISO 8601 format. Accepts shortcuts like `2021` to represent midnight Fri Jan 01 2021. Also accepts ISO 8601 durations strings which are added to the current date to create the represented date (e.g '-P2W1D' represents the date that was two weeks and 1 day ago)",
+                serialize=lambda v: v,
+                parse_value=lambda v: v,
             ),
             TimelessDateOrDuration: strawberry.scalar(
                 name="TimelessDateOrDuration",
+                description="Represents a date in ISO 8601 format or a duration. Accepts shortcuts like `2021` to represent midnight Fri Jan 01 2021. Also accepts ISO 8601 durations strings (e.g '-P2W1D'), which are not converted to dates.",
                 serialize=lambda v: v,
                 parse_value=lambda v: v,
             ),
@@ -2453,7 +5213,6 @@ schema = strawberry.Schema(
         IssueSortInput,
         IssueSuggestionCollectionFilter,
         IssueSuggestionFilter,
-        IssueUpdateInput,
         JSONObject,
         LabelGroupSort,
         LabelSort,

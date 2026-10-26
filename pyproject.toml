@@ -39,7 +39,7 @@ dependencies = [
 # cannot resolve into that trap. strawberry.codegen is explicitly experimental and
 # version-sensitive — a reason not to put it in `dependencies`, where every consumer
 # would inherit the pin.
-strawberry = ["strawberry-graphql>=0.328.0"]
+strawberry = ["strawberry-graphql>=0.336.2"]
 
 [project.scripts]
 # Console script for gtm_linear/cli.py. The name matches the package, so
@@ -64,7 +64,7 @@ dev = [
   # have broken strawberry before (3.3 removed graphql.execution.ExecutionContext,
   # which <=0.316 imported), so re-pin this pair together when either side moves.
   "graphql-core>=3.3,<3.4",
-  "strawberry-graphql[cli]>=0.328.0",
+  "strawberry-graphql[cli]>=0.336.2",
   # codegen.py runs `ruff format` over its output so regeneration is byte-stable
   # and `trunk check` has nothing left to reformat. Pinned to the version
   # .trunk/trunk.yaml enables, so both formatters agree on the result.
