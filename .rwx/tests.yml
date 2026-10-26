@@ -188,12 +188,16 @@ tasks:
   # Ports the source workflow's `schema-drift` job (originally schedule-only;
   # now runs on every trigger): network-marked tests are deselected by
   # default; this task runs them so upstream drift surfaces in CI rather
-  # than in a user's traceback. Keyless by design: the schema test fetches
-  # Linear's public SDK schema from raw.githubusercontent.com, and the
-  # live-API wording check self-skips without LINEAR_API_KEY (the vault key
-  # is injected only by the live-api task below, which runs solely on
-  # main-ref triggers), so this task stays green on every trigger
-  # regardless of vault state.
+  # than in a user's traceback. Keyless by design -- no trigger needs vault
+  # access to stay green: the schema test fetches Linear's public SDK schema
+  # from raw.githubusercontent.com; the live-API wording check self-skips
+  # without LINEAR_API_KEY (the vault key is injected only by the live-api
+  # task below, which runs solely on main-ref triggers); and
+  # tests/integration's bad-key check runs keyless against api.linear.app,
+  # since an invalid key must still surface AUTHENTICATION_ERROR. That last
+  # call does make PR-run greenness depend on api.linear.app being reachable
+  # and honoring its auth-error contract -- deliberate: it pins the exact
+  # failure a user with a bad key sees.
   # cache: false is required, not cosmetic: the result depends on Linear's
   # live schema, not just this repo's files, so a cache hit would freeze the
   # drift check exactly when upstream moved. RWX caches tasks by content by
@@ -204,11 +208,12 @@ tasks:
     cache: false
     run: uv run pytest -q -m network
 
-  # The live-API half of the network suite: pins Linear's not-found wording
-  # (test_cli's live check) with LINEAR_API_KEY from the `sdk-python-linear`
-  # vault. Gated to the push/schedule event types because both are main-ref
-  # runs -- the push trigger only fires on main, and cron runs against the
-  # default branch -- which is exactly what the locked vault's grant covers
+  # The live-API half of the network suite: the CLI live wording check plus
+  # the tests/integration suite, with LINEAR_API_KEY from the
+  # `sdk-python-linear` vault. Gated to the push/schedule event types
+  # because both are main-ref runs -- the push trigger only fires on main,
+  # and cron runs against the default branch -- which is exactly what the
+  # locked vault's grant covers
   # (repository runs on `main`, the same grant .rwx/dagger-ref-drift.yml's
   # GITHUB_TOKEN relies on). A run whose ref does not match has the secret
   # resolution refused, and an unresolvable vault secret fails the whole
@@ -237,4 +242,4 @@ tasks:
       LINEAR_API_KEY:
         value: ${{ vaults.sdk-python-linear.secrets.LINEAR_API_KEY }}
         cache-key: excluded
-    run: uv run pytest -q -m network tests/test_cli.py::test_issue_not_found_wording_against_live_api
+    run: uv run pytest -q -m network tests/test_cli.py tests/integration
