@@ -5213,6 +5213,7 @@ schema = strawberry.Schema(
         IssueSortInput,
         IssueSuggestionCollectionFilter,
         IssueSuggestionFilter,
+        IssueUpdateInput,
         JSONObject,
         LabelGroupSort,
         LabelSort,

@@ -89,7 +89,7 @@ def test_sanitize_sdl_strips_directives_and_renames_keyword_enums() -> None:
     sanitized = codegen._sanitize_sdl(SDL)
 
     assert "directive" not in sanitized  # BUG-1
-    assert "\"\"\"" in sanitized  # BUG-2 fixed upstream: descriptions kept
+    assert '"""' in sanitized  # BUG-2 fixed upstream: descriptions kept
     for value in ("continue", "pass"):
         assert keyword.iskeyword(value)
         assert f"{value}_" in sanitized  # BUG-3: renamed to be assignable

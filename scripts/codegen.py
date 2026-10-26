@@ -231,6 +231,9 @@ def _rebuild(
 def _compose(path: Path, fragments: dict[str, gql_ast.FragmentDefinitionNode]) -> str:
     """Inline the fragments an operation references, transitively.
 
+    Fragments are inlined rather than spread because strawberry resolves a nested
+    spread only if the inner fragment is defined first (U1, strawberry#4744).
+
     Only referenced fragments are spliced in: GraphQL validation rejects a document
     containing a fragment that is never used, so dumping the whole shared file into
     every operation would fail.
@@ -268,7 +271,11 @@ def _collect(
     schema: GraphQLSchema,
     operations: list[tuple[str, str]],
 ) -> tuple[dict[str, set[str]], set[str], set[str]]:
-    """Return the object fields, whole types, and opaque inputs the operations touch."""
+    """Return the object fields, whole types, and opaque inputs the operations touch.
+
+    Operations are validated with graphql-core first because strawberry fails on a
+    bad one with a bare ``AssertionError`` (U6, strawberry#4740).
+    """
     touched: dict[str, set[str]] = {}
     whole: set[str] = set()
     opaque: set[str] = set()
@@ -526,9 +533,26 @@ def _patch_schema_module(path: Path) -> None:
     # Scalar names come from the migration above, not a re-scan of the source: a
     # NewType line the migration did not produce would land in types=[...] with
     # no scalar_map entry and die with an opaque strawberry error.
-    registered = re.findall(r"@strawberry\.input(?:\([^)]*\))?\s*\nclass (\w+)", source)
+    # Enumerated from the AST, not a regex: kept descriptions may contain `)`.
+    def decorated(kind: str) -> list[str]:
+        names: list[str] = []
+        for node in ast.parse(source).body:
+            if not isinstance(node, ast.ClassDef):
+                continue
+            for dec in node.decorator_list:
+                target = dec.func if isinstance(dec, ast.Call) else dec
+                if (
+                    isinstance(target, ast.Attribute)
+                    and target.attr == kind
+                    and isinstance(target.value, ast.Name)
+                    and target.value.id == "strawberry"
+                ):
+                    names.append(node.name)
+        return names
+
+    registered = decorated("input")
     registered += [name for name, _ in scalars]
-    registered += re.findall(r"@strawberry\.enum(?:\([^)]*\))?\s*\nclass (\w+)", source)
+    registered += decorated("enum")
     if registered:
         config = ""
         if scalars:
@@ -689,6 +713,10 @@ def _python_type(type_: object, *, nullable: bool = True) -> str:
 
 def _restore_field_arguments(source: str, sdl_path: Path) -> str:
     """Restore field arguments Strawberry schema-codegen drops (BUG-7).
+
+    Known gap: the rebuilt classes (Query, Mutation, Issue) carry no field
+    descriptions, unlike every other mirror type; threading ``field.description``
+    through both emission paths is a follow-up (#155).
 
     schema-codegen emits every field — root and nested alike — as a plain class
     attribute, dropping its argument list. The pruned SDL carries the full
@@ -944,7 +972,7 @@ def _canonicalize_enum_placement(source: str) -> str:
 def _run(cmd: list[str], extra_path: Path | None = None) -> None:
     env = os.environ.copy()
     if extra_path is not None:
-        # strawberry's --app-dir only takes one directory, but the run needs two on
+        # U7: strawberry's --app-dir only takes one directory, but the run needs two on
         # the path: the temp dir holding the generated schema module, and the repo
         # root for scripts.pydantic_plugin.
         existing = env.get("PYTHONPATH", "")

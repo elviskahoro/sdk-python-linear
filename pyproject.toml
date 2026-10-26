@@ -32,8 +32,8 @@ dependencies = [
 
 [project.optional-dependencies]
 # Ships gtm_linear._schema, the generated Strawberry mirror of Linear's types, for
-# callers re-exposing Linear data through their own GraphQL server. Floor is 0.328,
-# the release line the module is generated and CI-verified against. It also imports
+# callers re-exposing Linear data through their own GraphQL server. Floor is 0.336.2:
+# regeneration is byte-identical there, and CI locks a newer 0.337.x. It also imports
 # under 0.316 + graphql-core 3.2, but 0.316's metadata wrongly permits graphql-core
 # 3.3 (which breaks it at import), so the floor keeps the extra on a pair that
 # cannot resolve into that trap. strawberry.codegen is explicitly experimental and
