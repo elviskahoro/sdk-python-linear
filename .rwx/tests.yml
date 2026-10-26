@@ -183,11 +183,12 @@ tasks:
       fi
       /tmp/lean/bin/python -c "import gtm_linear; print(gtm_linear.__version__)"
 
-  # Ports the source workflow's `schema-drift` job (`if:
-  # github.event_name == 'schedule'`): network-marked tests are deselected by
-  # default; the schedule runs them so upstream drift surfaces in CI rather
+  # Ports the source workflow's `schema-drift` job (originally schedule-only;
+  # now runs on every trigger): network-marked tests are deselected by
+  # default; this task runs them so upstream drift surfaces in CI rather
   # than in a user's traceback. The test fetches Linear's public SDK schema
-  # from raw.githubusercontent.com -- no API key involved.
+  # from raw.githubusercontent.com (no key); the live-API tests use the vault's
+  # LINEAR_API_KEY.
   # cache: false is required, not cosmetic: the result depends on Linear's
   # live schema, not just this repo's files, so a cache hit would freeze the
   # drift check exactly when upstream moved. RWX caches tasks by content by
@@ -195,6 +196,10 @@ tasks:
   # https://www.rwx.com/docs/caching).
   - key: schema-drift
     use: [deps]
-    if: ${{ init.event-type == 'schedule' }}
     cache: false
+    env:
+      # Live-API tests (test_cli's not-found wording check) skip without a key.
+      LINEAR_API_KEY:
+        value: ${{ vaults.sdk-python-linear.secrets.LINEAR_API_KEY }}
+        cache-key: excluded
     run: uv run pytest -q -m network
