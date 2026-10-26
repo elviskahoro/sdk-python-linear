@@ -33,10 +33,10 @@ on:
   cli:
     # Manual `rwx run` dispatch for validation -- the source workflow has no
     # workflow_dispatch. Mirrors the push trigger's init so a dispatch
-    # exercises the push path. schema-drift runs on every trigger now; the
-    # live-api task follows init.branch, so a dispatch from a main checkout
-    # exercises the vault path too, while one from a feature branch skips it
-    # (the vault's grant is main-scoped).
+    # exercises the push path. schema-drift runs on every trigger now;
+    # live-api follows the event type, so dispatches exercise the vault
+    # path too (CLI runs are user-initiated and the account user holds
+    # vault access), while PR runs skip it.
     init:
       commit-sha: ${{ event.git.sha }}
       branch: ${{ event.git.branch }}
@@ -191,8 +191,9 @@ tasks:
   # than in a user's traceback. Keyless by design: the schema test fetches
   # Linear's public SDK schema from raw.githubusercontent.com, and the
   # live-API wording check self-skips without LINEAR_API_KEY (the vault key
-  # is injected only by the main-gated live-api task below), so this task
-  # stays green on every trigger regardless of vault state.
+  # is injected only by the live-api task below, which runs solely on
+  # main-ref triggers), so this task stays green on every trigger
+  # regardless of vault state.
   # cache: false is required, not cosmetic: the result depends on Linear's
   # live schema, not just this repo's files, so a cache hit would freeze the
   # drift check exactly when upstream moved. RWX caches tasks by content by
@@ -205,17 +206,20 @@ tasks:
 
   # The live-API half of the network suite: pins Linear's not-found wording
   # (test_cli's live check) with LINEAR_API_KEY from the `sdk-python-linear`
-  # vault. Gated to main because that vault is locked with access granted
-  # for repository runs on `main` (the same grant .rwx/dagger-ref-drift.yml's
-  # GITHUB_TOKEN relies on) -- a run whose ref does not match has the secret
+  # vault. Gated to the push/schedule event types because both are main-ref
+  # runs -- the push trigger only fires on main, and cron runs against the
+  # default branch -- which is exactly what the locked vault's grant covers
+  # (repository runs on `main`, the same grant .rwx/dagger-ref-drift.yml's
+  # GITHUB_TOKEN relies on). A run whose ref does not match has the secret
   # resolution refused, and an unresolvable vault secret fails the whole
-  # task BEFORE `run:` executes. Not hypothetical: #163's first three pushes
-  # referenced this secret unconditionally and every pull-request run
-  # failed the pipeline in ~12-35s with no task output. Vault access
+  # task BEFORE `run:` executes -- not hypothetical: #163's first three
+  # pushes referenced this secret unconditionally and every pull-request
+  # run failed the pipeline in ~12-35s with no task output. Vault access
   # matching uses the run's own repository/ref context from the trigger
-  # event, NOT `init` parameters, so the `branch:` lines in the init blocks
-  # cannot unlock it (they exist for run context and CLI dispatches, where
-  # event.git is populated from the local checkout).
+  # event, NOT `init` parameters (passing `branch:` in the pull_request
+  # init was tried and reverted for exactly this reason). CLI dispatches
+  # mirror the push init and so exercise the vault path too -- they are
+  # user-initiated, and the account user holds vault access.
   # Skipping non-main runs is also the secret-safety story: no PR-run code --
   # same-repo branches included -- ever executes with the key, and fork-PR
   # runs would not match the repo-scoped vault either. To extend the live
@@ -227,7 +231,7 @@ tasks:
   # of the task's content-cache fingerprint.
   - key: live-api
     use: [deps]
-    if: ${{ init.branch == 'main' }}
+    if: ${{ init.event-type == 'push' || init.event-type == 'schedule' }}
     cache: false
     env:
       LINEAR_API_KEY:
