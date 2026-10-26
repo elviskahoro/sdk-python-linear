@@ -33,6 +33,10 @@ appear in a production schema. Each is worked around below and tagged BUG-n:
   BUG-8  Custom scalars are emitted as ``X = strawberry.scalar(NewType(...))``, the
          class form strawberry deprecates; rewritten to plain NewType aliases whose
          definitions are registered through ``StrawberryConfig.scalar_map``.
+  BUG-9  Field-argument defaults are dropped: ``_prune`` re-emits arguments as
+         ``name: type`` and the resolver rebuild hardcodes ``= None`` for every
+         nullable argument. Both now thread the SDL-declared default through so
+         the mirror preserves Linear's argument defaults.
 
 Run `uv run python scripts/codegen.py` to regenerate, or `--check` to verify the
 committed output is current (used by CI and tests/test_codegen_is_current.py).
@@ -55,6 +59,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import graphql.language.ast as gql_ast
 from graphql import (
+    GraphQLArgument,
     GraphQLEnumType,
     GraphQLInputObjectType,
     GraphQLList,
@@ -73,6 +78,7 @@ from graphql import (
     validate,
     visit,
 )
+from graphql.utilities import get_default_value_ast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -352,7 +358,10 @@ def _prune(
             field = type_.fields[field_name]
             # BUG-6: arguments are dropped by schema-codegen, but they must be
             # present here so input types are reachable and get registered.
-            args = ", ".join(f"{n}: {a.type}" for n, a in field.args.items())
+            # BUG-9: SDL-declared argument defaults are preserved here too;
+            # dropping them would make the mirror describe a different API shape
+            # than Linear's real schema (e.g. `first: Int = 50`).
+            args = ", ".join(_arg_sdl(n, a) for n, a in field.args.items())
             suffix = f"({args})" if args else ""
             lines.append(f"  {field_name}{suffix}: {field.type}")
         body = "\n".join(lines)
@@ -579,6 +588,79 @@ def _python_name(name: str) -> str:
     return f"{converted}_" if keyword.iskeyword(converted) else converted
 
 
+def _arg_sdl(name: str, argument: GraphQLArgument) -> str:
+    """Render a field argument as SDL, preserving any declared default (BUG-9).
+
+    ``_prune`` re-emits each kept field's argument list because schema-codegen
+    drops arguments (BUG-6); rendering only ``name: type`` would silently drop
+    any SDL-declared default, so the mirror would describe a different API
+    shape than Linear's real schema. The default is rendered back to SDL via
+    ``get_default_value_ast``/``print_ast``, which handles enum-member defaults
+    correctly.
+    """
+    rendered = f"{name}: {argument.type}"
+    if argument.default is not None:
+        default_ast = get_default_value_ast(argument)
+        if default_ast is not None:  # defensive: signature allows None
+            rendered += f" = {print_ast(default_ast)}"
+    return rendered
+
+
+def _python_default(argument: GraphQLArgument) -> str | None:
+    """Render an argument's SDL-declared default as a Python literal, or None.
+
+    In graphql-core 3.3 an SDL-declared default lives on ``argument.default``
+    (a ``GraphQLDefaultInput``), while the legacy ``argument.default_value``
+    stays ``Undefined``; reading the latter would miss every SDL default. ``None``
+    means no default is declared, so the caller can fall back to its own
+    nullable/required handling.
+
+    Enum-member defaults render as ``<EnumClass>.<value>``: the generated enum
+    classes keep their GraphQL value spellings as attribute names, and a
+    Python-keyword value gets the ``_`` suffix BUG-3 applies to the definition
+    so the reference resolves to the renamed member.
+    """
+    if argument.default is None:
+        return None
+    node = get_default_value_ast(argument)
+    if isinstance(node, gql_ast.IntValueNode | gql_ast.FloatValueNode):
+        return node.value
+    if isinstance(node, gql_ast.StringValueNode):
+        return repr(node.value)
+    if isinstance(node, gql_ast.BooleanValueNode):
+        return "True" if node.value else "False"
+    if isinstance(node, gql_ast.NullValueNode):
+        return "None"
+    if isinstance(node, gql_ast.EnumValueNode):
+        named = _unwrap(argument.type)
+        if named is None:
+            msg = f"enum default {node.value!r} on non-enum type {argument.type!r}"
+            raise SystemExit(msg)
+        value = f"{node.value}_" if keyword.iskeyword(node.value) else node.value
+        return f"{named.name}.{value}"
+    msg = (
+        f"unsupported argument default value node {type(node).__name__}; "
+        "update _python_default"
+    )
+    raise SystemExit(msg)
+
+
+def _argument_default(argument: GraphQLArgument) -> str:
+    """Render the Python default fragment for a resolver argument.
+
+    A declared default wins (BUG-9): the mirror must preserve Linear's argument
+    defaults. A nullable argument with no declared default falls back to
+    ``= None``; a non-null argument with no default stays required (no fragment)
+    so the resolver keeps the same arity as the schema.
+    """
+    declared = _python_default(argument)
+    if declared is not None:
+        return f" = {declared}"
+    if isinstance(argument.type, GraphQLNonNull):
+        return ""
+    return " = None"
+
+
 def _python_type(type_: object, *, nullable: bool = True) -> str:
     """Render a GraphQL type reference as a Python annotation."""
     if isinstance(type_, GraphQLNonNull):
@@ -657,7 +739,7 @@ def _restore_field_arguments(source: str, sdl_path: Path) -> str:
                 ],
             )
             for argument_name, argument in [*required, *optional]:
-                default = "" if isinstance(argument.type, GraphQLNonNull) else " = None"
+                default = _argument_default(argument)
                 lines.append(
                     f"        {_python_name(argument_name)}: {_python_type(argument.type)}{default},",
                 )
