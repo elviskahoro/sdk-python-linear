@@ -1825,11 +1825,11 @@ def test_search_accepts_terms_that_look_like_options() -> None:
 
 @pytest.mark.network
 def test_issue_not_found_wording_against_live_api() -> None:
-    """Pin Linear's live not-found wording (scheduled CI run; needs auth).
+    """Pin Linear's live not-found wording (CI `live-api` task on main pushes and cron; needs auth).
 
     The not-found heuristic matches Linear's message wording, so a rewording
     upstream would silently degrade `issue` to the generic error line. This
-    live check makes that drift surface in the weekly network run instead.
+    live check makes that drift surface in the main-branch network run instead.
     The probe uses the CLI's own first-pass settings class, so the skip
     decision and the code under test agree on where a key may come from.
     """

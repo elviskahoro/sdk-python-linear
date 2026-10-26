@@ -2,7 +2,7 @@ r"""Detects Linear changing its schema out from under the pinned copy.
 
 A vendored snapshot cannot detect upstream drift by construction, so this test
 refetches. It is marked ``network`` and deselected by default (see ``addopts`` in
-pyproject.toml); CI runs it on a schedule. The source is Linear's public SDK repo,
+pyproject.toml); CI runs it on every run (the `schema-drift` task). The source is Linear's public SDK repo,
 so no API key is involved.
 
 When this fails, refresh the pin and regenerate:
