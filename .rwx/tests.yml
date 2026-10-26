@@ -14,6 +14,7 @@ on:
       # source gated on main.
       init:
         commit-sha: ${{ event.git.sha }}
+        branch: ${{ event.git.branch }}
         repository: https://github.com/elviskahoro/sdk-python-linear.git
         event-type: pull_request
   cron:
