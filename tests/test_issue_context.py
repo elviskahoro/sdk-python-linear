@@ -11,6 +11,7 @@ import respx
 from pydantic import ValidationError
 
 from gtm_linear import LinearClient, LinearQueries
+from gtm_linear.exceptions import LinearGraphQLError
 from tests.conftest import API_URL, page_info_payload, user_payload
 
 if TYPE_CHECKING:
@@ -204,6 +205,174 @@ async def test_missing_issue_returns_empty_context_page(
     assert page.nodes == []
     assert page.page_info.has_next_page is False
     assert page.page_info.end_cursor is None
+
+
+# The errors-array not-found shape Linear returns for unknown issue
+# identifiers. Captured verbatim from Linear's live API (2026-10-02) — the
+# same pinned payload ``tests/test_queries.py`` and ``tests/test_cli.py`` use
+# for the ``get_issue`` / CLI not-found paths. Linear sends a top-level
+# ``errors`` array with no ``data`` key, so ``LinearClient._handle_response``
+# raises before the page methods' null-issue guard can run.
+_ISSUE_NOT_FOUND_ERRORS_PAYLOAD: dict[str, Any] = {
+    "errors": [
+        {
+            "message": "Entity not found: Issue",
+            "extensions": {
+                "type": "invalid input",
+                "code": "INPUT_ERROR",
+                "statusCode": 400,
+                "userError": True,
+                "userPresentableMessage": "Could not find referenced Issue.",
+            },
+        },
+    ],
+}
+
+# A reworded top-level message whose presentable text still names the Issue
+# entity (mirrors ``tests/test_cli.py``'s extension-wording capture).
+_REWORDED_NOT_FOUND_ERRORS_PAYLOAD: dict[str, Any] = {
+    "errors": [
+        {
+            "message": "Look-up failed",
+            "extensions": {
+                "userPresentableMessage": "Could not find referenced Issue.",
+            },
+        },
+    ],
+}
+
+
+def _assert_empty_page(page: Any) -> None:
+    assert page.nodes == []
+    assert page.page_info.has_next_page is False
+    assert page.page_info.end_cursor is None
+
+
+@pytest.mark.parametrize(("_connection", "method", "_make_node"), _CONNECTIONS)
+async def test_issue_context_page_returns_empty_page_for_errors_array_not_found(
+    _connection: str,
+    method: str,
+    _make_node: Callable[[str], dict[str, Any]],
+) -> None:
+    """The real Linear not-found shape (top-level errors array) yields an empty page.
+
+    Mirrors ``tests/test_queries.py::test_get_issue_returns_none_for_not_found_identifier``:
+    Linear reports unknown identifiers as a GraphQL ``errors`` array with no
+    ``data`` key, and ``LinearClient._handle_response`` raises on it, so the
+    page methods must translate an issue-not-found into the documented valid
+    empty page rather than propagate ``LinearGraphQLError``. Before the fix
+    the null-``issue`` guard was dead code for this shape and the methods
+    raised instead of honoring the empty-page contract.
+    """
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(200, json=_ISSUE_NOT_FOUND_ERRORS_PAYLOAD),
+        )
+        async with LinearClient(api_key="key") as client:
+            page = await getattr(LinearQueries(client), method)("ENG-404")
+    _assert_empty_page(page)
+
+
+@pytest.mark.parametrize(("_connection", "method", "_make_node"), _CONNECTIONS)
+async def test_issue_context_page_returns_empty_page_for_reworded_not_found(
+    _connection: str,
+    method: str,
+    _make_node: Callable[[str], dict[str, Any]],
+) -> None:
+    """A reworded message still matches through ``userPresentableMessage``.
+
+    Mirrors ``tests/test_queries.py::test_get_issue_returns_none_for_reworded_not_found_via_user_presentable_message``:
+    the message text is the one Linear may rewrite, but the presentable
+    message still names the Issue entity, so the not-found contract still
+    holds for all four context-page methods.
+    """
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(200, json=_REWORDED_NOT_FOUND_ERRORS_PAYLOAD),
+        )
+        async with LinearClient(api_key="key") as client:
+            page = await getattr(LinearQueries(client), method)("ENG-404")
+    _assert_empty_page(page)
+
+
+@pytest.mark.parametrize(("_connection", "method", "_make_node"), _CONNECTIONS)
+async def test_issue_context_page_re_raises_for_other_entity_not_found(
+    _connection: str,
+    method: str,
+    _make_node: Callable[[str], dict[str, Any]],
+) -> None:
+    """A not-found for a different referenced entity is NOT an issue not-found.
+
+    Mirrors ``tests/test_queries.py::test_get_issue_re_raises_for_other_entity_not_found``:
+    the wording heuristic names the Issue entity specifically, so a
+    referenced-team not-found still propagates as ``LinearGraphQLError``
+    instead of being silenced into an empty page. Without this guard every
+    ``LinearGraphQLError`` would be swallowed and callers could not
+    distinguish issue-not-found from genuine failures.
+    """
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={"errors": [{"message": "Entity not found: Team"}]},
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            with pytest.raises(LinearGraphQLError):
+                await getattr(LinearQueries(client), method)("ENG-1")
+
+
+@pytest.mark.parametrize(("_connection", "method", "_make_node"), _CONNECTIONS)
+async def test_issue_context_page_re_raises_unrelated_api_errors(
+    _connection: str,
+    method: str,
+    _make_node: Callable[[str], dict[str, Any]],
+) -> None:
+    """Unrelated GraphQL errors (auth, rate limit) still propagate.
+
+    Mirrors ``tests/test_queries.py::test_get_issue_re_raises_for_unrelated_api_errors``:
+    a payload that does not mention the Issue not-found wording escapes
+    untouched, so callers see real failures as exceptions rather than a
+    silently empty page.
+    """
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={"errors": [{"message": "boom"}]},
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            with pytest.raises(LinearGraphQLError):
+                await getattr(LinearQueries(client), method)("ENG-1")
+
+
+@pytest.mark.parametrize(("_connection", "method", "_make_node"), _ITERATORS)
+async def test_issue_context_iterators_yield_nothing_for_errors_array_not_found(
+    _connection: str,
+    method: str,
+    _make_node: Callable[[str], dict[str, Any]],
+) -> None:
+    """The ``iter_issue_*`` wrappers yield zero items for the real not-found shape.
+
+    ``paginate`` calls the page method, which now returns an empty page for
+    the top-level ``errors`` array shape (``hasNextPage`` false, no cursor),
+    so iteration ends after one round trip yielding nothing instead of
+    raising ``LinearGraphQLError`` out of the async generator. Before the
+    fix the exception propagated through the wrapper.
+    """
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            return_value=httpx.Response(200, json=_ISSUE_NOT_FOUND_ERRORS_PAYLOAD),
+        )
+        async with LinearClient(api_key="key") as client:
+            nodes = [
+                node async for node in getattr(LinearQueries(client), method)("ENG-404")
+            ]
+    assert nodes == []
+    # The wrapper must stop after the single not-found round trip — no
+    # refetch loop, no stall.
+    assert len(route.calls) == 1
 
 
 @pytest.mark.parametrize(("connection", "method", "_make_node"), _CONNECTIONS)
