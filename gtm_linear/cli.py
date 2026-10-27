@@ -653,7 +653,7 @@ def _read_issue_comments(
     async def fetch_page(
         cursor: str | None,
     ) -> ListIssueCommentsResultIssueComments:
-        return await linear._queries.list_issue_comments_page(  # noqa: SLF001
+        return await linear.list_issue_comments_page_async(
             issue_id,
             first=page_size,
             after=cursor,
