@@ -123,7 +123,19 @@ def _graphql_router(
         elif _named(query, "CliResolveProject"):
             data = {"projects": {"nodes": projects or []}}
         elif _named(query, "CliResolveLabel"):
-            data = {"issueLabels": {"nodes": labels or []}}
+            # Two labels per page so tests can prove the CLI follows cursors.
+            all_labels = labels or []
+            start = int(json.loads(request.content)["variables"].get("after") or 0)
+            end = start + 2
+            data = {
+                "issueLabels": {
+                    "nodes": all_labels[start:end],
+                    "pageInfo": {
+                        "hasNextPage": end < len(all_labels),
+                        "endCursor": str(end),
+                    },
+                },
+            }
         elif _named(query, "CliIssueTeam"):
             data = {"issue": {"team": {"id": "team-1", "key": "ENG"}}}
         elif _named(query, "GetTeamByKey"):
@@ -2832,6 +2844,28 @@ def test_update_label_adds_and_clear_labels_clears() -> None:
     )
     assert result.exit_code == 0  # noqa: S101
     assert json.loads(result.stdout)["payload"] == {"labelIds": []}  # noqa: S101
+
+
+def test_labels_resolve_across_multiple_pages() -> None:
+    many = [*LABELS, {"id": "l-3", "name": "Late"}, {"id": "l-4", "name": "bug"}]
+    result, _ = _label_run(
+        [
+            "issue", "create", "--team", "eng", "--title", "T", "--label", "late",
+            "--json",
+        ],
+        labels=many,
+    )  # fmt: skip
+    assert result.exit_code == 0  # noqa: S101
+    assert json.loads(result.stdout)["payload"]["labelIds"] == ["l-3"]  # noqa: S101
+    # An exact match on page 2 must beat the case-insensitive near-match on page 1.
+    result, _ = _label_run(
+        [
+            "issue", "create", "--team", "eng", "--title", "T", "--label", "bug",
+            "--json",
+        ],
+        labels=many,
+    )  # fmt: skip
+    assert json.loads(result.stdout)["payload"]["labelIds"] == ["l-4"]  # noqa: S101
 
 
 def test_unknown_label_is_usage_error_listing_candidates() -> None:

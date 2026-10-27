@@ -1009,6 +1009,42 @@ def _raw_nodes(
     return nodes
 
 
+def _raw_all_nodes(
+    linear: LinearWorkflow,
+    query: str,
+    variables: dict[str, Any],
+    field: str,
+) -> list[dict[str, Any]]:
+    """Like _raw_nodes, but follows pageInfo cursors until the connection ends.
+
+    `query` must declare `$after: String`, pass it as `after:`, and select
+    `pageInfo { hasNextPage endCursor }`.
+    """
+    nodes: list[dict[str, Any]] = []
+    after: str | None = None
+    while True:
+        data = linear.client.execute(query, {**variables, "after": after})
+        connection = data.get(field)
+        if not isinstance(connection, dict):
+            _fail(f"unexpected {field} response from Linear")
+        page = connection.get("nodes")
+        if not isinstance(page, list) or not all(
+            isinstance(n, dict) and isinstance(n.get("id"), str) for n in page
+        ):
+            _fail(f"unexpected {field} response from Linear")
+        nodes.extend(page)
+        page_info = connection.get("pageInfo")
+        cursor = page_info.get("endCursor") if isinstance(page_info, dict) else None
+        if (
+            not isinstance(page_info, dict)
+            or page_info.get("hasNextPage") is not True
+            or not isinstance(cursor, str)
+            or cursor == after
+        ):
+            return nodes
+        after = cursor
+
+
 def _resolve_user(linear: LinearWorkflow, value: str, option: str) -> str:
     """Resolve `me`, a UUID, an email, or a name/display name to a user id."""
     if _UUID_RE.fullmatch(value):
@@ -1107,11 +1143,13 @@ def _resolve_labels(
             label_id, name = value, value
         else:
             if labels is None:
-                labels = _raw_nodes(
+                labels = _raw_all_nodes(
                     linear,
-                    "query CliResolveLabel($filter: IssueLabelFilter) "
-                    f"{{ issueLabels(filter: $filter, first: {MAX_PAGE_SIZE}) "
-                    "{ nodes { id name } } }",
+                    "query CliResolveLabel($filter: IssueLabelFilter, "
+                    "$after: String) "
+                    f"{{ issueLabels(filter: $filter, first: {MAX_PAGE_SIZE}, "
+                    "after: $after) "
+                    "{ nodes { id name } pageInfo { hasNextPage endCursor } } }",
                     {
                         "filter": {
                             "or": [
