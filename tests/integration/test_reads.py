@@ -35,9 +35,12 @@ async def test_issue_not_found_is_none(queries: LinearQueries) -> None:
 async def test_workflow_states(queries: LinearQueries, team) -> None:
     states = await queries.list_workflow_states(team.id)
     assert states
-    first = states[0]
-    resolved = await queries.get_workflow_state_by_type(team.id, first.type)
-    assert resolved.type == first.type
+    # Teams can hold several states of one type (e.g. two `started`), and the
+    # by-type lookup rejects ambiguity, so probe a type that occurs once.
+    types = [s.type for s in states]
+    unique = next(t for t in types if types.count(t) == 1)
+    resolved = await queries.get_workflow_state_by_type(team.id, unique)
+    assert resolved.type == unique
 
 
 async def test_list_issues_and_page(queries: LinearQueries, team) -> None:
