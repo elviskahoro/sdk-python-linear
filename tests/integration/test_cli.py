@@ -86,10 +86,19 @@ def test_writes_are_dry_run_without_apply_and_land_with_it(
             ],
         ).stdout,
     )
-    identifier = json.dumps(created)  # shape is the CLI's contract; locate id below
-    after = json.loads(_ok(["issues", "--team", ready_team.key, "--json"]).stdout)
-    match = [i for i in after if i["title"] == title]
-    assert match, identifier
+    # The apply landed (exit 0 + parseable JSON), but the listing can lag the
+    # write on a young team — the lag `ready_team` polls away — so poll for
+    # the title rather than assert on a single read.
+    for _ in range(15):
+        listed = json.loads(
+            _ok(["issues", "--team", ready_team.key, "--json"]).stdout,
+        )
+        match = [i for i in listed if i["title"] == title]
+        if match:
+            break
+        time.sleep(2)
+    else:
+        pytest.fail(f"created issue never listed: {json.dumps(created)}")
     comment = _ok(
         ["issue", "comment", match[0]["identifier"], "--body", "sdk-it", "--apply"],
     )
