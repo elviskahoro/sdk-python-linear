@@ -58,6 +58,7 @@ from . import __version__
 from ._generated.CreateIssue import IssueCreateInput
 from ._generated.ListIssues import PaginationOrderBy
 from ._generated.UpdateIssue import IssueUpdateInput
+from ._generated.fragments import PageInfoFields
 from .exceptions import (
     LinearAPIError,
     LinearPaginationError,
@@ -102,6 +103,31 @@ class _ConnectionLike(Protocol[_NodeT]):
 
     @property
     def page_info(self) -> _PageInfoLike: ...
+
+
+class _RawConnectionPage:
+    """A raw ``nodes``/``pageInfo`` page adapted to that connection protocol.
+
+    The resolver lookups below run ad-hoc GraphQL instead of the generated
+    operations, so their pages need a dict-backed stand-in before the SDK
+    paginator can drive them.
+    """
+
+    def __init__(
+        self,
+        nodes: list[dict[str, Any]],
+        page_info: PageInfoFields,
+    ) -> None:
+        self._nodes = nodes
+        self._page_info = page_info
+
+    @property
+    def nodes(self) -> list[dict[str, Any]]:
+        return self._nodes
+
+    @property
+    def page_info(self) -> PageInfoFields:
+        return self._page_info
 
 
 app = typer.Typer(
@@ -659,11 +685,20 @@ def _read_issue_comments(
             after=cursor,
         )
 
-    return _collect_paginated_sync(
+    found, complete, pagination_error = _collect_paginated_sync(
         linear,
         fetch_page,
         limit=None if fetch_all else page_size,
     )
+    # Linear's issue.comments connection yields newest-first and offers no
+    # ascending sortOrder, so the CLI's chronological contract is enforced
+    # client-side — createdAt with a stable id tiebreak for same-second
+    # comments. Partial results from a stalled fetch are reordered too.
+    chronological = sorted(
+        found,
+        key=lambda comment: (comment.created_at, comment.id),
+    )
+    return chronological, complete, pagination_error
 
 
 _COMMENT_PREVIEW_CHARS = 80
@@ -1009,40 +1044,21 @@ def _raw_nodes(
     return nodes
 
 
-def _raw_all_nodes(
-    linear: LinearWorkflow,
-    query: str,
-    variables: dict[str, Any],
-    field: str,
-) -> list[dict[str, Any]]:
-    """Like _raw_nodes, but follows pageInfo cursors until the connection ends.
-
-    `query` must declare `$after: String`, pass it as `after:`, and select
-    `pageInfo { hasNextPage endCursor }`.
-    """
-    nodes: list[dict[str, Any]] = []
-    after: str | None = None
-    while True:
-        data = linear.client.execute(query, {**variables, "after": after})
-        connection = data.get(field)
-        if not isinstance(connection, dict):
-            _fail(f"unexpected {field} response from Linear")
-        page = connection.get("nodes")
-        if not isinstance(page, list) or not all(
-            isinstance(n, dict) and isinstance(n.get("id"), str) for n in page
-        ):
-            _fail(f"unexpected {field} response from Linear")
-        nodes.extend(page)
-        page_info = connection.get("pageInfo")
-        cursor = page_info.get("endCursor") if isinstance(page_info, dict) else None
-        if (
-            not isinstance(page_info, dict)
-            or page_info.get("hasNextPage") is not True
-            or not isinstance(cursor, str)
-            or cursor == after
-        ):
-            return nodes
-        after = cursor
+def _raw_connection_page(data: dict[str, Any], field: str) -> _RawConnectionPage:
+    """Guard one raw connection page and adapt it for the paginator."""
+    connection = data.get(field)
+    nodes = connection.get("nodes") if isinstance(connection, dict) else None
+    if not isinstance(nodes, list) or not all(
+        isinstance(n, dict) and isinstance(n.get("id"), str) for n in nodes
+    ):
+        _fail(f"unexpected {field} response from Linear")
+    try:
+        page_info = PageInfoFields.model_validate(
+            connection.get("pageInfo") if isinstance(connection, dict) else None,
+        )
+    except ValidationError:
+        _fail(f"unexpected {field} response from Linear")
+    return _RawConnectionPage(nodes, page_info)
 
 
 def _resolve_user(linear: LinearWorkflow, value: str, option: str) -> str:
@@ -1127,6 +1143,47 @@ def _resolve_project(linear: LinearWorkflow, value: str, option: str) -> str:
     return nodes[0]["id"]
 
 
+def _team_label_pages(linear: LinearWorkflow, team_id: str) -> list[dict[str, Any]]:
+    """Fetch the team's labels plus workspace-level labels across every page.
+
+    A single ``first``-bounded slice would silently truncate a large label
+    set and report its labels as unknown, so the fetch follows cursors until
+    the connection is exhausted, like every other CLI listing. Delegating to
+    the SDK paginator also inherits its stall defenses: a run of nodeless
+    pages with advancing cursors raises instead of looping forever.
+    """
+
+    async def fetch_page(cursor: str | None) -> _RawConnectionPage:
+        data = await linear.client.execute_async(
+            "query CliResolveLabel($filter: IssueLabelFilter, $after: String, "
+            "$first: Int!) "
+            "{ issueLabels(filter: $filter, after: $after, first: $first) "
+            "{ nodes { id name } pageInfo "
+            "{ hasNextPage endCursor hasPreviousPage startCursor } } }",
+            {
+                "filter": {
+                    "or": [
+                        {"team": {"id": {"eq": team_id}}},
+                        {"team": {"null": True}},
+                    ],
+                },
+                "after": cursor,
+                "first": MAX_PAGE_SIZE,
+            },
+        )
+        return _raw_connection_page(data, "issueLabels")
+
+    labels, complete, pagination_error = _collect_paginated_sync(linear, fetch_page)
+    if pagination_error is not None or not complete:
+        # The paginator raises after a run of nodeless pages with advancing
+        # cursors, and stops silently on a page that claims a next page but
+        # offers no usable cursor. Either way resolution must not guess from
+        # a partial label list, so fail closed instead of reporting unknown
+        # labels.
+        _fail("unexpected issueLabels response from Linear")
+    return labels
+
+
 def _resolve_labels(
     linear: LinearWorkflow,
     team_id: str,
@@ -1143,23 +1200,7 @@ def _resolve_labels(
             label_id, name = value, value
         else:
             if labels is None:
-                labels = _raw_all_nodes(
-                    linear,
-                    "query CliResolveLabel($filter: IssueLabelFilter, "
-                    "$after: String) "
-                    f"{{ issueLabels(filter: $filter, first: {MAX_PAGE_SIZE}, "
-                    "after: $after) "
-                    "{ nodes { id name } pageInfo { hasNextPage endCursor } } }",
-                    {
-                        "filter": {
-                            "or": [
-                                {"team": {"id": {"eq": team_id}}},
-                                {"team": {"null": True}},
-                            ],
-                        },
-                    },
-                    "issueLabels",
-                )
+                labels = _team_label_pages(linear, team_id)
             exact = [n for n in labels if n.get("name") == value]
             matches = exact or [
                 n
@@ -1247,13 +1288,22 @@ def _update_label_values(
     labels: list[str] | None,
     *,
     clear_labels: bool,
+    issue_team: tuple[str, str] | None = None,
 ) -> tuple[dict[str, Any], list[str]]:
-    """Build label update fields (add-only, or clear all) plus display names."""
+    """Build label update fields (add-only, or clear all) plus display names.
+
+    ``issue_team`` is the issue's ``(id, key)`` when the caller already
+    resolved it — the ``--state`` branch needs the same lookup, and every
+    sync facade call pays a fresh HTTP client, so sharing it removes a real
+    extra round trip from ``issue update --state X --label Y``.
+    """
     if clear_labels:
         return {"label_ids": []}, []
     if not labels:
         return {}, []
-    team_id, team_key = _issue_team(linear, issue_id)
+    team_id, team_key = (
+        issue_team if issue_team is not None else _issue_team(linear, issue_id)
+    )
     ids, names = _resolve_labels(linear, team_id, team_key, labels, "--label")
     return {"added_label_ids": ids}, names
 
@@ -1834,20 +1884,25 @@ def update(
             assignee_id = _resolve_user(linear, assignee, "--assignee")
         if project is not None:
             project_id = _resolve_project(linear, project, "--project")
-        if state is not None:
-            team_id, team_key = _issue_team(linear, resolved.id)
-            state_id = _resolve_workflow_state(
-                linear,
-                team_id,
-                team_key,
-                state,
-                "--state",
-            )
+        # The state and label branches both need the issue's team; fetch it
+        # once so `--state X --label Y` costs one lookup, not two.
+        issue_team: tuple[str, str] | None = None
+        if state is not None or labels:
+            issue_team = _issue_team(linear, resolved.id)
+            if state is not None:
+                state_id = _resolve_workflow_state(
+                    linear,
+                    issue_team[0],
+                    issue_team[1],
+                    state,
+                    "--state",
+                )
         update_values, label_names = _update_label_values(
             linear,
             resolved.id,
             labels,
             clear_labels=clear_labels,
+            issue_team=issue_team,
         )
         for name, value, clear in (
             ("title", title, False),
@@ -1965,7 +2020,10 @@ def comments(
         typer.Option(
             min=1,
             max=MAX_PAGE_SIZE,
-            help=f"Max comments to fetch (1-{MAX_PAGE_SIZE}, default 25).",
+            help=(
+                f"Max comments to fetch (1-{MAX_PAGE_SIZE}, default 25); "
+                "windows the newest comments, shown oldest first."
+            ),
         ),
     ] = None,
     fetch_all: AllOpt = False,

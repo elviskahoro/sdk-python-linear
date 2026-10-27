@@ -130,10 +130,10 @@ def _graphql_router(
             data = {
                 "issueLabels": {
                     "nodes": all_labels[start:end],
-                    "pageInfo": {
-                        "hasNextPage": end < len(all_labels),
-                        "endCursor": str(end),
-                    },
+                    "pageInfo": page_info_payload(
+                        has_next=end < len(all_labels),
+                        end=str(end),
+                    ),
                 },
             }
         elif _named(query, "CliIssueTeam"):
@@ -282,7 +282,7 @@ def test_teams_pads_the_key_column_by_display_width() -> None:
         {"id": "t-2", "key": "ENG", "name": "Two"},
     ]
 
-    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
+    def respond(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"data": {"teams": {"nodes": nodes}}})
 
     with respx.mock:
@@ -339,7 +339,7 @@ def test_teams_notes_when_page_info_says_more_exist() -> None:
         {"id": f"t-{n}", "key": f"T{n:02d}", "name": f"Team {n}"} for n in range(3)
     ]
 
-    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
+    def respond(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             200,
             json={
@@ -368,7 +368,7 @@ def test_teams_does_not_cry_wolf_on_an_exactly_full_page() -> None:
         {"id": f"t-{n}", "key": f"T{n:02d}", "name": f"Team {n}"} for n in range(100)
     ]
 
-    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
+    def respond(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             200,
             json={
@@ -441,7 +441,7 @@ def test_issues_all_fetches_pages_and_emits_completion_metadata() -> None:
     base = _graphql_router()
     calls: list[dict[str, Any]] = []
 
-    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
+    def respond(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content)
         query = body["query"]
         if _named(query, "ListIssues"):
@@ -486,7 +486,7 @@ def test_bounded_issue_limit_stops_mid_page_after_following_cursor() -> None:
     base = _graphql_router()
     calls: list[dict[str, Any]] = []
 
-    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
+    def respond(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content)
         if _named(body["query"], "ListIssues"):
             variables = body["variables"]
@@ -546,7 +546,7 @@ def test_search_all_fetches_pages_and_emits_completion_metadata() -> None:
     base = _graphql_router()
     calls: list[dict[str, Any]] = []
 
-    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
+    def respond(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content)
         if _named(body["query"], "SearchIssues"):
             variables = body["variables"]
@@ -604,7 +604,7 @@ def test_all_marks_cursor_guard_stops_as_truncated(
     base = _graphql_router()
     calls: list[str | None] = []
 
-    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
+    def respond(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content)
         if _named(body["query"], "SearchIssues"):
             after = body["variables"]["after"]
@@ -650,7 +650,7 @@ def test_search_all_surfaces_stalled_pagination_error() -> None:
     base = _graphql_router()
     calls = 0
 
-    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
+    def respond(request: httpx.Request) -> httpx.Response:
         nonlocal calls
         body = json.loads(request.content)
         if _named(body["query"], "SearchIssues"):
@@ -698,7 +698,7 @@ def test_all_json_stall_emits_partial_results_and_error(
     base = _graphql_router()
     calls = 0
 
-    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
+    def respond(request: httpx.Request) -> httpx.Response:
         nonlocal calls
         query = json.loads(request.content)["query"]
         if not _named(query, operation):
@@ -903,7 +903,7 @@ def test_issues_verbose_flattens_and_indents_hostile_text() -> None:
 def test_teams_rows_flatten_hostile_names() -> None:
     nodes = [{"id": "t-1", "key": "ENG", "name": "Evil\nForged (id: x)"}]
 
-    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
+    def respond(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             200,
             json={
@@ -941,7 +941,7 @@ def test_issues_json_emits_none_for_non_finite_priority() -> None:
         {"data": {"issues": {"nodes": [drifted], "pageInfo": page_info_payload()}}},
     )
 
-    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
+    def respond(request: httpx.Request) -> httpx.Response:
         query = json.loads(request.content)["query"]
         if _named(query, "GetTeamByKey"):
             return httpx.Response(
@@ -1145,7 +1145,7 @@ def test_issue_apply_json_graphql_failure_emits_error_envelope(
 ) -> None:
     base = _graphql_router()
 
-    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
+    def respond(request: httpx.Request) -> httpx.Response:
         query = json.loads(request.content)["query"]
         if _named(query, api_operation):
             return httpx.Response(
@@ -1178,7 +1178,7 @@ def test_issue_apply_json_graphql_failure_emits_error_envelope(
 def test_issue_comment_json_validation_failure_emits_error_envelope() -> None:
     base = _graphql_router()
 
-    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
+    def respond(request: httpx.Request) -> httpx.Response:
         query = json.loads(request.content)["query"]
         if _named(query, "CreateComment"):
             return httpx.Response(
@@ -1211,7 +1211,7 @@ def test_issue_comment_json_validation_failure_emits_error_envelope() -> None:
 def test_issue_update_json_http_failure_emits_error_envelope() -> None:
     base = _graphql_router()
 
-    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
+    def respond(request: httpx.Request) -> httpx.Response:
         query = json.loads(request.content)["query"]
         if _named(query, "UpdateIssue"):
             return httpx.Response(503, text="service unavailable")
@@ -2755,6 +2755,25 @@ def test_issue_comments_all_paginates_with_completion_metadata() -> None:
     assert [c["after"] for c in calls] == [None, "1"]  # noqa: S101
 
 
+def test_issue_comments_output_is_chronological_regardless_of_server_order() -> None:
+    # Linear's issue.comments connection returns newest-first; serve the
+    # pages in that order so the test pins the CLI's client-side reordering
+    # rather than just echoing the fixture's order back.
+    calls: list[dict[str, Any]] = []
+    pages = [[_comment_node(2)], [_comment_node(1)]]
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_comments_router(pages, calls))
+        result = runner.invoke(
+            app,
+            ["issue", "comments", "ENG-1", "--all", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0, result.output  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert [c["id"] for c in payload["results"]] == ["c-1", "c-2"]  # noqa: S101
+    assert [c["after"] for c in calls] == [None, "1"]  # noqa: S101
+
+
 def test_issue_comments_limit_reports_incomplete() -> None:
     pages = [[_comment_node(1)], [_comment_node(2)]]
     with respx.mock:
@@ -2866,6 +2885,138 @@ def test_labels_resolve_across_multiple_pages() -> None:
         labels=many,
     )  # fmt: skip
     assert json.loads(result.stdout)["payload"]["labelIds"] == ["l-4"]  # noqa: S101
+
+
+def _labels_router(
+    pages: list[list[dict[str, Any]]],
+    calls: list[dict[str, Any]] | None = None,
+) -> Callable[[httpx.Request], httpx.Response]:
+    """Serve ``pages`` of labels in order; other operations use the base router."""
+    base = _graphql_router()
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        if not _named(body["query"], "CliResolveLabel"):
+            return base(request)
+        variables = body["variables"]
+        if calls is not None:
+            calls.append(variables)
+        index = 0 if variables["after"] is None else int(variables["after"])
+        last = index == len(pages) - 1
+        return httpx.Response(
+            200,
+            json={
+                "data": {
+                    "issueLabels": {
+                        "nodes": pages[index],
+                        "pageInfo": page_info_payload(
+                            has_next=not last,
+                            end=None if last else str(index + 1),
+                        ),
+                    },
+                },
+            },
+        )
+
+    return respond
+
+
+def test_label_resolution_follows_every_page() -> None:
+    # 150 labels: a single first: 100 slice would miss label-149 entirely.
+    pages = [
+        [{"id": f"l-{n}", "name": f"label-{n}"} for n in range(start, start + 60)]
+        for start in (0, 60, 120)
+    ]
+    calls: list[dict[str, Any]] = []
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_labels_router(pages, calls))
+        result = runner.invoke(
+            app,
+            [
+                "issue", "create", "--team", "eng", "--title", "T",
+                "--label", "label-149", "--json",
+            ],
+            env=AUTH,
+        )
+    assert result.exit_code == 0, result.output  # noqa: S101
+    assert json.loads(result.stdout)["payload"]["labelIds"] == ["l-149"]  # noqa: S101
+    assert [c["after"] for c in calls] == [None, "1", "2"]  # noqa: S101
+    assert all(c["first"] == 100 for c in calls)  # noqa: S101
+
+
+def test_label_resolution_fails_closed_on_cursorless_extra_page() -> None:
+    base = _graphql_router()
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        if not _named(body["query"], "CliResolveLabel"):
+            return base(request)
+        # The requested label is on page one, but the connection claims a
+        # next page and offers no cursor to reach it.
+        return httpx.Response(
+            200,
+            json={
+                "data": {
+                    "issueLabels": {
+                        "nodes": [{"id": "l-1", "name": "Bug"}],
+                        "pageInfo": page_info_payload(has_next=True, end=None),
+                    },
+                },
+            },
+        )
+
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=respond)
+        result = runner.invoke(
+            app,
+            ["issue", "create", "--team", "eng", "--title", "T", "--label", "Bug"],
+            env=AUTH,
+        )
+    assert result.exit_code == 1  # noqa: S101
+    assert "unexpected issueLabels response" in result.output  # noqa: S101
+    assert "Traceback" not in result.output  # noqa: S101
+
+
+def test_label_resolution_stall_fails_cleanly_instead_of_looping() -> None:
+    base = _graphql_router()
+    seen_cursors: list[str | None] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        if not _named(body["query"], "CliResolveLabel"):
+            return base(request)
+        after = body["variables"]["after"]
+        seen_cursors.append(after)
+        # One real page, then empty pages that keep claiming a next page
+        # with fresh, advancing cursors — the stall shape paginate() budgets.
+        return httpx.Response(
+            200,
+            json={
+                "data": {
+                    "issueLabels": {
+                        "nodes": [{"id": "l-1", "name": "Bug"}] if after is None else [],
+                        "pageInfo": page_info_payload(
+                            has_next=True,
+                            end=f"{after or ''}x",
+                        ),
+                    },
+                },
+            },
+        )
+
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=respond)
+        result = runner.invoke(
+            app,
+            ["issue", "create", "--team", "eng", "--title", "T", "--label", "Bug"],
+            env=AUTH,
+        )
+    assert result.exit_code == 1  # noqa: S101
+    assert "unexpected issueLabels response" in result.output  # noqa: S101
+    assert "Traceback" not in result.output  # noqa: S101
+    # One page with nodes plus the paginator's empty-page budget: bounded,
+    # not an unbounded request loop.
+    assert seen_cursors == [None, "x", "xx", "xxx"]  # noqa: S101
 
 
 def test_unknown_label_is_usage_error_listing_candidates() -> None:
