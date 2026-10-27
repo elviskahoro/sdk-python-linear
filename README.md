@@ -75,10 +75,12 @@ Auth uses the SDK's `LinearSettings` resolution: `LINEAR_API_KEY` (`lin_api_...`
 | --- | --- |
 | `gtm-linear viewer` | Auth check: print the user the API key belongs to |
 | `gtm-linear teams` | List teams (key, name, id) |
+| `gtm-linear states TEAM [--archived]` | List workflow states (name, type, id) |
 | `gtm-linear issues --team ENG [--state open\|all\|NAME] [--priority VALUE] [--assignee NAME\|me] [--label NAME] [--limit N] [--all] [-v]` | List a team's issues, newest updated first (team key is case-insensitive; default state: open, limit: 25). State names, assignees, and labels match exactly; priority accepts Urgent/High/Medium/Low or 0–4. |
 | `gtm-linear issue ENG-123` | Fetch one issue by identifier (any casing) or Linear UUID |
-| `gtm-linear issue create --team ENG --title "..." [--description ...] [--priority 0-4] [--assignee-id UUID] [--project-id UUID] [--state-id UUID]` | Preview an issue creation; resolve the team key and show the typed mutation payload |
-| `gtm-linear issue update ENG-123 [fields...]` | Preview changes to title, description, priority, assignee, project, or state; use `--clear-description`, `--clear-priority`, `--clear-assignee`, `--clear-project`, or `--clear-state` to clear nullable fields |
+| `gtm-linear issue create --team ENG --title "..." [--description ...] [--priority 0-4] [--assignee-id UUID] [--project-id UUID] [--state-id UUID] [--label NAME]...` | Preview an issue creation; resolve the team key and label names (case-insensitive; unknown names are usage errors listing the team's labels) and show the typed mutation payload |
+| `gtm-linear issue update ENG-123 [fields...]` | Preview changes to title, description, priority, assignee, project, or state; use `--clear-description`, `--clear-priority`, `--clear-assignee`, `--clear-project`, or `--clear-state` to clear nullable fields; `--label NAME` (repeatable) adds labels and `--clear-labels` removes all of them |
+| `gtm-linear issue comments ENG-123 [--limit N] [--all] [--json] [-v]` | List an issue's comments, oldest first (default limit: 25; `--all` follows every page and `--json` adds `complete`/`truncated`). Human output truncates long bodies; `-v`/`--json` show the full text. Read-only. |
 | `gtm-linear issue comment ENG-123 --body "..."` | Preview a Markdown comment on an issue |
 | `gtm-linear search "term" [--limit N] [--all] [-v]` | Free-text issue search across the workspace (multi-word terms may be unquoted — words are joined; dash-prefixed values are searched as-is, so a mistyped flag becomes the term) |
 

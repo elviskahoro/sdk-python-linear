@@ -20,8 +20,11 @@ Usage:
     gtm-linear issues --team ENG --all --priority High --assignee me
     gtm-linear issue ENG-123
     gtm-linear issue create --team ENG --title "Investigate alert"
+    gtm-linear issue create --team ENG --title "Plan" --description-file plan.md
     gtm-linear issue update ENG-123 --priority 2 --apply
+    gtm-linear issue update ENG-123 --description-file plan.md --apply
     gtm-linear issue comment ENG-123 --body "I am looking into this"
+    cat note.md | gtm-linear issue comment ENG-123 --body-file - --apply
     gtm-linear search "onboarding" [--limit 10]
     gtm-linear search onboarding --all
 
@@ -42,6 +45,7 @@ import os
 import re
 import sys
 import unicodedata
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, NoReturn, Protocol, TypeVar
 
 import httpx2 as httpx
@@ -66,10 +70,12 @@ from .workflow import LinearWorkflow
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Sequence
 
+    from ._generated.ListIssueComments import ListIssueCommentsResultIssueComments
     from ._generated.ListIssues import ListIssuesResultIssues
     from ._generated.SearchIssues import SearchIssuesResultSearchIssues
     from ._generated.fragments import (
         CommentFields,
+        IssueContextCommentFields,
         IssueFields,
         IssueSearchResultFields,
     )
@@ -612,6 +618,108 @@ def _display_width(value: str) -> int:
     return columns
 
 
+def _comment_author(comment: IssueContextCommentFields) -> str | None:
+    if comment.user is not None:
+        return comment.user.name
+    if comment.external_user is not None:
+        return comment.external_user.display_name
+    return None
+
+
+def _comment_dict(
+    comment: IssueContextCommentFields,
+    issue_identifier: str,
+) -> dict[str, object]:
+    """Flatten one comment into the dict shape used by ``--json`` output."""
+    return {
+        "id": comment.id,
+        "issue": issue_identifier,
+        "author": _comment_author(comment),
+        "body": comment.body,
+        "url": comment.url,
+        "createdAt": comment.created_at.isoformat(),
+    }
+
+
+def _read_issue_comments(
+    linear: LinearWorkflow,
+    issue_id: str,
+    *,
+    fetch_all: bool,
+    limit: int | None,
+) -> tuple[Sequence[IssueContextCommentFields], bool, LinearPaginationError | None]:
+    page_size = MAX_PAGE_SIZE if fetch_all else (limit if limit is not None else 25)
+
+    async def fetch_page(
+        cursor: str | None,
+    ) -> ListIssueCommentsResultIssueComments:
+        return await linear._queries.list_issue_comments_page(  # noqa: SLF001
+            issue_id,
+            first=page_size,
+            after=cursor,
+        )
+
+    return _collect_paginated_sync(
+        linear,
+        fetch_page,
+        limit=None if fetch_all else page_size,
+    )
+
+
+_COMMENT_PREVIEW_CHARS = 80
+
+
+def _print_comments(
+    comments: Sequence[IssueContextCommentFields],
+    issue_identifier: str,
+    *,
+    as_json: bool,
+    verbose: bool = False,
+    all_results: bool = False,
+    complete: bool = True,
+) -> None:
+    """Render comments (oldest first) with explicit pagination metadata."""
+    if as_json:
+        results = [_comment_dict(c, issue_identifier) for c in comments]
+        if all_results:
+            typer.echo(
+                json.dumps(
+                    {
+                        "results": results,
+                        "complete": complete,
+                        "truncated": not complete,
+                    },
+                    indent=2,
+                ),
+            )
+        else:
+            typer.echo(json.dumps(results, indent=2))
+        return
+
+    if not comments:
+        typer.echo("no comments found")
+    elif verbose:
+        for comment in comments:
+            author = _cell(_comment_author(comment) or "-")
+            created = comment.created_at.isoformat()
+            typer.echo(f"\n{author} {created} {_cell(comment.url)}")
+            # Indent every line so a multi-line body cannot impersonate a
+            # header line.
+            for line in (_clean(comment.body) or "-").splitlines():
+                typer.echo(f"   {line}")
+    else:
+        for comment in comments:
+            body = _cell(comment.body)
+            if len(body) > _COMMENT_PREVIEW_CHARS:
+                body = body[: _COMMENT_PREVIEW_CHARS - 3] + "..."
+            author = _cell(_comment_author(comment) or "-")
+            typer.echo(f"{comment.created_at.isoformat()} {author}: {body}")
+    if complete:
+        typer.echo("complete: all matching comments fetched")
+    else:
+        typer.echo("incomplete: more comments may remain")
+
+
 def _print_issues(
     issues: Sequence[IssueLike],
     *,
@@ -873,6 +981,245 @@ def issues(
     )
 
 
+_UUID_RE = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+    re.IGNORECASE,
+)
+_CANDIDATE_LIMIT = 10
+
+
+def _candidates(items: Sequence[str]) -> str:
+    return ", ".join(_cell(item) for item in items) or "none"
+
+
+def _raw_nodes(
+    linear: LinearWorkflow,
+    query: str,
+    variables: dict[str, Any],
+    field: str,
+) -> list[dict[str, Any]]:
+    """Run a raw lookup and guard the unvalidated response shape."""
+    data = linear.client.execute(query, variables)
+    connection = data.get(field)
+    nodes = connection.get("nodes") if isinstance(connection, dict) else None
+    if not isinstance(nodes, list) or not all(
+        isinstance(n, dict) and isinstance(n.get("id"), str) for n in nodes
+    ):
+        _fail(f"unexpected {field} response from Linear")
+    return nodes
+
+
+def _resolve_user(linear: LinearWorkflow, value: str, option: str) -> str:
+    """Resolve `me`, a UUID, an email, or a name/display name to a user id."""
+    if _UUID_RE.fullmatch(value):
+        return value
+    if value.casefold() == "me":
+        return linear.get_viewer().id
+    nodes = _raw_nodes(
+        linear,
+        "query CliResolveUser($filter: UserFilter) "
+        f"{{ users(filter: $filter, first: {_CANDIDATE_LIMIT}) "
+        "{ nodes { id name displayName email } } }",
+        {
+            "filter": {
+                "or": [
+                    {"name": {"eqIgnoreCase": value}},
+                    {"displayName": {"eqIgnoreCase": value}},
+                    {"email": {"eqIgnoreCase": value}},
+                ],
+            },
+        },
+        "users",
+    )
+    if not nodes:
+        message = f"no user matching {value!r}"
+        raise typer.BadParameter(message, param_hint=option)
+    if len(nodes) > 1:
+        names = [f"{n.get('name')} <{n.get('email')}> ({n['id']})" for n in nodes]
+        message = f"ambiguous user {value!r}; candidates: {_candidates(names)}"
+        raise typer.BadParameter(message, param_hint=option)
+    return nodes[0]["id"]
+
+
+def _resolve_workflow_state(
+    linear: LinearWorkflow,
+    team_id: str,
+    team_key: str,
+    value: str,
+    option: str,
+) -> str:
+    """Resolve a workflow-state name (case-insensitive) or UUID to an id."""
+    if _UUID_RE.fullmatch(value):
+        return value
+    states = list(linear.iter_workflow_states(team_id, page_size=MAX_PAGE_SIZE))
+    matches = [s for s in states if s.name.casefold() == value.casefold()]
+    if len(matches) == 1:
+        return matches[0].id
+    names = [s.name for s in states]
+    if not matches:
+        message = (
+            f"unknown workflow state {value!r} for team {team_key}; "
+            f"candidates: {_candidates(names)}"
+        )
+    else:
+        message = (
+            f"ambiguous workflow state {value!r} for team {team_key}; "
+            f"candidates: {_candidates([f'{s.name} ({s.id})' for s in matches])}"
+        )
+    raise typer.BadParameter(message, param_hint=option)
+
+
+def _resolve_project(linear: LinearWorkflow, value: str, option: str) -> str:
+    """Resolve a project name (case-insensitive) or UUID to an id."""
+    if _UUID_RE.fullmatch(value):
+        return value
+    nodes = _raw_nodes(
+        linear,
+        "query CliResolveProject($filter: ProjectFilter) "
+        f"{{ projects(filter: $filter, first: {_CANDIDATE_LIMIT}) "
+        "{ nodes { id name } } }",
+        {"filter": {"name": {"eqIgnoreCase": value}}},
+        "projects",
+    )
+    if not nodes:
+        message = f"no project named {value!r}"
+        raise typer.BadParameter(message, param_hint=option)
+    if len(nodes) > 1:
+        names = [f"{n.get('name')} ({n['id']})" for n in nodes]
+        message = f"ambiguous project {value!r}; candidates: {_candidates(names)}"
+        raise typer.BadParameter(message, param_hint=option)
+    return nodes[0]["id"]
+
+
+def _resolve_labels(
+    linear: LinearWorkflow,
+    team_id: str,
+    team_key: str,
+    values: Sequence[str],
+    option: str,
+) -> tuple[list[str], list[str]]:
+    """Resolve label names (case-insensitive) or UUIDs to (ids, display names)."""
+    ids: list[str] = []
+    names: list[str] = []
+    labels: list[dict[str, Any]] | None = None
+    for value in values:
+        if _UUID_RE.fullmatch(value):
+            label_id, name = value, value
+        else:
+            if labels is None:
+                labels = _raw_nodes(
+                    linear,
+                    "query CliResolveLabel($filter: IssueLabelFilter) "
+                    f"{{ issueLabels(filter: $filter, first: {MAX_PAGE_SIZE}) "
+                    "{ nodes { id name } } }",
+                    {
+                        "filter": {
+                            "or": [
+                                {"team": {"id": {"eq": team_id}}},
+                                {"team": {"null": True}},
+                            ],
+                        },
+                    },
+                    "issueLabels",
+                )
+            exact = [n for n in labels if n.get("name") == value]
+            matches = exact or [
+                n
+                for n in labels
+                if isinstance(n.get("name"), str)
+                and n["name"].casefold() == value.casefold()
+            ]
+            if len(matches) != 1:
+                available = [str(n.get("name")) for n in labels]
+                if not matches:
+                    message = (
+                        f"unknown label {value!r} for team {team_key}; "
+                        f"candidates: {_candidates(available)}"
+                    )
+                else:
+                    dupes = [f"{n.get('name')} ({n['id']})" for n in matches]
+                    message = (
+                        f"ambiguous label {value!r} for team {team_key}; "
+                        f"candidates: {_candidates(dupes)}"
+                    )
+                raise typer.BadParameter(message, param_hint=option)
+            label_id, name = matches[0]["id"], str(matches[0].get("name"))
+        if label_id not in ids:
+            ids.append(label_id)
+            names.append(name)
+    return ids, names
+
+
+def _issue_team(linear: LinearWorkflow, issue_id: str) -> tuple[str, str]:
+    """Return (team id, team key) for an issue via a raw lookup."""
+    data = linear.client.execute(
+        "query CliIssueTeam($id: String!) { issue(id: $id) { team { id key } } }",
+        {"id": issue_id},
+    )
+    issue = data.get("issue")
+    team = issue.get("team") if isinstance(issue, dict) else None
+    if (
+        not isinstance(team, dict)
+        or not isinstance(team.get("id"), str)
+        or not isinstance(team.get("key"), str)
+    ):
+        _fail("unexpected issue response from Linear")
+    return team["id"], team["key"]
+
+
+def _friendly_or_id(
+    friendly: str | None,
+    explicit_id: str | None,
+    friendly_option: str,
+    id_option: str,
+) -> str | None:
+    """Apply the precedence rule: the -id option wins; say so on stderr."""
+    if friendly is not None and explicit_id is not None:
+        typer.secho(
+            f"note: {id_option} takes precedence over {friendly_option}; "
+            f"ignoring {friendly_option}",
+            err=True,
+        )
+        return None
+    return friendly
+
+
+def _reject_clear_conflicts(
+    pairs: Sequence[tuple[str, Any, bool, str]],
+) -> None:
+    for option, value, clear, clear_option in pairs:
+        if value is not None and clear:
+            message = f"{option} cannot be combined with {clear_option}"
+            raise typer.BadParameter(message, param_hint=option)
+
+
+def _check_update_fields(
+    title: str | None,
+    pairs: Sequence[tuple[str, Any, bool, str]],
+) -> None:
+    """Require at least one update field or --clear-* option."""
+    if title is None and not any(v is not None or c for _, v, c, _ in pairs):
+        message = "provide at least one update field or --clear-* option"
+        raise typer.BadParameter(message, param_hint="issue update")
+
+
+def _update_label_values(
+    linear: LinearWorkflow,
+    issue_id: str,
+    labels: list[str] | None,
+    *,
+    clear_labels: bool,
+) -> tuple[dict[str, Any], list[str]]:
+    """Build label update fields (add-only, or clear all) plus display names."""
+    if clear_labels:
+        return {"label_ids": []}, []
+    if not labels:
+        return {}, []
+    team_id, team_key = _issue_team(linear, issue_id)
+    ids, names = _resolve_labels(linear, team_id, team_key, labels, "--label")
+    return {"added_label_ids": ids}, names
+
+
 def _normalize_issue_identifier(identifier: str) -> str:
     """Normalize human issue identifiers while leaving UUIDs unchanged."""
     if re.fullmatch(r"[A-Za-z0-9]+-\d+", identifier):
@@ -902,6 +1249,59 @@ def _validate_text(value: str | None, option: str) -> str | None:
     return value
 
 
+def _read_text_source(
+    inline: str | None,
+    inline_option: str,
+    file_value: str | None,
+    file_option: str,
+) -> str | None:
+    """Resolve an inline text option or its ``--*-file`` twin (``-`` = stdin).
+
+    The two are mutually exclusive. File contents are returned exactly as
+    stored (UTF-8, no newline translation).
+    """
+    if file_value is None:
+        return inline
+    if inline is not None:
+        message = f"{inline_option} and {file_option} cannot be combined; pick one"
+        raise typer.BadParameter(message, param_hint=file_option)
+    try:
+        if file_value == "-":
+            if sys.stdin.isatty():
+                message = "refusing to read from a TTY; pipe content into stdin"
+                raise typer.BadParameter(message, param_hint=file_option)
+            raw = sys.stdin.buffer.read()
+        else:
+            raw = Path(file_value).read_bytes()
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        message = "input is not valid UTF-8"
+        raise typer.BadParameter(message, param_hint=file_option) from None
+    except OSError as exc:
+        message = f"cannot read {_cell(file_value)}: {_cell(exc.strerror or str(exc))}"
+        raise typer.BadParameter(message, param_hint=file_option) from None
+
+
+_PREVIEW_MAX_CHARS = 200
+_PREVIEW_MAX_LINES = 15
+
+
+def _summarize_long_string(value: object) -> object:
+    """Collapse long strings to ``{preview, moreLines, bytes}`` for previews."""
+    if not isinstance(value, str):
+        return value
+    lines = value.split("\n")
+    if len(value) < _PREVIEW_MAX_CHARS and len(lines) <= _PREVIEW_MAX_LINES:
+        return value
+    head = "\n".join(lines[:_PREVIEW_MAX_LINES])[:_PREVIEW_MAX_CHARS]
+    shown = head.count("\n") + 1
+    return {
+        "preview": head,
+        "moreLines": max(len(lines) - shown, 0),
+        "bytes": len(value.encode("utf-8")),
+    }
+
+
 def _render_preview(
     operation: str,
     target: dict[str, str],
@@ -914,7 +1314,7 @@ def _render_preview(
         "applied": False,
         "operation": operation,
         "target": target,
-        "payload": payload,
+        "payload": {k: _summarize_long_string(v) for k, v in payload.items()},
     }
     if as_json:
         typer.echo(json.dumps(preview, indent=2))
@@ -922,7 +1322,7 @@ def _render_preview(
     typer.echo("DRY RUN: no mutation sent (use --apply to execute)")
     typer.echo(f"operation: {operation}")
     typer.echo(f"target: {json.dumps(target, indent=2)}")
-    typer.echo(f"payload: {json.dumps(payload, indent=2)}")
+    typer.echo(f"payload: {json.dumps(preview['payload'], indent=2)}")
 
 
 def _cli_error_message(exc: Exception) -> str:
@@ -970,17 +1370,18 @@ def _render_write_failure(
 
 
 def _render_pagination_failure(
-    results: Sequence[IssueLike],
+    results: Sequence[Any],
     exc: LinearPaginationError,
     *,
     as_json: bool,
+    serialize: Callable[[Any], dict[str, object]] = _issue_dict,
 ) -> NoReturn:
     """Keep JSON parseable and preserve partial results when pagination stalls."""
     if as_json:
         typer.echo(
             json.dumps(
                 {
-                    "results": [_issue_dict(issue) for issue in results],
+                    "results": [serialize(item) for item in results],
                     "complete": False,
                     "truncated": True,
                     "error": _cli_error_message(exc),
@@ -1056,6 +1457,49 @@ def _read(
             typer.echo(f"   {line}")
 
 
+@app.command()
+def states(
+    team: Annotated[str, typer.Argument(callback=_normalize_team_key)],
+    *,
+    archived: Annotated[
+        bool,
+        typer.Option("--archived", help="Include archived workflow states."),
+    ] = False,
+    as_json: JsonOpt = False,
+) -> None:
+    """List a team's workflow states (name, type, id)."""
+    with _workflow() as linear:
+        resolved = linear.get_team_by_key(team)
+        if resolved is None:
+            _fail(f"no Linear team with key {team!r}")
+        found = list(
+            linear.iter_workflow_states(
+                resolved.id,
+                page_size=MAX_PAGE_SIZE,
+                include_archived=archived,
+            ),
+        )
+    if as_json:
+        typer.echo(
+            json.dumps(
+                [
+                    {"name": s.name, "type": s.type, "id": s.id, "position": s.position}
+                    for s in found
+                ],
+                indent=2,
+            ),
+        )
+        return
+    if not found:
+        typer.echo("no workflow states found")
+        return
+    width = max(_display_width(_cell(s.name)) for s in found)
+    for s in found:
+        name = _cell(s.name)
+        name += " " * (width - _display_width(name))
+        typer.echo(f"{name}  {_cell(s.type):<10} (id: {_cell(s.id)})")
+
+
 @issue_app.command()
 def create(
     *,
@@ -1070,6 +1514,13 @@ def create(
     description: Annotated[
         str | None,
         typer.Option(help="Issue description in Markdown."),
+    ] = None,
+    description_file: Annotated[
+        str | None,
+        typer.Option(
+            "--description-file",
+            help="Read the description from this file (or - for stdin).",
+        ),
     ] = None,
     priority: Annotated[
         int | None,
@@ -1087,41 +1538,105 @@ def create(
         str | None,
         typer.Option("--state-id", help="Linear workflow-state UUID."),
     ] = None,
+    assignee: Annotated[
+        str | None,
+        typer.Option(
+            "--assignee",
+            help="Friendly assignee: `me`, email, name, or user UUID. --assignee-id wins if both are given.",
+        ),
+    ] = None,
+    state: Annotated[
+        str | None,
+        typer.Option(
+            "--state",
+            help="Friendly workflow state name (or UUID). --state-id wins if both are given.",
+        ),
+    ] = None,
+    project: Annotated[
+        str | None,
+        typer.Option(
+            "--project",
+            help="Friendly project name (or UUID). --project-id wins if both are given.",
+        ),
+    ] = None,
+    labels: Annotated[
+        list[str] | None,
+        typer.Option("--label", help="Label name or UUID (repeatable)."),
+    ] = None,
     apply: ApplyOpt = False,
     as_json: JsonOpt = False,
 ) -> None:
     """Create an issue; preview by default, execute with --apply."""
     title = _validate_text(title, "--title") or ""
-    description = _validate_text(description, "--description")
+    description = _validate_text(
+        _read_text_source(
+            description,
+            "--description",
+            description_file,
+            "--description-file",
+        ),
+        "--description-file" if description_file is not None else "--description",
+    )
     assignee_id = _validate_text(assignee_id, "--assignee-id")
     project_id = _validate_text(project_id, "--project-id")
     state_id = _validate_text(state_id, "--state-id")
-    input_values: dict[str, Any] = {"title": title}
-    for name, value in (
-        ("description", description),
-        ("priority", priority),
-        ("assignee_id", assignee_id),
-        ("project_id", project_id),
-        ("state_id", state_id),
-    ):
-        if value is not None:
-            input_values[name] = value
+    assignee = _validate_text(assignee, "--assignee")
+    state = _validate_text(state, "--state")
+    project = _validate_text(project, "--project")
+    assignee = _friendly_or_id(assignee, assignee_id, "--assignee", "--assignee-id")
+    state = _friendly_or_id(state, state_id, "--state", "--state-id")
+    project = _friendly_or_id(project, project_id, "--project", "--project-id")
 
     with _workflow() as linear:
         resolved_team = linear.get_team_by_key(team)
         if resolved_team is None:
             _fail(f"no Linear team with key {team!r}")
+        if assignee is not None:
+            assignee_id = _resolve_user(linear, assignee, "--assignee")
+        if project is not None:
+            project_id = _resolve_project(linear, project, "--project")
+        if state is not None:
+            state_id = _resolve_workflow_state(
+                linear,
+                resolved_team.id,
+                resolved_team.key,
+                state,
+                "--state",
+            )
+        label_ids: list[str] = []
+        label_names: list[str] = []
+        if labels:
+            label_ids, label_names = _resolve_labels(
+                linear,
+                resolved_team.id,
+                resolved_team.key,
+                labels,
+                "--label",
+            )
+        input_values: dict[str, Any] = {"title": title}
+        for name, value in (
+            ("description", description),
+            ("priority", priority),
+            ("assignee_id", assignee_id),
+            ("project_id", project_id),
+            ("state_id", state_id),
+            ("label_ids", label_ids or None),
+        ):
+            if value is not None:
+                input_values[name] = value
         issue_input = IssueCreateInput(team_id=resolved_team.id, **input_values)
         payload = issue_input.model_dump(
             mode="json",
             by_alias=True,
             exclude_unset=True,
         )
-        target = {
+        target: dict[str, Any] = {
             "teamKey": resolved_team.key,
             "teamName": resolved_team.name,
             "teamId": resolved_team.id,
         }
+        if label_names:
+            target["labels"] = label_names
         if not apply:
             _render_preview("issue.create", target, payload, as_json=as_json)
             return
@@ -1133,12 +1648,7 @@ def create(
             httpx.HTTPError,
             ValidationError,
         ) as exc:
-            _render_write_failure(
-                "issue.create",
-                target,
-                exc,
-                as_json=as_json,
-            )
+            _render_write_failure("issue.create", target, exc, as_json=as_json)
         except ValueError as exc:
             _render_write_failure(
                 "issue.create",
@@ -1161,6 +1671,13 @@ def update(
     description: Annotated[
         str | None,
         typer.Option(help="Replace the Markdown description."),
+    ] = None,
+    description_file: Annotated[
+        str | None,
+        typer.Option(
+            "--description-file",
+            help="Read the new description from this file (or - for stdin).",
+        ),
     ] = None,
     clear_description: Annotated[
         bool,
@@ -1198,59 +1715,126 @@ def update(
         bool,
         typer.Option("--clear-state", help="Clear the workflow state."),
     ] = False,
+    assignee: Annotated[
+        str | None,
+        typer.Option(
+            "--assignee",
+            help="Friendly assignee: `me`, email, name, or user UUID. --assignee-id wins if both are given.",
+        ),
+    ] = None,
+    state: Annotated[
+        str | None,
+        typer.Option(
+            "--state",
+            help="Friendly workflow state name (or UUID). --state-id wins if both are given.",
+        ),
+    ] = None,
+    project: Annotated[
+        str | None,
+        typer.Option(
+            "--project",
+            help="Friendly project name (or UUID). --project-id wins if both are given.",
+        ),
+    ] = None,
+    labels: Annotated[
+        list[str] | None,
+        typer.Option("--label", help="Add a label by name or UUID (repeatable)."),
+    ] = None,
+    clear_labels: Annotated[
+        bool,
+        typer.Option("--clear-labels", help="Remove all labels."),
+    ] = False,
     apply: ApplyOpt = False,
     as_json: JsonOpt = False,
 ) -> None:
     """Update an issue; preview by default, execute with --apply."""
     title = _validate_text(title, "--title")
-    description = _validate_text(description, "--description")
+    description = _validate_text(
+        _read_text_source(
+            description,
+            "--description",
+            description_file,
+            "--description-file",
+        ),
+        "--description-file" if description_file is not None else "--description",
+    )
     assignee_id = _validate_text(assignee_id, "--assignee-id")
     project_id = _validate_text(project_id, "--project-id")
     state_id = _validate_text(state_id, "--state-id")
+    assignee = _validate_text(assignee, "--assignee")
+    state = _validate_text(state, "--state")
+    project = _validate_text(project, "--project")
+    _reject_clear_conflicts(
+        (
+            ("--assignee", assignee, clear_assignee, "--clear-assignee"),
+            ("--state", state, clear_state, "--clear-state"),
+            ("--project", project, clear_project, "--clear-project"),
+            ("--label", labels, clear_labels, "--clear-labels"),
+        ),
+    )
+    assignee = _friendly_or_id(assignee, assignee_id, "--assignee", "--assignee-id")
+    state = _friendly_or_id(state, state_id, "--state", "--state-id")
+    project = _friendly_or_id(project, project_id, "--project", "--project-id")
     pairs = (
         ("--description", description, clear_description, "--clear-description"),
         ("--priority", priority, clear_priority, "--clear-priority"),
         ("--assignee-id", assignee_id, clear_assignee, "--clear-assignee"),
         ("--project-id", project_id, clear_project, "--clear-project"),
         ("--state-id", state_id, clear_state, "--clear-state"),
+        ("--assignee", assignee, False, ""),
+        ("--state", state, False, ""),
+        ("--project", project, False, ""),
+        ("--label", labels, clear_labels, "--clear-labels"),
     )
-    for option, value, clear, clear_option in pairs:
-        if value is not None and clear:
-            message = f"{option} cannot be combined with {clear_option}"
-            raise typer.BadParameter(
-                message,
-                param_hint=option,
-            )
-    if title is None and not any(v is not None or c for _, v, c, _ in pairs):
-        message = "provide at least one update field or --clear-* option"
-        raise typer.BadParameter(
-            message,
-            param_hint="issue update",
-        )
+    _reject_clear_conflicts(pairs)
 
-    update_values: dict[str, Any] = {}
-    for name, value, clear in (
-        ("title", title, False),
-        ("description", description, clear_description),
-        ("priority", priority, clear_priority),
-        ("assignee_id", assignee_id, clear_assignee),
-        ("project_id", project_id, clear_project),
-        ("state_id", state_id, clear_state),
-    ):
-        if clear:
-            update_values[name] = None
-        elif value is not None:
-            update_values[name] = value
+    _check_update_fields(title, pairs)
 
     with _workflow() as linear:
         resolved = _resolve_issue(linear, identifier)
+        if assignee is not None:
+            assignee_id = _resolve_user(linear, assignee, "--assignee")
+        if project is not None:
+            project_id = _resolve_project(linear, project, "--project")
+        if state is not None:
+            team_id, team_key = _issue_team(linear, resolved.id)
+            state_id = _resolve_workflow_state(
+                linear,
+                team_id,
+                team_key,
+                state,
+                "--state",
+            )
+        update_values, label_names = _update_label_values(
+            linear,
+            resolved.id,
+            labels,
+            clear_labels=clear_labels,
+        )
+        for name, value, clear in (
+            ("title", title, False),
+            ("description", description, clear_description),
+            ("priority", priority, clear_priority),
+            ("assignee_id", assignee_id, clear_assignee),
+            ("project_id", project_id, clear_project),
+            ("state_id", state_id, clear_state),
+        ):
+            if clear:
+                update_values[name] = None
+            elif value is not None:
+                update_values[name] = value
         update_input = IssueUpdateInput(**update_values)
         payload = update_input.model_dump(
             mode="json",
             by_alias=True,
             exclude_unset=True,
         )
-        target = {"identifier": resolved.identifier, "id": resolved.id}
+        target: dict[str, Any] = {
+            "identifier": resolved.identifier,
+            "id": resolved.id,
+        }
+        if label_names:
+            target["labels"] = label_names
         if not apply:
             _render_preview("issue.update", target, payload, as_json=as_json)
             return
@@ -1286,12 +1870,26 @@ def comment(
         typer.Argument(help="Issue identifier, e.g. ENG-123, or Linear UUID."),
     ],
     *,
-    body: Annotated[str, typer.Option(help="Comment body in Markdown.")],
+    body: Annotated[
+        str | None,
+        typer.Option(help="Comment body in Markdown."),
+    ] = None,
+    body_file: Annotated[
+        str | None,
+        typer.Option(
+            "--body-file",
+            help="Read the comment body from this file (or - for stdin).",
+        ),
+    ] = None,
     apply: ApplyOpt = False,
     as_json: JsonOpt = False,
 ) -> None:
     """Add a comment; preview by default, execute with --apply."""
-    body = _validate_text(body, "--body") or ""
+    body = _read_text_source(body, "--body", body_file, "--body-file")
+    if body is None:
+        message = "provide --body or --body-file"
+        raise typer.BadParameter(message, param_hint="--body")
+    body = _validate_text(body, "--body-file" if body_file else "--body") or ""
     with _workflow() as linear:
         resolved = _resolve_issue(linear, identifier)
         payload = {"issueId": resolved.id, "body": body}
@@ -1315,6 +1913,56 @@ def comment(
                 as_json=as_json,
             )
     _render_comment_result(created, resolved.identifier, as_json=as_json)
+
+
+@issue_app.command()
+def comments(
+    identifier: Annotated[
+        str,
+        typer.Argument(help="Issue identifier, e.g. ENG-123, or Linear UUID."),
+    ],
+    *,
+    limit: Annotated[
+        int | None,
+        typer.Option(
+            min=1,
+            max=MAX_PAGE_SIZE,
+            help=f"Max comments to fetch (1-{MAX_PAGE_SIZE}, default 25).",
+        ),
+    ] = None,
+    fetch_all: AllOpt = False,
+    verbose: VerboseOpt = False,
+    as_json: JsonOpt = False,
+) -> None:
+    """List an issue's comments, oldest first (read-only)."""
+    if fetch_all and limit is not None:
+        error_msg = "--all cannot be combined with --limit"
+        raise typer.BadParameter(error_msg, param_hint="--limit")
+    with _workflow() as linear:
+        resolved = _resolve_issue(linear, identifier)
+        found, complete, pagination_error = _read_issue_comments(
+            linear,
+            resolved.id,
+            fetch_all=fetch_all,
+            limit=limit,
+        )
+    if pagination_error is not None:
+        _render_pagination_failure(
+            found,
+            pagination_error,
+            as_json=as_json,
+            serialize=lambda c: _comment_dict(c, resolved.identifier),
+        )
+    if not complete:
+        _note_more_results("comments", len(found))
+    _print_comments(
+        found,
+        resolved.identifier,
+        as_json=as_json,
+        verbose=verbose,
+        all_results=fetch_all,
+        complete=complete,
+    )
 
 
 app.add_typer(issue_app, name="issue")

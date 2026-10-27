@@ -101,6 +101,9 @@ def _graphql_router(
     issues: list[dict[str, Any]] | None = None,
     workflow_states: list[dict[str, Any]] | None = None,
     more: bool = False,
+    users: list[dict[str, Any]] | None = None,
+    projects: list[dict[str, Any]] | None = None,
+    labels: list[dict[str, Any]] | None = None,
 ) -> Callable[[httpx.Request], httpx.Response]:
     """Respx side effect serving each CLI operation by GraphQL document name.
 
@@ -111,10 +114,18 @@ def _graphql_router(
     resolved_issues = [issue_payload("iss-1")] if issues is None else issues
     resolved_states = [] if workflow_states is None else workflow_states
 
-    def respond(request: httpx.Request) -> httpx.Response:
+    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
         query = json.loads(request.content)["query"]
         if _named(query, "GetViewer"):
             data: dict[str, Any] = {"viewer": user_payload()}
+        elif _named(query, "CliResolveUser"):
+            data = {"users": {"nodes": users or []}}
+        elif _named(query, "CliResolveProject"):
+            data = {"projects": {"nodes": projects or []}}
+        elif _named(query, "CliResolveLabel"):
+            data = {"issueLabels": {"nodes": labels or []}}
+        elif _named(query, "CliIssueTeam"):
+            data = {"issue": {"team": {"id": "team-1", "key": "ENG"}}}
         elif _named(query, "GetTeamByKey"):
             data = {"teams": {"nodes": [team] if team else []}}
         elif _named(query, "GetIssue"):
@@ -259,7 +270,7 @@ def test_teams_pads_the_key_column_by_display_width() -> None:
         {"id": "t-2", "key": "ENG", "name": "Two"},
     ]
 
-    def respond(request: httpx.Request) -> httpx.Response:
+    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
         return httpx.Response(200, json={"data": {"teams": {"nodes": nodes}}})
 
     with respx.mock:
@@ -316,7 +327,7 @@ def test_teams_notes_when_page_info_says_more_exist() -> None:
         {"id": f"t-{n}", "key": f"T{n:02d}", "name": f"Team {n}"} for n in range(3)
     ]
 
-    def respond(request: httpx.Request) -> httpx.Response:
+    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
         return httpx.Response(
             200,
             json={
@@ -345,7 +356,7 @@ def test_teams_does_not_cry_wolf_on_an_exactly_full_page() -> None:
         {"id": f"t-{n}", "key": f"T{n:02d}", "name": f"Team {n}"} for n in range(100)
     ]
 
-    def respond(request: httpx.Request) -> httpx.Response:
+    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
         return httpx.Response(
             200,
             json={
@@ -418,7 +429,7 @@ def test_issues_all_fetches_pages_and_emits_completion_metadata() -> None:
     base = _graphql_router()
     calls: list[dict[str, Any]] = []
 
-    def respond(request: httpx.Request) -> httpx.Response:
+    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
         body = json.loads(request.content)
         query = body["query"]
         if _named(query, "ListIssues"):
@@ -463,7 +474,7 @@ def test_bounded_issue_limit_stops_mid_page_after_following_cursor() -> None:
     base = _graphql_router()
     calls: list[dict[str, Any]] = []
 
-    def respond(request: httpx.Request) -> httpx.Response:
+    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
         body = json.loads(request.content)
         if _named(body["query"], "ListIssues"):
             variables = body["variables"]
@@ -523,7 +534,7 @@ def test_search_all_fetches_pages_and_emits_completion_metadata() -> None:
     base = _graphql_router()
     calls: list[dict[str, Any]] = []
 
-    def respond(request: httpx.Request) -> httpx.Response:
+    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
         body = json.loads(request.content)
         if _named(body["query"], "SearchIssues"):
             variables = body["variables"]
@@ -581,7 +592,7 @@ def test_all_marks_cursor_guard_stops_as_truncated(
     base = _graphql_router()
     calls: list[str | None] = []
 
-    def respond(request: httpx.Request) -> httpx.Response:
+    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
         body = json.loads(request.content)
         if _named(body["query"], "SearchIssues"):
             after = body["variables"]["after"]
@@ -627,7 +638,7 @@ def test_search_all_surfaces_stalled_pagination_error() -> None:
     base = _graphql_router()
     calls = 0
 
-    def respond(request: httpx.Request) -> httpx.Response:
+    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
         nonlocal calls
         body = json.loads(request.content)
         if _named(body["query"], "SearchIssues"):
@@ -675,7 +686,7 @@ def test_all_json_stall_emits_partial_results_and_error(
     base = _graphql_router()
     calls = 0
 
-    def respond(request: httpx.Request) -> httpx.Response:
+    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
         nonlocal calls
         query = json.loads(request.content)["query"]
         if not _named(query, operation):
@@ -880,7 +891,7 @@ def test_issues_verbose_flattens_and_indents_hostile_text() -> None:
 def test_teams_rows_flatten_hostile_names() -> None:
     nodes = [{"id": "t-1", "key": "ENG", "name": "Evil\nForged (id: x)"}]
 
-    def respond(request: httpx.Request) -> httpx.Response:
+    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
         return httpx.Response(
             200,
             json={
@@ -918,7 +929,7 @@ def test_issues_json_emits_none_for_non_finite_priority() -> None:
         {"data": {"issues": {"nodes": [drifted], "pageInfo": page_info_payload()}}},
     )
 
-    def respond(request: httpx.Request) -> httpx.Response:
+    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
         query = json.loads(request.content)["query"]
         if _named(query, "GetTeamByKey"):
             return httpx.Response(
@@ -1122,7 +1133,7 @@ def test_issue_apply_json_graphql_failure_emits_error_envelope(
 ) -> None:
     base = _graphql_router()
 
-    def respond(request: httpx.Request) -> httpx.Response:
+    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
         query = json.loads(request.content)["query"]
         if _named(query, api_operation):
             return httpx.Response(
@@ -1155,7 +1166,7 @@ def test_issue_apply_json_graphql_failure_emits_error_envelope(
 def test_issue_comment_json_validation_failure_emits_error_envelope() -> None:
     base = _graphql_router()
 
-    def respond(request: httpx.Request) -> httpx.Response:
+    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
         query = json.loads(request.content)["query"]
         if _named(query, "CreateComment"):
             return httpx.Response(
@@ -1188,7 +1199,7 @@ def test_issue_comment_json_validation_failure_emits_error_envelope() -> None:
 def test_issue_update_json_http_failure_emits_error_envelope() -> None:
     base = _graphql_router()
 
-    def respond(request: httpx.Request) -> httpx.Response:
+    def respond(request: httpx.Request) -> httpx.Response:  # noqa: PLR0912
         query = json.loads(request.content)["query"]
         if _named(query, "UpdateIssue"):
             return httpx.Response(503, text="service unavailable")
@@ -2275,3 +2286,617 @@ def test_main_fallback_branch_catches_broken_pipe(
     captured = capsys.readouterr()
     assert "error:" not in captured.err  # noqa: S101
     assert "Traceback" not in captured.err  # noqa: S101
+
+
+STATES = [
+    {
+        "id": "st-1",
+        "name": "In Progress",
+        "type": "started",
+        "color": "#fff",
+        "position": 1.0,
+    },
+    {
+        "id": "st-2",
+        "name": "Done",
+        "type": "completed",
+        "color": "#fff",
+        "position": 2.0,
+    },
+]
+
+
+def _ops(route: respx.Route) -> list[str]:
+    return _operation_names(route)
+
+
+def test_states_json_lists_name_type_id() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_graphql_router(workflow_states=STATES))
+        result = runner.invoke(app, ["states", "eng", "--json"], env=AUTH)
+    assert result.exit_code == 0  # noqa: S101
+    assert [(s["name"], s["type"], s["id"]) for s in json.loads(result.stdout)] == [
+        ("In Progress", "started", "st-1"),
+        ("Done", "completed", "st-2"),
+    ]
+
+
+def test_states_archived_flag_and_table() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            side_effect=_graphql_router(workflow_states=STATES),
+        )
+        result = runner.invoke(app, ["states", "ENG", "--archived"], env=AUTH)
+    assert result.exit_code == 0  # noqa: S101
+    assert "In Progress" in result.stdout  # noqa: S101
+    assert _sent_variables(route, "ListWorkflowStates")["includeArchived"] is True  # noqa: S101
+
+
+def test_states_unknown_team_fails() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_graphql_router(team=None))
+        result = runner.invoke(app, ["states", "NOPE"], env=AUTH)
+    assert result.exit_code == 1  # noqa: S101
+
+
+def test_update_state_name_resolves_case_insensitively() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            side_effect=_graphql_router(workflow_states=STATES),
+        )
+        result = runner.invoke(
+            app,
+            ["issue", "update", "ENG-1", "--state", "in progress", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    assert json.loads(result.stdout)["payload"] == {"stateId": "st-1"}  # noqa: S101
+    assert "UpdateIssue" not in _ops(route)  # noqa: S101
+
+
+def test_update_unknown_state_lists_candidates() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_graphql_router(workflow_states=STATES))
+        result = runner.invoke(
+            app,
+            ["issue", "update", "ENG-1", "--state", "bogus", "--apply"],
+            env=AUTH,
+        )
+    assert result.exit_code == 2  # noqa: S101
+    assert "In Progress" in result.output  # noqa: S101
+    assert "Done" in result.output  # noqa: S101
+
+
+def test_update_assignee_me_uses_viewer_only() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["issue", "update", "ENG-1", "--assignee", "me", "--apply", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    assert _ops(route) == ["GetIssue", "GetViewer", "UpdateIssue"]  # noqa: S101
+    assert _sent_variables(route, "UpdateIssue")["input"] == {"assigneeId": "u-1"}  # noqa: S101
+
+
+def test_assignee_by_email_ambiguous_and_unknown() -> None:
+    two = [user_payload("u-1"), user_payload("u-2")]
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_graphql_router(users=two))
+        ambiguous = runner.invoke(
+            app,
+            ["issue", "update", "ENG-1", "--assignee", "alice"],
+            env=AUTH,
+        )
+    assert ambiguous.exit_code == 2  # noqa: S101
+    assert "u-1" in ambiguous.output  # noqa: S101
+    assert "u-2" in ambiguous.output  # noqa: S101
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_graphql_router(users=[]))
+        unknown = runner.invoke(
+            app,
+            ["issue", "update", "ENG-1", "--assignee", "zed"],
+            env=AUTH,
+        )
+    assert unknown.exit_code == 2  # noqa: S101
+
+
+def test_assignee_name_match_and_uuid_passthrough() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(
+            side_effect=_graphql_router(users=[user_payload("u-9")]),
+        )
+        named = runner.invoke(
+            app,
+            ["issue", "update", "ENG-1", "--assignee", "Alice", "--json"],
+            env=AUTH,
+        )
+    assert json.loads(named.stdout)["payload"] == {"assigneeId": "u-9"}  # noqa: S101
+    uuid = "00000000-0000-0000-0000-000000000000"
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        passed = runner.invoke(
+            app,
+            ["issue", "update", "ENG-1", "--assignee", uuid, "--json"],
+            env=AUTH,
+        )
+    assert json.loads(passed.stdout)["payload"] == {"assigneeId": uuid}  # noqa: S101
+    assert _ops(route) == ["GetIssue"]  # noqa: S101
+
+
+def test_project_name_resolution_on_create() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(
+            side_effect=_graphql_router(
+                projects=[{"id": "p-1", "name": "Replace GHA"}],
+            ),
+        )
+        result = runner.invoke(
+            app,
+            [
+                "issue",
+                "create",
+                "--team",
+                "eng",
+                "--title",
+                "T",
+                "--project",
+                "replace gha",
+                "--json",
+            ],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    assert json.loads(result.stdout)["payload"]["projectId"] == "p-1"  # noqa: S101
+
+
+def test_id_option_wins_over_friendly_with_note() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            [
+                "issue",
+                "update",
+                "ENG-1",
+                "--assignee",
+                "me",
+                "--assignee-id",
+                "u-5",
+                "--json",
+            ],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    assert json.loads(result.stdout)["payload"] == {"assigneeId": "u-5"}  # noqa: S101
+    assert "--assignee-id takes precedence" in result.output  # noqa: S101
+    assert _ops(route) == ["GetIssue"]  # noqa: S101
+
+
+def test_friendly_with_clear_is_usage_error() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["issue", "update", "ENG-1", "--state", "Done", "--clear-state"],
+            env=AUTH,
+        )
+    assert result.exit_code == 2  # noqa: S101
+    assert route.call_count == 0  # noqa: S101
+
+
+_TRICKY_MD = "# T\n`code` $HOME \"dq\" 'sq' $(rm -rf /)\n"
+
+
+def test_issue_create_description_file_round_trips_bytes(tmp_path: Path) -> None:
+    md = tmp_path / "d.md"
+    md.write_bytes(_TRICKY_MD.encode())
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            [
+                "issue",
+                "create",
+                "--team",
+                "ENG",
+                "--title",
+                "T",
+                "--description-file",
+                str(md),
+                "--apply",
+                "--json",
+            ],
+            env=AUTH,
+        )
+    assert result.exit_code == 0, result.output  # noqa: S101
+    sent = _sent_variables(route, "CreateIssue")
+    assert sent["input"]["description"] == _TRICKY_MD  # noqa: S101
+
+
+def test_issue_comment_body_file_stdin_round_trips() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["issue", "comment", "ENG-1", "--body-file", "-", "--apply", "--json"],
+            input=_TRICKY_MD.encode(),
+            env=AUTH,
+        )
+    assert result.exit_code == 0, result.output  # noqa: S101
+    assert _sent_variables(route, "CreateComment")["input"]["body"] == _TRICKY_MD  # noqa: S101
+
+
+def test_body_file_stdin_tty_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    import types
+
+    fake_sys = types.SimpleNamespace(
+        stdin=types.SimpleNamespace(isatty=lambda: True),
+    )
+    monkeypatch.setattr("gtm_linear.cli.sys", fake_sys)
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["issue", "comment", "ENG-1", "--body-file", "-"],
+            env=AUTH,
+        )
+    assert result.exit_code == 2  # noqa: S101
+    assert "TTY" in _plain(result.output)  # noqa: S101
+    assert route.call_count == 0  # noqa: S101
+
+
+@pytest.mark.parametrize(
+    ("args", "message"),
+    [
+        (
+            [
+                "issue",
+                "create",
+                "--team",
+                "ENG",
+                "--title",
+                "T",
+                "--description",
+                "x",
+                "--description-file",
+                "{f}",
+            ],
+            "--description and --description-file cannot be combined",
+        ),
+        (
+            [
+                "issue",
+                "update",
+                "ENG-1",
+                "--description",
+                "x",
+                "--description-file",
+                "{f}",
+            ],
+            "--description and --description-file cannot be combined",
+        ),
+        (
+            ["issue", "comment", "ENG-1", "--body", "x", "--body-file", "{f}"],
+            "--body and --body-file cannot be combined",
+        ),
+    ],
+)
+def test_inline_and_file_options_are_mutually_exclusive(
+    tmp_path: Path,
+    args: list[str],
+    message: str,
+) -> None:
+    md = tmp_path / "d.md"
+    md.write_text("x")
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            [a.replace("{f}", str(md)) for a in args],
+            env=AUTH,
+        )
+    assert result.exit_code == 2  # noqa: S101
+    flat = " ".join(_plain(result.output).replace("│", " ").split())
+    assert message in flat  # noqa: S101
+    assert route.call_count == 0  # noqa: S101
+
+
+def test_update_description_file_conflicts_with_clear(tmp_path: Path) -> None:
+    md = tmp_path / "d.md"
+    md.write_text("x")
+    result = runner.invoke(
+        app,
+        [
+            "issue",
+            "update",
+            "ENG-1",
+            "--description-file",
+            str(md),
+            "--clear-description",
+        ],
+        env=AUTH,
+    )
+    assert result.exit_code == 2  # noqa: S101
+
+
+def test_long_description_file_preview_is_summarized(tmp_path: Path) -> None:
+    text = "".join(f"line {i}\n" for i in range(1500))
+    md = tmp_path / "d.md"
+    md.write_text(text)
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["issue", "update", "ENG-1", "--description-file", str(md), "--json"],
+            env=AUTH,
+        )
+        applied = runner.invoke(
+            app,
+            [
+                "issue",
+                "update",
+                "ENG-1",
+                "--description-file",
+                str(md),
+                "--apply",
+                "--json",
+            ],
+            env=AUTH,
+        )
+    description = json.loads(result.stdout)["payload"]["description"]
+    assert set(description) == {"preview", "moreLines", "bytes"}  # noqa: S101
+    assert description["bytes"] == len(text.encode())  # noqa: S101
+    assert applied.exit_code == 0, applied.output  # noqa: S101
+    assert _sent_variables(route, "UpdateIssue")["input"]["description"] == text  # noqa: S101
+
+
+def _comment_node(n: int, body: str = "hello") -> dict[str, Any]:
+    return {
+        "id": f"c-{n}",
+        "body": body,
+        "url": f"https://linear.app/x/comment-{n}",
+        "createdAt": f"2025-01-0{n}T00:00:00Z",
+        "user": {"id": "u-1", "name": "Ada", "email": "a@x.io", "active": True},
+        "externalUser": None,
+    }
+
+
+def _comments_router(
+    pages: list[list[dict[str, Any]]],
+    calls: list[dict[str, Any]] | None = None,
+) -> Callable[[httpx.Request], httpx.Response]:
+    """Serve ``pages`` of comments in order; other operations use the base router."""
+    base = _graphql_router()
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        if not _named(body["query"], "ListIssueComments"):
+            return base(request)
+        variables = body["variables"]
+        if calls is not None:
+            calls.append(variables)
+        index = 0 if variables["after"] is None else int(variables["after"])
+        last = index == len(pages) - 1
+        return httpx.Response(
+            200,
+            json={
+                "data": {
+                    "issue": {
+                        "comments": {
+                            "nodes": pages[index],
+                            "pageInfo": page_info_payload(
+                                has_next=not last,
+                                end=None if last else str(index + 1),
+                            ),
+                        },
+                    },
+                },
+            },
+        )
+
+    return respond
+
+
+def test_issue_comments_lists_thread_as_json() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_comments_router([[_comment_node(1)]]))
+        result = runner.invoke(
+            app,
+            ["issue", "comments", "ENG-1", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert payload[0]["id"] == "c-1"  # noqa: S101
+    assert payload[0]["author"] == "Ada"  # noqa: S101
+    assert payload[0]["body"] == "hello"  # noqa: S101
+
+
+def test_issue_comments_empty_thread_is_valid() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_comments_router([[]]))
+        as_json = runner.invoke(app, ["issue", "comments", "ENG-1", "--json"], env=AUTH)
+        human = runner.invoke(app, ["issue", "comments", "ENG-1"], env=AUTH)
+    assert as_json.exit_code == 0  # noqa: S101
+    assert json.loads(as_json.stdout) == []  # noqa: S101
+    assert human.exit_code == 0  # noqa: S101
+    assert "no comments found" in human.stdout  # noqa: S101
+
+
+def test_issue_comments_all_paginates_with_completion_metadata() -> None:
+    calls: list[dict[str, Any]] = []
+    pages = [[_comment_node(1)], [_comment_node(2)]]
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_comments_router(pages, calls))
+        result = runner.invoke(
+            app,
+            ["issue", "comments", "ENG-1", "--all", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert [c["id"] for c in payload["results"]] == ["c-1", "c-2"]  # noqa: S101
+    assert payload["complete"] is True  # noqa: S101
+    assert payload["truncated"] is False  # noqa: S101
+    assert [c["after"] for c in calls] == [None, "1"]  # noqa: S101
+
+
+def test_issue_comments_limit_reports_incomplete() -> None:
+    pages = [[_comment_node(1)], [_comment_node(2)]]
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_comments_router(pages))
+        result = runner.invoke(
+            app,
+            ["issue", "comments", "ENG-1", "--limit", "1"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    assert "incomplete: more comments may remain" in result.stdout  # noqa: S101
+
+
+def test_issue_comments_all_with_limit_is_usage_error() -> None:
+    result = runner.invoke(
+        app,
+        ["issue", "comments", "ENG-1", "--all", "--limit", "5"],
+        env=AUTH,
+    )
+    assert result.exit_code == 2  # noqa: S101, PLR2004
+
+
+def test_issue_comments_truncates_body_unless_verbose() -> None:
+    long_body = "word " * 60
+    pages = [[_comment_node(1, long_body)]]
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_comments_router(pages))
+        short = runner.invoke(app, ["issue", "comments", "ENG-1"], env=AUTH)
+        full = runner.invoke(app, ["issue", "comments", "ENG-1", "-v"], env=AUTH)
+    assert "..." in short.stdout  # noqa: S101
+    assert long_body.strip() not in short.stdout  # noqa: S101
+    assert long_body.strip() in full.stdout  # noqa: S101
+
+
+LABELS = [
+    {"id": "l-1", "name": "Bug"},
+    {"id": "l-2", "name": "enhancement"},
+]
+
+
+def _label_run(args: list[str], *, labels: list[dict[str, Any]] = LABELS):
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            side_effect=_graphql_router(labels=labels),
+        )
+        result = runner.invoke(app, args, env=AUTH)
+    return result, route
+
+
+def test_create_labels_resolve_case_insensitively_in_preview() -> None:
+    result, route = _label_run(
+        [
+            "issue", "create", "--team", "eng", "--title", "T",
+            "--label", "bug", "--label", "enhancement", "--json",
+        ],
+    )  # fmt: skip
+    assert result.exit_code == 0  # noqa: S101
+    out = json.loads(result.stdout)
+    assert out["payload"]["labelIds"] == ["l-1", "l-2"]  # noqa: S101
+    assert out["target"]["labels"] == ["Bug", "enhancement"]  # noqa: S101
+    assert "CreateIssue" not in " ".join(  # noqa: S101
+        json.loads(c.request.content)["query"] for c in route.calls
+    )
+
+
+def test_create_labels_apply_sends_label_ids() -> None:
+    result, route = _label_run(
+        [
+            "issue", "create", "--team", "eng", "--title", "T",
+            "--label", "Bug", "--apply",
+        ],
+    )  # fmt: skip
+    assert result.exit_code == 0  # noqa: S101
+    assert _sent_variables(route, "CreateIssue")["input"]["labelIds"] == ["l-1"]  # noqa: S101
+
+
+def test_update_label_adds_and_clear_labels_clears() -> None:
+    result, _ = _label_run(
+        ["issue", "update", "ENG-1", "--label", "bug", "--json"],
+    )
+    assert result.exit_code == 0  # noqa: S101
+    out = json.loads(result.stdout)
+    assert out["payload"] == {"addedLabelIds": ["l-1"]}  # noqa: S101
+    assert out["target"]["labels"] == ["Bug"]  # noqa: S101
+    result, _ = _label_run(
+        ["issue", "update", "ENG-1", "--clear-labels", "--json"],
+    )
+    assert result.exit_code == 0  # noqa: S101
+    assert json.loads(result.stdout)["payload"] == {"labelIds": []}  # noqa: S101
+
+
+def test_unknown_label_is_usage_error_listing_candidates() -> None:
+    result, route = _label_run(
+        ["issue", "create", "--team", "eng", "--title", "T", "--label", "nope"],
+    )
+    assert result.exit_code == 2  # noqa: S101
+    assert "Bug" in result.output  # noqa: S101
+    assert "enhancement" in result.output  # noqa: S101
+    assert not any(  # noqa: S101
+        "mutation" in json.loads(c.request.content)["query"] for c in route.calls
+    )
+
+
+def test_label_with_clear_labels_is_usage_error() -> None:
+    result, route = _label_run(
+        ["issue", "update", "ENG-1", "--label", "bug", "--clear-labels"],
+    )
+    assert result.exit_code == 2  # noqa: S101
+    assert route.call_count == 0  # noqa: S101
+
+
+def test_human_preview_shows_label_names() -> None:
+    result, _ = _label_run(
+        ["issue", "create", "--team", "eng", "--title", "T", "--label", "bug"],
+    )
+    assert result.exit_code == 0  # noqa: S101
+    assert "Bug" in result.output  # noqa: S101
+
+
+def test_issue_comments_pagination_stall_keeps_partial_json() -> None:
+    base = _comments_router([[_comment_node(1)]])
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        if not _named(body["query"], "ListIssueComments"):
+            return base(request)
+        after = body["variables"]["after"]
+        return httpx.Response(
+            200,
+            json={
+                "data": {
+                    "issue": {
+                        "comments": {
+                            # One real comment, then empty pages that keep
+                            # claiming a next page with fresh cursors.
+                            "nodes": [_comment_node(1)] if after is None else [],
+                            "pageInfo": page_info_payload(
+                                has_next=True,
+                                end=f"{after or ''}x",
+                            ),
+                        },
+                    },
+                },
+            },
+        )
+
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=respond)
+        result = runner.invoke(
+            app,
+            ["issue", "comments", "ENG-1", "--all", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 1  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert payload["truncated"] is True  # noqa: S101
+    assert payload["results"][0]["id"] == "c-1"  # noqa: S101
