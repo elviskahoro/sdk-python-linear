@@ -8,10 +8,10 @@ from gtm_linear._generated.CreateComment import CreateCommentResultCommentCreate
 from gtm_linear._generated.CreateIssue import SLADayCountType
 
 
-def test_docstring_escapes_quotes_and_newlines() -> None:
-    literal = pp._docstring('say "hi"\nback\\slash')
-    assert literal == '"""say \\"hi\\"\\nback\\\\slash"""'
-    assert eval(literal) == 'say "hi"\nback\\slash'  # noqa: S307
+def test_docstring_escapes_quotes_and_flattens_whitespace() -> None:
+    literal = pp._docstring('say "hi"\n  back\\slash')
+    assert literal == '"""say \\"hi\\" back\\\\slash"""'
+    assert eval(literal) == 'say "hi" back\\slash'  # noqa: S307
 
 
 def test_enum_class_docstring_is_emitted() -> None:
