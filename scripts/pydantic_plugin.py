@@ -16,8 +16,17 @@ from __future__ import annotations
 
 import re
 import textwrap
+from functools import lru_cache
+from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
+from graphql import (
+    GraphQLEnumType,
+    GraphQLInputObjectType,
+    GraphQLInterfaceType,
+    GraphQLObjectType as GqlObjectType,
+    build_schema,
+)
 from strawberry.codegen import CodegenFile
 from strawberry.codegen.plugins.python import (
     PythonPlugin,
@@ -26,7 +35,45 @@ from strawberry.codegen.plugins.python import (
 from strawberry.codegen.types import GraphQLObjectType, GraphQLOptional, GraphQLScalar
 
 if TYPE_CHECKING:
-    from strawberry.codegen.types import GraphQLOperation, GraphQLType
+    from strawberry.codegen.types import GraphQLField, GraphQLOperation, GraphQLType
+
+SCHEMA_FILE = Path(__file__).resolve().parent.parent / "schema" / "linear.graphql"
+
+
+@lru_cache(maxsize=1)
+def _descriptions() -> tuple[dict[str, str], dict[tuple[str, str], str]]:
+    """Return (type descriptions, (type, field) descriptions) from the pinned SDL."""
+    schema = build_schema(SCHEMA_FILE.read_text())
+    types: dict[str, str] = {}
+    fields: dict[tuple[str, str], str] = {}
+    for name, gql in schema.type_map.items():
+        if name.startswith("__"):
+            continue
+        if gql.description:
+            types[name] = gql.description
+        if isinstance(
+            gql,
+            (GqlObjectType, GraphQLInterfaceType, GraphQLInputObjectType),
+        ):
+            for fname, fld in gql.fields.items():
+                if fld.description:
+                    fields[name, fname] = fld.description
+        elif isinstance(gql, GraphQLEnumType):
+            for vname, val in gql.values.items():
+                if val.description:
+                    fields[name, vname] = val.description
+    return types, fields
+
+
+def _docstring(text: str) -> str:
+    """Render ``text`` as a triple-quoted literal safe to embed in generated code."""
+    escaped = (
+        text.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\r", "\\r")
+        .replace("\n", "\\n")
+    )
+    return f'"""{escaped}"""'
 
 
 class PythonType(StrawberryPythonType):
@@ -149,7 +196,37 @@ class PydanticPlugin(PythonPlugin):
 
         return [CodegenFile(self.outfile_name, code.strip())]
 
+    _gql_type: str | None = None
+
+    def _print_field(self, field: GraphQLField) -> str:
+        line = super()._print_field(field)
+        if self._gql_type is None:
+            return line
+        _, field_docs = _descriptions()
+        head, *rest = field.name.split("_")
+        camel = head + "".join(part.title() for part in rest)
+        doc = next(
+            (
+                field_docs[self._gql_type, key]
+                for key in (field.name, camel, field.alias)
+                if key and (self._gql_type, key) in field_docs
+            ),
+            None,
+        )
+        return f"{line}\n{_docstring(doc)}" if doc else line
+
     def _print_object_type(self, type_: GraphQLObjectType) -> str:
+        type_docs, _ = _descriptions()
+        self._gql_type = type_.graphql_typename or (
+            type_.name if type_.name in type_docs else None
+        )
+        try:
+            return self._print_object_body(type_)
+        finally:
+            self._gql_type = None
+
+    def _print_object_body(self, type_: GraphQLObjectType) -> str:
+        type_docs, _ = _descriptions()
         fields = "\n".join(
             self._print_field(field)
             for field in type_.fields
@@ -164,5 +241,7 @@ class PydanticPlugin(PythonPlugin):
                     indent,
                 ),
             )
+        elif self._gql_type and self._gql_type in type_docs:
+            lines.append(textwrap.indent(_docstring(type_docs[self._gql_type]), indent))
         lines.append(textwrap.indent(fields, indent))
         return "\n".join(lines)

@@ -72,6 +72,16 @@ def _selectable(field: Any) -> bool:  # noqa: ANN401
 
 
 def _leaf_fields(type_: Any, exclude: set[str]) -> list[str]:  # noqa: ANN401
+    skipped = sorted(
+        name
+        for name, field in type_.fields.items()
+        if _is_leaf(field.type) and field.deprecation_reason and name not in exclude
+    )
+    if skipped:
+        print(
+            f'  note: fields = "all" on {type_.name} skips deprecated: '
+            + ", ".join(skipped),
+        )
     return sorted(
         name
         for name, field in type_.fields.items()
@@ -102,6 +112,24 @@ def _resolve_fields(
             f"  warning: {where} selects deprecated field(s): {', '.join(deprecated)}",
         )
     return list(spec_fields)
+
+
+def _warn_deprecated_enum_args(
+    where: str,
+    field: Any,  # noqa: ANN401
+    arguments: dict[str, str],
+) -> None:
+    """Warn when a rendered argument value is a deprecated enum value."""
+    for arg_name, value in arguments.items():
+        enum = _unwrap(field.args[arg_name].type)
+        if not isinstance(enum, GraphQLEnumType):
+            continue
+        member = enum.values.get(value.strip())
+        if member is not None and member.deprecation_reason:
+            print(
+                f"  warning: {where} uses deprecated enum value "
+                f"{enum.name}.{value.strip()}",
+            )
 
 
 def _render_fragment(name: str, spec: dict[str, Any], schema: Any) -> str:  # noqa: ANN401
@@ -200,6 +228,7 @@ def _render_operation(
             msg = f"operation {name}: {root_name} has no argument {arg_name}"
             raise SystemExit(msg)
 
+    _warn_deprecated_enum_args(f"operation {name}", root_field, arguments)
     header = f"{kind} {name}"
     if variables:
         rendered = ", ".join(f"${var}: {gql}" for var, gql in variables.items())
@@ -273,6 +302,7 @@ def _render_nested_connection(
             msg = f"nested connection: {field_name} has no argument {argument_name}"
             raise SystemExit(msg)
 
+    _warn_deprecated_enum_args(f"nested connection {field_name}", field, arguments)
     fragment_name = spec["fragment"]
     if fragment_name not in fragments:
         msg = f"nested connection: unknown fragment {fragment_name}"
