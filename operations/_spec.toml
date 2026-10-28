@@ -133,8 +133,8 @@ arguments = { filter = "$filter", first = "$first", after = "$after", orderBy = 
 kind = "query"
 root = "searchIssues"
 fragment = "IssueSearchResultFields"
-variables = { term = "String!", first = "Int!", after = "String" }
-arguments = { term = "$term", first = "$first", after = "$after" }
+variables = { term = "String!", first = "Int!", after = "String", filter = "IssueFilter" }
+arguments = { term = "$term", first = "$first", after = "$after", filter = "$filter" }
 
 [operations.CreateIssue]
 kind = "mutation"

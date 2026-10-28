@@ -1999,7 +1999,95 @@ def test_search_renders_hits_and_forwards_limit() -> None:
         "term": "zotero",
         "first": 3,
         "after": None,
+        "filter": None,
     }
+
+
+_IN_PROGRESS = {
+    "id": "state-1",
+    "name": "In Progress",
+    "type": "started",
+    "color": "#fff",
+    "position": 1.0,
+}
+
+
+def test_search_team_filters_by_key_and_joins_multiword_terms() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["search", "Evaluate", "tool", "--team", "eng"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    variables = _sent_variables(route, "SearchIssues")
+    assert variables["term"] == "Evaluate tool"  # noqa: S101
+    assert variables["filter"] == {"team": {"key": {"eq": "ENG"}}}  # noqa: S101
+
+
+def test_search_team_and_state_filter_on_different_fields() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            side_effect=_graphql_router(workflow_states=[_IN_PROGRESS]),
+        )
+        result = runner.invoke(
+            app,
+            ["search", "term", "--team", "ENG", "--state", "In Progress"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    assert _sent_variables(route, "SearchIssues")["filter"] == {  # noqa: S101
+        "team": {"key": {"eq": "ENG"}},
+        "state": {"name": {"eq": "In Progress"}},
+    }
+
+
+def test_search_all_with_team_keeps_every_page_filtered_and_json_shape() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["search", "term", "--all", "--team", "ENG", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert set(payload) == {"results", "complete", "truncated"}  # noqa: S101
+    assert _sent_variables(route, "SearchIssues")["filter"] == {  # noqa: S101
+        "team": {"key": {"eq": "ENG"}},
+    }
+
+
+def test_search_unknown_team_fails_before_searching() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router(team=None))
+        result = runner.invoke(app, ["search", "term", "--team", "NOPE"], env=AUTH)
+    assert result.exit_code == 1  # noqa: S101
+    assert "no Linear team with key 'NOPE'" in result.output  # noqa: S101
+    assert "SearchIssues" not in _operation_names(route)  # noqa: S101
+
+
+def test_search_unknown_state_fails_before_searching() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            side_effect=_graphql_router(workflow_states=[_IN_PROGRESS]),
+        )
+        result = runner.invoke(
+            app,
+            ["search", "term", "--team", "ENG", "--state", "bogus"],
+            env=AUTH,
+        )
+    assert result.exit_code == 2  # noqa: S101
+    assert "unknown workflow state 'bogus' for team ENG" in result.output  # noqa: S101
+    assert "SearchIssues" not in _operation_names(route)  # noqa: S101
+
+
+def test_search_state_without_team_is_a_usage_error() -> None:
+    with respx.mock:
+        result = runner.invoke(app, ["search", "term", "--state", "Done"], env=AUTH)
+    assert result.exit_code == 2  # noqa: S101
+    assert "--state requires --team" in result.output  # noqa: S101
 
 
 def test_search_verbose_prints_urls_and_descriptions() -> None:

@@ -1,5 +1,5 @@
-query SearchIssues($term: String!, $first: Int!, $after: String) {
-  searchIssues(term: $term, first: $first, after: $after) {
+query SearchIssues($term: String!, $first: Int!, $after: String, $filter: IssueFilter) {
+  searchIssues(term: $term, first: $first, after: $after, filter: $filter) {
     nodes {
       ...IssueSearchResultFields
     }

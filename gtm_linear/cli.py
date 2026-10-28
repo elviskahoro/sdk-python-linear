@@ -28,6 +28,7 @@ Usage:
     cat note.md | gtm-linear issue comment ENG-123 --body-file - --apply
     gtm-linear search "onboarding" [--limit 10]
     gtm-linear search onboarding --all
+    gtm-linear search "Evaluate" --team AI [--state "In Progress"]
 
 Append ``--json`` to any command for machine-readable output. Write commands
 show a preview and send no mutation unless ``--apply`` is supplied. Options are
@@ -378,6 +379,11 @@ def _normalize_team_key(value: str) -> str:
     return normalized
 
 
+def _normalize_optional_team_key(value: str | None) -> str | None:
+    """``_normalize_team_key`` for options where ``--team`` may be omitted."""
+    return None if value is None else _normalize_team_key(value)
+
+
 def _non_empty_filter(value: str | None, option: str) -> str | None:
     """Trim a free-form filter value and reject empty values as usage errors."""
     if value is None:
@@ -474,6 +480,25 @@ def _collect_paginated_sync(
     return asyncio.run(collect_and_close())
 
 
+def _require_workflow_state(
+    linear: LinearWorkflow,
+    team_id: str,
+    team_key: str,
+    state: str,
+) -> None:
+    """Fail with a usage error unless ``state`` names one of the team's states."""
+    state_names = {
+        workflow_state.name
+        for workflow_state in linear.iter_workflow_states(
+            team_id,
+            page_size=MAX_PAGE_SIZE,
+        )
+    }
+    if state not in state_names:
+        error_msg = f"unknown workflow state {state!r} for team {team_key}"
+        raise typer.BadParameter(error_msg, param_hint="--state")
+
+
 def _build_team_issue_filter(
     linear: LinearWorkflow,
     team_id: str,
@@ -489,16 +514,7 @@ def _build_team_issue_filter(
     if state == State.open.value:
         issue_filter["state"] = {"type": {"nin": ["completed", "canceled"]}}
     elif state != State.all.value:
-        state_names = {
-            workflow_state.name
-            for workflow_state in linear.iter_workflow_states(
-                team_id,
-                page_size=MAX_PAGE_SIZE,
-            )
-        }
-        if state not in state_names:
-            error_msg = f"unknown workflow state {state!r} for team {team_key}"
-            raise typer.BadParameter(error_msg, param_hint="--state")
+        _require_workflow_state(linear, team_id, team_key, state)
         issue_filter["state"] = {"name": {"eq": state}}
     if priority is not None:
         issue_filter["priority"] = {"eq": priority}
@@ -540,6 +556,7 @@ def _read_search_results(
     linear: LinearWorkflow,
     term: str,
     *,
+    issue_filter: dict[str, Any] | None,
     fetch_all: bool,
     limit: int | None,
 ) -> tuple[Sequence[IssueLike], bool, LinearPaginationError | None]:
@@ -550,6 +567,7 @@ def _read_search_results(
             term,
             first=page_size,
             after=cursor,
+            filter=issue_filter,
         )
 
     return _collect_paginated_sync(
@@ -2275,6 +2293,20 @@ def search(
         ),
     ],
     *,
+    team: Annotated[
+        str | None,
+        typer.Option(
+            callback=_normalize_optional_team_key,
+            help="Only return issues from this team key, e.g. ENG (any casing).",
+        ),
+    ] = None,
+    state: Annotated[
+        str | None,
+        typer.Option(
+            help="Only return issues in this exact workflow-state name "
+            "(requires --team).",
+        ),
+    ] = None,
     limit: Annotated[
         int | None,
         typer.Option(
@@ -2287,7 +2319,7 @@ def search(
     verbose: VerboseOpt = False,
     as_json: JsonOpt = False,
 ) -> None:
-    """Free-text issue search across the workspace."""
+    """Free-text issue search across the workspace, or one team with --team."""
     term = " ".join(words).strip()
     if not term:
         # Raised as a usage error so empty input exits 2, like the other
@@ -2297,10 +2329,24 @@ def search(
     if fetch_all and limit is not None:
         error_msg = "--all cannot be combined with --limit"
         raise typer.BadParameter(error_msg, param_hint="--limit")
+    state_value = _non_empty_filter(state, "--state")
+    if state_value is not None and team is None:
+        error_msg = "--state requires --team"
+        raise typer.BadParameter(error_msg, param_hint="--state")
     with _workflow() as linear:
+        issue_filter: dict[str, Any] | None = None
+        if team is not None:
+            resolved = linear.get_team_by_key(team)
+            if resolved is None:
+                _fail(f"no Linear team with key {team!r}")
+            issue_filter = {"team": {"key": {"eq": team}}}
+            if state_value is not None:
+                _require_workflow_state(linear, resolved.id, team, state_value)
+                issue_filter["state"] = {"name": {"eq": state_value}}
         results_found, complete, pagination_error = _read_search_results(
             linear,
             term,
+            issue_filter=issue_filter,
             fetch_all=fetch_all,
             limit=limit,
         )
