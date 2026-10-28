@@ -381,6 +381,7 @@ Issue(
     priority: float,        # 0=None, 1=Urgent, 2=High, 3=Medium, 4=Low (Linear convention; Linear's schema types this Float!)
     state: IssueFieldsState,  # nested object: {id, name, type}; state.name is the display string, e.g. "In Progress"
     assignee: IssueFieldsAssignee | None,  # {id, name, email, active}; UserFields/User is a separate class with the same fields
+    project: IssueFieldsProject | None,  # {id, name}; null when the issue is in no project
 )
 ```
 
@@ -619,9 +620,8 @@ Tests use `respx` to mock `httpx2` — no network access required. `pytest-async
 
 1. **Filtering coverage**: Issue filters are plain `dict[str, Any]` mappings that mirror Linear's nested filter tree. Use `execute_async` for other Linear filters.
 2. **Schema coverage**: Only a focused subset of Linear resources is typed. Cycles, projects-as-containers, workflow mutations, and webhooks remain absent.
-3. **Search filtering**: `search_issues` accepts only a text term. Use `list_issues_page` for mapped team/state filtering.
-4. **Subscriptions**: Not supported. Linear's `subscription` API requires WebSockets — the client is HTTP-only.
-5. **Status filtering**: Workflow-state query results include the state ID and type. More advanced filters still require `execute_async`.
+3. **Subscriptions**: Not supported. Linear's `subscription` API requires WebSockets — the client is HTTP-only.
+4. **Status filtering**: Workflow-state query results include the state ID and type. More advanced filters still require `execute_async`.
 
 ---
 
