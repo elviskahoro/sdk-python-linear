@@ -420,8 +420,7 @@ merge:
   # plain "pullfrog" check, which only mirrors the agent run itself. It has
   # posted on every PR reviewed since the 0.1.95 bump (#108-#112, including
   # the bot-authored #100/#101). Required since 2026-10-16 to match the repo
-  # ruleset "Require Entire Gates and pullfrog-approval", which gates PR
-  # admission and merges into main on the GitHub side.
+  # ruleset, which gates PR admission and merges into main on the GitHub side.
   #
   # The lint gate's PR mode diffs against the PR's exact base commit
   # (--upstream=$MERGE_BASE, see .rwx/trunk-check.yml), so the known
@@ -430,13 +429,10 @@ merge:
   # they do not block unrelated PRs or the queue.
   #
   # Deliberately excluded -- each of these would deadlock the queue:
-  # - "Entire Gates": required on main by the ruleset above, but not waited
-  #   on here: it does not post on PRs opened before the Entire app was
+  # - "Entire Gates": advisory only (not a required check on main), and not
+  #   waited on here: it does not post on PRs opened before the Entire app was
   #   installed (~2026-10-10) and has been observed stuck IN_PROGRESS on an
-  #   already-merged PR. It reports neutral on new PRs, which counts as
-  #   passing for required checks (GitHub: success/skipped/neutral all
-  #   satisfy required status checks), so the ruleset is satisfied without
-  #   the queue waiting on it. Revisit once it posts reliably on every PR.
+  #   already-merged PR. Revisit once it posts reliably on every PR.
   # - "pullfrog" / "Corridor Review": review-run mirrors without pass/fail
   #   semantics (pullfrog's verdict itself is "pullfrog-approval" above).
   # - Netlify deploy previews and header/redirect/pages checks: only post on
