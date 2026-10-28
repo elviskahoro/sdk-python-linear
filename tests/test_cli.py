@@ -1267,6 +1267,128 @@ def test_issue_update_apply_returns_resource_and_uses_resolved_id() -> None:
     }
 
 
+def test_issue_update_multi_preview_lists_each_target_without_mutation() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["issue", "update", "ENG-1", "eng-2", "--priority", "3", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert payload["applied"] is False  # noqa: S101
+    assert len(payload["results"]) == 2  # noqa: S101
+    assert all(r["payload"] == {"priority": 3} for r in payload["results"])  # noqa: S101
+    assert _operation_names(route) == ["GetIssue", "GetIssue"]  # noqa: S101
+
+
+def test_issue_update_multi_apply_reports_each_item() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            [
+                "issue",
+                "update",
+                "ENG-1",
+                "ENG-2",
+                "--priority",
+                "3",
+                "--apply",
+                "--json",
+            ],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert payload["applied"] is True  # noqa: S101
+    assert (payload["succeeded"], payload["failed"]) == (2, 0)  # noqa: S101
+    assert _operation_names(route).count("UpdateIssue") == 2  # noqa: S101
+
+
+def test_issue_update_multi_mixed_failure_continues_and_exits_1() -> None:
+    base = _graphql_router()
+    updates = 0
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal updates
+        query = json.loads(request.content)["query"]
+        if _named(query, "UpdateIssue"):
+            updates += 1
+            if updates == 1:
+                return httpx.Response(503, text="service unavailable")
+        return base(request)
+
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=respond)
+        result = runner.invoke(
+            app,
+            [
+                "issue",
+                "update",
+                "ENG-1",
+                "ENG-2",
+                "--priority",
+                "3",
+                "--apply",
+                "--json",
+            ],
+            env=AUTH,
+        )
+    assert result.exit_code == 1  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert payload["applied"] is False  # noqa: S101
+    assert (payload["succeeded"], payload["failed"]) == (1, 1)  # noqa: S101
+    assert payload["results"][0]["error"] == "HTTP error: 503"  # noqa: S101
+    assert payload["results"][1]["applied"] is True  # noqa: S101
+
+
+def test_issue_update_multi_missing_issue_is_item_error() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_graphql_router(issue_exists=False))
+        result = runner.invoke(
+            app,
+            ["issue", "update", "ENG-1", "ENG-2", "--priority", "3", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 1  # noqa: S101
+    results = json.loads(result.stdout)["results"]
+    assert len(results) == 2  # noqa: S101
+    assert "no issue found with identifier ENG-1" in results[0]["error"]  # noqa: S101
+
+
+def test_issue_update_ids_file_merges_dedupes_and_skips_comments(
+    tmp_path: Path,
+) -> None:
+    ids = tmp_path / "ids.txt"
+    ids.write_text("# batch\nENG-2\n\n  ENG-1  \n", encoding="utf-8")
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            [
+                "issue",
+                "update",
+                "ENG-1",
+                "--ids-file",
+                str(ids),
+                "--priority",
+                "3",
+                "--json",
+            ],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    results = json.loads(result.stdout)["results"]
+    assert len(results) == 2  # noqa: S101 - ENG-1 deduped, ENG-2 from file
+
+
+def test_issue_update_requires_an_identifier() -> None:
+    result = runner.invoke(app, ["issue", "update", "--priority", "3"], env=AUTH)
+    assert result.exit_code == 2  # noqa: S101
+
+
 def test_issue_comment_json_preview_sends_no_mutation() -> None:
     with respx.mock:
         route = respx.post(API_URL).mock(side_effect=_graphql_router())
@@ -2933,8 +3055,15 @@ def test_label_resolution_follows_every_page() -> None:
         result = runner.invoke(
             app,
             [
-                "issue", "create", "--team", "eng", "--title", "T",
-                "--label", "label-149", "--json",
+                "issue",
+                "create",
+                "--team",
+                "eng",
+                "--title",
+                "T",
+                "--label",
+                "label-149",
+                "--json",
             ],
             env=AUTH,
         )
@@ -2994,7 +3123,9 @@ def test_label_resolution_stall_fails_cleanly_instead_of_looping() -> None:
             json={
                 "data": {
                     "issueLabels": {
-                        "nodes": [{"id": "l-1", "name": "Bug"}] if after is None else [],
+                        "nodes": [{"id": "l-1", "name": "Bug"}]
+                        if after is None
+                        else [],
                         "pageInfo": page_info_payload(
                             has_next=True,
                             end=f"{after or ''}x",

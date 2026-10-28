@@ -22,6 +22,7 @@ Usage:
     gtm-linear issue create --team ENG --title "Investigate alert"
     gtm-linear issue create --team ENG --title "Plan" --description-file plan.md
     gtm-linear issue update ENG-123 --priority 2 --apply
+    gtm-linear issue update ENG-123 ENG-124 --state Done --apply
     gtm-linear issue update ENG-123 --description-file plan.md --apply
     gtm-linear issue comment ENG-123 --body "I am looking into this"
     cat note.md | gtm-linear issue comment ENG-123 --body-file - --apply
@@ -39,12 +40,14 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import enum
+import io
 import json
 import math
 import os
 import re
 import sys
 import unicodedata
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, NoReturn, Protocol, TypeVar
 
@@ -1748,13 +1751,225 @@ def create(
     _render_issue_result(created, as_json=as_json, verb="Created")
 
 
+@dataclass(frozen=True)
+class _UpdateFields:
+    """Validated ``issue update`` options shared by every target."""
+
+    title: str | None
+    description: str | None
+    priority: int | None
+    assignee_id: str | None
+    project_id: str | None
+    state_id: str | None
+    assignee: str | None
+    state: str | None
+    project: str | None
+    labels: list[str] | None
+    clear_description: bool
+    clear_priority: bool
+    clear_assignee: bool
+    clear_project: bool
+    clear_state: bool
+    clear_labels: bool
+
+
+def _collect_targets(identifiers: list[str] | None, ids_file: str | None) -> list[str]:
+    """Merge positional identifiers with ``--ids-file`` lines, de-duplicated."""
+    collected = list(identifiers or [])
+    text = _read_text_source(None, "", ids_file, "--ids-file")
+    if text is not None:
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#"):
+                collected.append(stripped)
+    targets = list(dict.fromkeys(collected))
+    if not targets:
+        message = "provide at least one issue identifier or --ids-file"
+        raise typer.BadParameter(message, param_hint="issue update")
+    return targets
+
+
+def _build_update(
+    linear: LinearWorkflow,
+    identifier: str,
+    fields: _UpdateFields,
+) -> tuple[IssueFields, IssueUpdateInput, dict[str, Any], dict[str, Any]]:
+    """Resolve one issue and its friendly references into an update payload."""
+    resolved = _resolve_issue(linear, identifier)
+    assignee_id = fields.assignee_id
+    project_id = fields.project_id
+    state_id = fields.state_id
+    if fields.assignee is not None:
+        assignee_id = _resolve_user(linear, fields.assignee, "--assignee")
+    if fields.project is not None:
+        project_id = _resolve_project(linear, fields.project, "--project")
+    # The state and label branches both need the issue's team; fetch it
+    # once so `--state X --label Y` costs one lookup, not two.
+    issue_team: tuple[str, str] | None = None
+    if fields.state is not None or fields.labels:
+        issue_team = _issue_team(linear, resolved.id)
+        if fields.state is not None:
+            state_id = _resolve_workflow_state(
+                linear,
+                issue_team[0],
+                issue_team[1],
+                fields.state,
+                "--state",
+            )
+    update_values, label_names = _update_label_values(
+        linear,
+        resolved.id,
+        fields.labels,
+        clear_labels=fields.clear_labels,
+        issue_team=issue_team,
+    )
+    for name, value, clear in (
+        ("title", fields.title, False),
+        ("description", fields.description, fields.clear_description),
+        ("priority", fields.priority, fields.clear_priority),
+        ("assignee_id", assignee_id, fields.clear_assignee),
+        ("project_id", project_id, fields.clear_project),
+        ("state_id", state_id, fields.clear_state),
+    ):
+        if clear:
+            update_values[name] = None
+        elif value is not None:
+            update_values[name] = value
+    update_input = IssueUpdateInput(**update_values)
+    payload = update_input.model_dump(mode="json", by_alias=True, exclude_unset=True)
+    target: dict[str, Any] = {
+        "identifier": resolved.identifier,
+        "id": resolved.id,
+    }
+    if label_names:
+        target["labels"] = label_names
+    return resolved, update_input, payload, target
+
+
+def _update_item(
+    linear: LinearWorkflow,
+    identifier: str,
+    fields: _UpdateFields,
+    *,
+    apply: bool,
+) -> tuple[dict[str, Any], str]:
+    """Run one batch item; return its result envelope and human line."""
+    operation = "issue.update"
+    target: dict[str, Any] = {"identifier": _normalize_issue_identifier(identifier)}
+    label = identifier
+    captured = io.StringIO()
+    try:
+        # Resolvers report through _fail (stderr + Exit); keep that message as
+        # this item's error instead of aborting the batch.
+        with contextlib.redirect_stderr(captured):
+            resolved, update_input, payload, target = _build_update(
+                linear,
+                identifier,
+                fields,
+            )
+        label = resolved.identifier
+        if not apply:
+            summary = {k: _summarize_long_string(v) for k, v in payload.items()}
+            line = (
+                f"target: {json.dumps(target, indent=2)}\n"
+                f"payload: {json.dumps(summary, indent=2)}"
+            )
+            return (
+                {
+                    "applied": False,
+                    "operation": operation,
+                    "target": target,
+                    "payload": summary,
+                },
+                line,
+            )
+        updated = linear.update_issue(resolved.id, update_input)
+    except typer.Exit:
+        error = captured.getvalue().strip().removeprefix("error: ")
+        error = error or "could not resolve update"
+    except (
+        LinearAPIError,
+        httpx.InvalidURL,
+        httpx.HTTPError,
+        ValidationError,
+    ) as exc:
+        error = _cli_error_message(exc)
+    except ValueError as exc:
+        error = f"Linear did not return the updated issue: {_cli_error_message(exc)}"
+    else:
+        return (
+            {
+                "applied": True,
+                "operation": operation,
+                "target": target,
+                "result": _issue_dict(updated),
+            },
+            f"Updated {_cell(updated.identifier)}: {_cell(updated.title)}",
+        )
+    return (
+        {"applied": False, "operation": operation, "target": target, "error": error},
+        f"error {_cell(label)}: {_cell(error)}",
+    )
+
+
+def _update_many(
+    targets: list[str],
+    fields: _UpdateFields,
+    *,
+    apply: bool,
+    as_json: bool,
+) -> None:
+    """Apply one update to several issues, reporting each item's outcome.
+
+    A failing item is recorded and the rest still run; any failure exits 1.
+    """
+    operation = "issue.update"
+    with _workflow() as linear:
+        outcomes = [
+            _update_item(linear, identifier, fields, apply=apply)
+            for identifier in targets
+        ]
+    results = [result for result, _ in outcomes]
+    failed = sum(1 for r in results if "error" in r)
+    if as_json:
+        envelope: dict[str, Any] = {
+            "applied": apply and failed == 0,
+            "operation": operation,
+            "results": results,
+        }
+        if apply:
+            envelope["succeeded"] = len(results) - failed
+            envelope["failed"] = failed
+        typer.echo(json.dumps(envelope, indent=2))
+    else:
+        if not apply:
+            typer.echo("DRY RUN: no mutation sent (use --apply to execute)")
+            typer.echo(f"operation: {operation}")
+        for _, line in outcomes:
+            typer.echo(line)
+        if apply:
+            typer.echo(f"{len(results) - failed} updated, {failed} failed")
+    if failed:
+        raise typer.Exit(code=1)
+
+
 @issue_app.command()
 def update(
-    identifier: Annotated[
-        str,
-        typer.Argument(help="Issue identifier, e.g. ENG-123, or Linear UUID."),
-    ],
+    identifiers: Annotated[
+        list[str] | None,
+        typer.Argument(
+            help="Issue identifier(s), e.g. ENG-123, or Linear UUID. "
+            "Several apply the same update to each.",
+        ),
+    ] = None,
     *,
+    ids_file: Annotated[
+        str | None,
+        typer.Option(
+            "--ids-file",
+            help="Read more identifiers from this file, one per line (or - for stdin).",
+        ),
+    ] = None,
     title: Annotated[str | None, typer.Option(help="Replace the issue title.")] = None,
     description: Annotated[
         str | None,
@@ -1835,7 +2050,8 @@ def update(
     apply: ApplyOpt = False,
     as_json: JsonOpt = False,
 ) -> None:
-    """Update an issue; preview by default, execute with --apply."""
+    """Update one or more issues; preview by default, execute with --apply."""
+    targets = _collect_targets(identifiers, ids_file)
     title = _validate_text(title, "--title")
     description = _validate_text(
         _read_text_source(
@@ -1878,56 +2094,34 @@ def update(
 
     _check_update_fields(title, pairs)
 
+    fields = _UpdateFields(
+        title=title,
+        description=description,
+        priority=priority,
+        assignee_id=assignee_id,
+        project_id=project_id,
+        state_id=state_id,
+        assignee=assignee,
+        state=state,
+        project=project,
+        labels=labels,
+        clear_description=clear_description,
+        clear_priority=clear_priority,
+        clear_assignee=clear_assignee,
+        clear_project=clear_project,
+        clear_state=clear_state,
+        clear_labels=clear_labels,
+    )
+    if len(targets) > 1:
+        _update_many(targets, fields, apply=apply, as_json=as_json)
+        return
+
     with _workflow() as linear:
-        resolved = _resolve_issue(linear, identifier)
-        if assignee is not None:
-            assignee_id = _resolve_user(linear, assignee, "--assignee")
-        if project is not None:
-            project_id = _resolve_project(linear, project, "--project")
-        # The state and label branches both need the issue's team; fetch it
-        # once so `--state X --label Y` costs one lookup, not two.
-        issue_team: tuple[str, str] | None = None
-        if state is not None or labels:
-            issue_team = _issue_team(linear, resolved.id)
-            if state is not None:
-                state_id = _resolve_workflow_state(
-                    linear,
-                    issue_team[0],
-                    issue_team[1],
-                    state,
-                    "--state",
-                )
-        update_values, label_names = _update_label_values(
+        resolved, update_input, payload, target = _build_update(
             linear,
-            resolved.id,
-            labels,
-            clear_labels=clear_labels,
-            issue_team=issue_team,
+            targets[0],
+            fields,
         )
-        for name, value, clear in (
-            ("title", title, False),
-            ("description", description, clear_description),
-            ("priority", priority, clear_priority),
-            ("assignee_id", assignee_id, clear_assignee),
-            ("project_id", project_id, clear_project),
-            ("state_id", state_id, clear_state),
-        ):
-            if clear:
-                update_values[name] = None
-            elif value is not None:
-                update_values[name] = value
-        update_input = IssueUpdateInput(**update_values)
-        payload = update_input.model_dump(
-            mode="json",
-            by_alias=True,
-            exclude_unset=True,
-        )
-        target: dict[str, Any] = {
-            "identifier": resolved.identifier,
-            "id": resolved.id,
-        }
-        if label_names:
-            target["labels"] = label_names
         if not apply:
             _render_preview("issue.update", target, payload, as_json=as_json)
             return
