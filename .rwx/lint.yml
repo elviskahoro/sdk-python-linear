@@ -145,3 +145,19 @@ tasks:
       fi
       rm -f "${trunk_launcher}"
       trunk check --upstream="${MERGE_BASE}" --ci < /dev/null
+
+  # Tach's external-dependency audit (the `unused_external_dependencies =
+  # "error"` rule in tach.toml): fails if pyproject.toml declares a runtime
+  # dependency no package file imports. Runs here as its own task because it
+  # cannot be a Trunk lint command: Trunk executes batch lint commands from
+  # a sandbox holding only the diff's files, and the audit decides "used"
+  # from the imports visible there, so every dependency whose import sites
+  # sit outside the diff got a false "not used" error (observed on #108's
+  # own PR: all four runtime deps flagged, which would have rejected every
+  # queue entry once the merge queue gates on the lint pipeline). Here it
+  # sees the full checkout, like the drift checks in [test]. The tach pin in
+  # pyproject.toml matches the trunk-managed tach@0.35.1 the module-boundary
+  # lint gate uses.
+  - key: tach-external
+    use: [deps]
+    run: uv run tach check-external

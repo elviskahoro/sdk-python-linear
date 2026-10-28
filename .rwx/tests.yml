@@ -33,10 +33,7 @@ on:
   cli:
     # Manual `rwx run` dispatch for validation -- the source workflow has no
     # workflow_dispatch. Mirrors the push trigger's init so a dispatch
-    # exercises the push path. schema-drift runs on every trigger now;
-    # live-api follows the event type, so dispatches exercise the vault
-    # path too (CLI runs are user-initiated and the account user holds
-    # vault access), while PR runs skip it.
+    # exercises the push path. schema-drift runs on every trigger.
     init:
       commit-sha: ${{ event.git.sha }}
       branch: ${{ event.git.branch }}
@@ -145,22 +142,6 @@ tasks:
       # without regenerating.
       uv run python scripts/codegen.py --check
 
-  # Tach's external-dependency audit (the `unused_external_dependencies =
-  # "error"` rule in tach.toml): fails if pyproject.toml declares a runtime
-  # dependency no package file imports. Runs here as its own task because it
-  # cannot be a Trunk lint command: Trunk executes batch lint commands from
-  # a sandbox holding only the diff's files, and the audit decides "used"
-  # from the imports visible there, so every dependency whose import sites
-  # sit outside the diff got a false "not used" error (observed on #108's
-  # own PR: all four runtime deps flagged, which would have rejected every
-  # queue entry once the merge queue gates on the lint pipeline). Here it
-  # sees the full checkout, like the drift checks in [test]. The tach pin in
-  # pyproject.toml matches the trunk-managed tach@0.35.1 the module-boundary
-  # lint gate uses.
-  - key: tach-external
-    use: [deps]
-    run: uv run tach check-external
-
   # Ports the source workflow's `lean-install` job: the wheel must build and
   # import without the [strawberry] extra. `use:`s [uv-install] rather than
   # [deps] to mirror the source job, which never runs uv sync -- `uv build`
@@ -191,8 +172,8 @@ tasks:
   # than in a user's traceback. Keyless by design -- no trigger needs vault
   # access to stay green: the schema test fetches Linear's public SDK schema
   # from raw.githubusercontent.com; the live-API wording check self-skips
-  # without LINEAR_API_KEY (the vault key is injected only by the live-api
-  # task below, which runs solely on main-ref triggers); and
+  # without LINEAR_API_KEY (the vault key is injected only by the
+  # integration-tests.yml pipeline, which runs solely on main-ref triggers); and
   # tests/integration's bad-key check runs keyless against api.linear.app,
   # since an invalid key must still surface AUTHENTICATION_ERROR. That last
   # call does make PR-run greenness depend on api.linear.app being reachable
@@ -207,39 +188,3 @@ tasks:
     use: [deps]
     cache: false
     run: uv run pytest -q -m network
-
-  # The live-API half of the network suite: the CLI live wording check plus
-  # the tests/integration suite, with LINEAR_API_KEY from the
-  # `sdk-python-linear` vault. Gated to the push/schedule event types
-  # because both are main-ref runs -- the push trigger only fires on main,
-  # and cron runs against the default branch -- which is exactly what the
-  # locked vault's grant covers
-  # (repository runs on `main`, the same grant .rwx/dagger-ref-drift.yml's
-  # GITHUB_TOKEN relies on). A run whose ref does not match has the secret
-  # resolution refused, and an unresolvable vault secret fails the whole
-  # task BEFORE `run:` executes -- not hypothetical: #163's first three
-  # pushes referenced this secret unconditionally and every pull-request
-  # run failed the pipeline in ~12-35s with no task output. Vault access
-  # matching uses the run's own repository/ref context from the trigger
-  # event, NOT `init` parameters (passing `branch:` in the pull_request
-  # init was tried and reverted for exactly this reason). CLI dispatches
-  # mirror the push init and so exercise the vault path too -- they are
-  # user-initiated, and the account user holds vault access.
-  # Skipping non-main runs is also the secret-safety story: no PR-run code --
-  # same-repo branches included -- ever executes with the key, and fork-PR
-  # runs would not match the repo-scoped vault either. To extend the live
-  # check to PR runs later, grant the specific branch on the vault (a bare
-  # `*` pattern does not cross `/` -- see dagger-ref-drift.yml) and drop the
-  # `if:` here.
-  # cache: false mirrors schema-drift (the result depends on Linear's live
-  # API, not just repo files); cache-key: excluded keeps the credential out
-  # of the task's content-cache fingerprint.
-  - key: live-api
-    use: [deps]
-    if: ${{ init.event-type == 'push' || init.event-type == 'schedule' }}
-    cache: false
-    env:
-      LINEAR_API_KEY:
-        value: ${{ vaults.sdk-python-linear.secrets.LINEAR_API_KEY }}
-        cache-key: excluded
-    run: uv run pytest -q -m network tests/test_cli.py tests/integration
