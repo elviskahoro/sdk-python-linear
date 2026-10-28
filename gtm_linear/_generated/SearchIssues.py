@@ -4,6 +4,7 @@ from gtm_linear.models import LinearModel
 from .fragments import (
     IssueSearchResultFields,
     IssueSearchResultFieldsAssignee,
+    IssueSearchResultFieldsProject,
     IssueSearchResultFieldsState,
     PageInfoFields,
 )
@@ -54,6 +55,10 @@ fragment IssueSearchResultFields on IssueSearchResult {
     name
     email
     active
+  }
+  project {
+    id
+    name
   }
 }
 

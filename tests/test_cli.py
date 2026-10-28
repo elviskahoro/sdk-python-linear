@@ -2107,6 +2107,102 @@ def test_search_json_lists_issue_dicts() -> None:
     assert json.loads(result.stdout)[0]["title"] == "Hello"  # noqa: S101
 
 
+def test_json_includes_project_by_default() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(app, ["search", "zotero", "--json"], env=AUTH)
+    assert result.exit_code == 0  # noqa: S101
+    assert json.loads(result.stdout)[0]["project"] == {  # noqa: S101
+        "id": "proj-1",
+        "name": "Backend",
+    }
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["search", "zotero"],
+        ["issues", "--team", "ENG"],
+        ["issue", "ENG-1"],
+    ],
+)
+def test_fields_selects_json_keys(argv: list[str]) -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            [*argv, "--json", "--fields", "identifier, project,identifier"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    payload = json.loads(result.stdout)
+    item = payload if isinstance(payload, dict) else payload[0]
+    assert item == {  # noqa: S101
+        "identifier": "ENG-1",
+        "project": {"id": "proj-1", "name": "Backend"},
+    }
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["search", "zotero"],
+        ["issues", "--team", "ENG"],
+        ["issue", "ENG-1"],
+    ],
+)
+@pytest.mark.parametrize("fields", ["bogus", "title,,id", "title,nope"])
+def test_fields_rejects_bad_names_before_any_request(
+    argv: list[str],
+    fields: str,
+) -> None:
+    with respx.mock:
+        route = respx.post(API_URL)
+        result = runner.invoke(app, [*argv, "--fields", fields], env=AUTH)
+    assert result.exit_code == 2  # noqa: S101
+    assert not route.called  # noqa: S101
+    if "nope" in fields or fields == "bogus":
+        assert "assignee" in result.output  # noqa: S101
+
+
+def test_fields_applies_to_all_envelope() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["search", "zotero", "--all", "--json", "--fields", "id"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert payload["results"] == [{"id": "iss-1"}]  # noqa: S101
+
+
+def test_project_is_null_outside_a_project() -> None:
+    nodes = [issue_payload(project=False)]
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "searchIssues": {
+                            "nodes": nodes,
+                            "pageInfo": page_info_payload(),
+                        },
+                    },
+                },
+            ),
+        )
+        result = runner.invoke(
+            app,
+            ["search", "zotero", "--json", "--fields", "project"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    assert json.loads(result.stdout) == [{"project": None}]  # noqa: S101
+
+
 def test_missing_api_key_exits_with_guidance() -> None:
     """The autouse fixture has already cleared LINEAR_* and isolated the cwd."""
     with respx.mock:

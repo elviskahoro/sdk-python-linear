@@ -202,6 +202,15 @@ class State(enum.Enum):
 
 # Shared option annotations: one definition per flag so its help text stays
 # identical across every command that repeats it.
+FieldsOpt = Annotated[
+    str | None,
+    typer.Option(
+        "--fields",
+        help="With --json, comma-separated keys to emit; choices: "
+        "identifier, title, description, url, state, priority, assignee, id, "
+        "project (default: all).",
+    ),
+]
 JsonOpt = Annotated[
     bool,
     typer.Option("--json", help="Emit JSON instead of human-readable output."),
@@ -334,9 +343,46 @@ def _note_more_results(kind: str, shown: int) -> None:
     )
 
 
-def _issue_dict(issue: IssueLike) -> dict[str, object]:
-    """Flatten one issue into the dict shape used by ``--json`` output."""
-    return {
+_ISSUE_FIELDS = (
+    "identifier",
+    "title",
+    "description",
+    "url",
+    "state",
+    "priority",
+    "assignee",
+    "id",
+    "project",
+)
+
+
+def _parse_fields(value: str | None) -> tuple[str, ...] | None:
+    """Validate a ``--fields`` list against the keys ``--json`` can emit."""
+    if value is None:
+        return None
+    requested = [part.strip() for part in value.split(",")]
+    if not all(requested):
+        error_msg = "fields must be a comma-separated list of non-empty names"
+        raise typer.BadParameter(error_msg, param_hint="--fields")
+    unknown = [name for name in requested if name not in _ISSUE_FIELDS]
+    if unknown:
+        error_msg = (
+            f"unknown field(s): {', '.join(unknown)}; "
+            f"valid fields: {', '.join(_ISSUE_FIELDS)}"
+        )
+        raise typer.BadParameter(error_msg, param_hint="--fields")
+    return tuple(dict.fromkeys(requested))
+
+
+def _issue_dict(
+    issue: IssueLike,
+    fields: Sequence[str] | None = None,
+) -> dict[str, object]:
+    """Flatten one issue into the dict shape used by ``--json`` output.
+
+    ``fields`` limits the keys emitted; ``None`` keeps the full shape.
+    """
+    full = {
         "identifier": issue.identifier,
         "title": issue.title,
         "description": issue.description,
@@ -348,7 +394,15 @@ def _issue_dict(issue: IssueLike) -> dict[str, object]:
         "priority": issue.priority if math.isfinite(issue.priority) else None,
         "assignee": issue.assignee.name if issue.assignee else None,
         "id": issue.id,
+        "project": (
+            {"id": issue.project.id, "name": issue.project.name}
+            if issue.project
+            else None
+        ),
     }
+    if fields is None:
+        return full
+    return {name: full[name] for name in fields}
 
 
 def _priority_label(priority: float | None) -> str:
@@ -784,10 +838,11 @@ def _print_issues(
     all_results: bool = False,
     complete: bool = True,
     kind: str = "issues",
+    fields: Sequence[str] | None = None,
 ) -> None:
     """Render issues and, when requested, explicit pagination metadata."""
     if as_json:
-        results = [_issue_dict(i) for i in issues]
+        results = [_issue_dict(i, fields) for i in issues]
         if all_results:
             typer.echo(
                 json.dumps(
@@ -992,11 +1047,13 @@ def issues(
     fetch_all: AllOpt = False,
     verbose: VerboseOpt = False,
     as_json: JsonOpt = False,
+    fields: FieldsOpt = None,
 ) -> None:
     """List a team's issues, newest updated first."""
     if fetch_all and limit is not None:
         error_msg = "--all cannot be combined with --limit"
         raise typer.BadParameter(error_msg, param_hint="--limit")
+    fields_value = _parse_fields(fields)
     state_value = _normalize_state(state)
     priority_value = _parse_priority(priority)
     assignee_value = _non_empty_filter(assignee, "--assignee")
@@ -1025,7 +1082,12 @@ def issues(
             limit=limit,
         )
     if pagination_error is not None:
-        _render_pagination_failure(issues_found, pagination_error, as_json=as_json)
+        _render_pagination_failure(
+            issues_found,
+            pagination_error,
+            as_json=as_json,
+            serialize=lambda i: _issue_dict(i, fields_value),
+        )
     if not complete:
         _note_more_results("issues", len(issues_found))
     _print_issues(
@@ -1034,6 +1096,7 @@ def issues(
         verbose=verbose,
         all_results=fetch_all,
         complete=complete,
+        fields=fields_value,
     )
 
 
@@ -1546,13 +1609,15 @@ def _read(
     ],
     *,
     as_json: JsonOpt = False,
+    fields: FieldsOpt = None,
 ) -> None:
     """Fetch one issue by its identifier or Linear UUID."""
+    fields_value = _parse_fields(fields)
     identifier = _normalize_issue_identifier(identifier)
     with _workflow() as linear:
         match = _resolve_issue(linear, identifier)
     if as_json:
-        typer.echo(json.dumps(_issue_dict(match), indent=2))
+        typer.echo(json.dumps(_issue_dict(match, fields_value), indent=2))
         return
     typer.echo(f"{_cell(match.identifier)}: {_cell(match.title)}")
     typer.echo(f" url: {_cell(match.url)}")
@@ -2318,8 +2383,10 @@ def search(
     fetch_all: AllOpt = False,
     verbose: VerboseOpt = False,
     as_json: JsonOpt = False,
+    fields: FieldsOpt = None,
 ) -> None:
     """Free-text issue search across the workspace, or one team with --team."""
+    fields_value = _parse_fields(fields)
     term = " ".join(words).strip()
     if not term:
         # Raised as a usage error so empty input exits 2, like the other
@@ -2351,11 +2418,17 @@ def search(
             limit=limit,
         )
     if pagination_error is not None:
-        _render_pagination_failure(results_found, pagination_error, as_json=as_json)
+        _render_pagination_failure(
+            results_found,
+            pagination_error,
+            as_json=as_json,
+            serialize=lambda i: _issue_dict(i, fields_value),
+        )
     if not complete:
         _note_more_results("results", len(results_found))
     _print_issues(
         results_found,
+        fields=fields_value,
         as_json=as_json,
         verbose=verbose,
         all_results=fetch_all,

@@ -72,6 +72,7 @@ fields = ["id", "identifier", "title", "description", "url", "priority"]
 [fragments.IssueFields.expand]
 state = ["id", "name", "type"]
 assignee = ["id", "name", "email", "active"]
+project = ["id", "name"]
 
 [fragments.IssueSearchResultFields]
 on = "IssueSearchResult"
@@ -79,6 +80,7 @@ fields = ["id", "identifier", "title", "description", "url", "priority"]
 [fragments.IssueSearchResultFields.expand]
 state = ["id", "name", "type"]
 assignee = ["id", "name", "email", "active"]
+project = ["id", "name"]
 
 
 [operations.GetIssue]
