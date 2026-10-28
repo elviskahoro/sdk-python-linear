@@ -91,8 +91,10 @@ tasks:
   # same-repo branches included -- ever executes with the key, and fork-PR
   # runs would not match the repo-scoped vault either. To extend the live
   # check to PR runs later, grant the specific branch on the vault (a bare
-  # `*` pattern does not cross `/` -- see dagger-ref-drift.yml) and drop the
-  # `if:` here.
+  # `*` pattern does not cross `/` -- see dagger-ref-drift.yml) and add a
+  # `pull_request` trigger to this pipeline: the task-level `if:` the
+  # live-api task carried in tests.yml was dropped with this move, so the
+  # main-only trigger set above is the only gate left.
   # cache: false mirrors schema-drift (the result depends on Linear's live
   # API, not just repo files); cache-key: excluded keeps the credential out
   # of the task's content-cache fingerprint.

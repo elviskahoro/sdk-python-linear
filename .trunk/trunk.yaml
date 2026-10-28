@@ -70,7 +70,7 @@ lint:
     # gates on this pipeline. There is no way to point it at the real
     # workspace from a lint command (Trunk does binary lookup, not a shell,
     # so `cd ${workspace} && ...` dies with "Unable to find binary in PATH:
-    # cd"; tach has no --root flag), so the audit lives in .rwx/ci.yml's
+    # cd"; tach has no --root flag), so the audit lives in .rwx/lint.yml's
     # tach-external task, which runs against the full checkout and is
     # required by the same queue.
     - name: tach
