@@ -341,8 +341,10 @@ class LinearWorkflow:
         term: str,
         first: int = 50,
         after: str | None = None,
+        *,
+        filter: dict[str, Any] | None = None,  # noqa: A002
     ) -> SearchIssuesResultSearchIssues:
-        return await self._queries.search_issues(term, first, after)
+        return await self._queries.search_issues(term, first, after, filter=filter)
 
     @_sync_doc(LinearQueries.search_issues)
     def search_issues(
@@ -350,8 +352,10 @@ class LinearWorkflow:
         term: str,
         first: int = 50,
         after: str | None = None,
+        *,
+        filter: dict[str, Any] | None = None,  # noqa: A002
     ) -> SearchIssuesResultSearchIssues:
-        return self._run(self.search_issues_async(term, first, after))
+        return self._run(self.search_issues_async(term, first, after, filter=filter))
 
     async def get_user_async(self, user_id: str) -> UserFields | None:
         return await self._queries.get_user(user_id)
@@ -438,8 +442,14 @@ class LinearWorkflow:
         *,
         page_size: int = 50,
         limit: int | None = None,
+        filter: dict[str, Any] | None = None,  # noqa: A002
     ) -> AsyncIterator[IssueSearchResultFields]:
-        return self._queries.iter_search_issues(term, page_size=page_size, limit=limit)
+        return self._queries.iter_search_issues(
+            term,
+            page_size=page_size,
+            limit=limit,
+            filter=filter,
+        )
 
     def iter_search_issues(
         self,
@@ -447,6 +457,7 @@ class LinearWorkflow:
         *,
         page_size: int = 50,
         limit: int | None = None,
+        filter: dict[str, Any] | None = None,  # noqa: A002
     ) -> Iterator[IssueSearchResultFields]:
         """Sync search wrapper that materializes every page before yielding.
 
@@ -459,6 +470,7 @@ class LinearWorkflow:
             term,
             page_size=page_size,
             limit=limit,
+            filter=filter,
         )
         return iter(self._run(self._collect(async_iterator)))
 

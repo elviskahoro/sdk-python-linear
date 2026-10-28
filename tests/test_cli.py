@@ -1267,6 +1267,211 @@ def test_issue_update_apply_returns_resource_and_uses_resolved_id() -> None:
     }
 
 
+def test_issue_update_multi_preview_lists_each_target_without_mutation() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["issue", "update", "ENG-1", "eng-2", "--priority", "3", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert payload["applied"] is False  # noqa: S101
+    assert len(payload["results"]) == 2  # noqa: S101
+    assert all(r["payload"] == {"priority": 3} for r in payload["results"])  # noqa: S101
+    assert _operation_names(route) == ["GetIssue", "GetIssue"]  # noqa: S101
+
+
+def test_issue_update_multi_apply_reports_each_item() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            [
+                "issue",
+                "update",
+                "ENG-1",
+                "ENG-2",
+                "--priority",
+                "3",
+                "--apply",
+                "--json",
+            ],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert payload["applied"] is True  # noqa: S101
+    assert (payload["succeeded"], payload["failed"]) == (2, 0)  # noqa: S101
+    assert _operation_names(route).count("UpdateIssue") == 2  # noqa: S101
+
+
+def test_issue_update_multi_mixed_failure_continues_and_exits_1() -> None:
+    base = _graphql_router()
+    updates = 0
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal updates
+        query = json.loads(request.content)["query"]
+        if _named(query, "UpdateIssue"):
+            updates += 1
+            if updates == 1:
+                return httpx.Response(503, text="service unavailable")
+        return base(request)
+
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=respond)
+        result = runner.invoke(
+            app,
+            [
+                "issue",
+                "update",
+                "ENG-1",
+                "ENG-2",
+                "--priority",
+                "3",
+                "--apply",
+                "--json",
+            ],
+            env=AUTH,
+        )
+    assert result.exit_code == 1  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert payload["applied"] is False  # noqa: S101
+    assert (payload["succeeded"], payload["failed"]) == (1, 1)  # noqa: S101
+    assert payload["results"][0]["error"] == "HTTP error: 503"  # noqa: S101
+    assert payload["results"][1]["applied"] is True  # noqa: S101
+
+
+def test_issue_update_multi_missing_issue_is_item_error() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_graphql_router(issue_exists=False))
+        result = runner.invoke(
+            app,
+            ["issue", "update", "ENG-1", "ENG-2", "--priority", "3", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 1  # noqa: S101
+    results = json.loads(result.stdout)["results"]
+    assert len(results) == 2  # noqa: S101
+    assert "no issue found with identifier ENG-1" in results[0]["error"]  # noqa: S101
+
+
+def test_issue_update_multi_state_resolution_failure_is_item_error() -> None:
+    # ENG-1's team carries the state, ENG-2's does not, so the per-team
+    # resolution fails for one item only. That failure must become item 2's
+    # error — after item 1's mutation — instead of aborting the batch with
+    # exit 2 and no envelope.
+    state = {
+        "id": "state-1",
+        "name": "In Progress",
+        "type": "started",
+        "color": "#fff",
+        "position": 1.0,
+    }
+    base = _graphql_router(workflow_states=[state])
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        query, variables = body["query"], body["variables"]
+        if _named(query, "GetIssue") and variables["id"] == "ENG-2":
+            data = {"issue": {**issue_payload("iss-2"), "identifier": "ENG-2"}}
+        elif _named(query, "CliIssueTeam") and variables["id"] == "iss-2":
+            data = {"issue": {"team": {"id": "team-2", "key": "OTHER"}}}
+        elif (
+            _named(query, "ListWorkflowStates")
+            and variables["filter"]["team"]["id"]["eq"] == "team-2"
+        ):
+            data = {
+                "workflowStates": {
+                    "nodes": [
+                        {
+                            "id": "state-2",
+                            "name": "Todo",
+                            "type": "unstarted",
+                            "color": "#fff",
+                            "position": 1.0,
+                        },
+                    ],
+                    "pageInfo": page_info_payload(),
+                },
+            }
+        else:
+            return base(request)
+        return httpx.Response(200, json={"data": data})
+
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=respond)
+        result = runner.invoke(
+            app,
+            [
+                "issue",
+                "update",
+                "ENG-1",
+                "ENG-2",
+                "--state",
+                "In Progress",
+                "--apply",
+                "--json",
+            ],
+            env=AUTH,
+        )
+    assert result.exit_code == 1  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert (payload["succeeded"], payload["failed"]) == (1, 1)  # noqa: S101
+    assert payload["results"][0]["applied"] is True  # noqa: S101
+    error = payload["results"][1]["error"]
+    assert "unknown workflow state 'In Progress' for team OTHER" in error  # noqa: S101
+    assert _operation_names(route).count("UpdateIssue") == 1  # noqa: S101
+
+
+def test_issue_update_ids_file_merges_dedupes_and_skips_comments(
+    tmp_path: Path,
+) -> None:
+    ids = tmp_path / "ids.txt"
+    ids.write_text("# batch\nENG-2\n\n  ENG-1  \n", encoding="utf-8")
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            [
+                "issue",
+                "update",
+                "ENG-1",
+                "--ids-file",
+                str(ids),
+                "--priority",
+                "3",
+                "--json",
+            ],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    results = json.loads(result.stdout)["results"]
+    assert len(results) == 2  # noqa: S101 - ENG-1 deduped, ENG-2 from file
+
+
+def test_issue_update_dedupes_case_variant_identifiers() -> None:
+    # ENG-1 and eng-1 normalize to the same issue, so the update runs once
+    # rather than sending the same mutation twice.
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["issue", "update", "ENG-1", "eng-1", "--priority", "3", "--apply", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    assert json.loads(result.stdout)["identifier"] == "ENG-1"  # noqa: S101
+    assert _operation_names(route) == ["GetIssue", "UpdateIssue"]  # noqa: S101
+
+
+def test_issue_update_requires_an_identifier() -> None:
+    result = runner.invoke(app, ["issue", "update", "--priority", "3"], env=AUTH)
+    assert result.exit_code == 2  # noqa: S101
+
+
 def test_issue_comment_json_preview_sends_no_mutation() -> None:
     with respx.mock:
         route = respx.post(API_URL).mock(side_effect=_graphql_router())
@@ -1877,7 +2082,95 @@ def test_search_renders_hits_and_forwards_limit() -> None:
         "term": "zotero",
         "first": 3,
         "after": None,
+        "filter": None,
     }
+
+
+_IN_PROGRESS = {
+    "id": "state-1",
+    "name": "In Progress",
+    "type": "started",
+    "color": "#fff",
+    "position": 1.0,
+}
+
+
+def test_search_team_filters_by_key_and_joins_multiword_terms() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["search", "Evaluate", "tool", "--team", "eng"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    variables = _sent_variables(route, "SearchIssues")
+    assert variables["term"] == "Evaluate tool"  # noqa: S101
+    assert variables["filter"] == {"team": {"key": {"eq": "ENG"}}}  # noqa: S101
+
+
+def test_search_team_and_state_filter_on_different_fields() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            side_effect=_graphql_router(workflow_states=[_IN_PROGRESS]),
+        )
+        result = runner.invoke(
+            app,
+            ["search", "term", "--team", "ENG", "--state", "In Progress"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    assert _sent_variables(route, "SearchIssues")["filter"] == {  # noqa: S101
+        "team": {"key": {"eq": "ENG"}},
+        "state": {"name": {"eq": "In Progress"}},
+    }
+
+
+def test_search_all_with_team_keeps_every_page_filtered_and_json_shape() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["search", "term", "--all", "--team", "ENG", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert set(payload) == {"results", "complete", "truncated"}  # noqa: S101
+    assert _sent_variables(route, "SearchIssues")["filter"] == {  # noqa: S101
+        "team": {"key": {"eq": "ENG"}},
+    }
+
+
+def test_search_unknown_team_fails_before_searching() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router(team=None))
+        result = runner.invoke(app, ["search", "term", "--team", "NOPE"], env=AUTH)
+    assert result.exit_code == 1  # noqa: S101
+    assert "no Linear team with key 'NOPE'" in result.output  # noqa: S101
+    assert "SearchIssues" not in _operation_names(route)  # noqa: S101
+
+
+def test_search_unknown_state_fails_before_searching() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            side_effect=_graphql_router(workflow_states=[_IN_PROGRESS]),
+        )
+        result = runner.invoke(
+            app,
+            ["search", "term", "--team", "ENG", "--state", "bogus"],
+            env=AUTH,
+        )
+    assert result.exit_code == 2  # noqa: S101
+    assert "unknown workflow state 'bogus' for team ENG" in result.output  # noqa: S101
+    assert "SearchIssues" not in _operation_names(route)  # noqa: S101
+
+
+def test_search_state_without_team_is_a_usage_error() -> None:
+    with respx.mock:
+        result = runner.invoke(app, ["search", "term", "--state", "Done"], env=AUTH)
+    assert result.exit_code == 2  # noqa: S101
+    assert "--state requires --team" in result.output  # noqa: S101
 
 
 def test_search_verbose_prints_urls_and_descriptions() -> None:
@@ -1895,6 +2188,102 @@ def test_search_json_lists_issue_dicts() -> None:
         result = runner.invoke(app, ["search", "zotero", "--json"], env=AUTH)
     assert result.exit_code == 0  # noqa: S101
     assert json.loads(result.stdout)[0]["title"] == "Hello"  # noqa: S101
+
+
+def test_json_includes_project_by_default() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(app, ["search", "zotero", "--json"], env=AUTH)
+    assert result.exit_code == 0  # noqa: S101
+    assert json.loads(result.stdout)[0]["project"] == {  # noqa: S101
+        "id": "proj-1",
+        "name": "Backend",
+    }
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["search", "zotero"],
+        ["issues", "--team", "ENG"],
+        ["issue", "ENG-1"],
+    ],
+)
+def test_fields_selects_json_keys(argv: list[str]) -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            [*argv, "--json", "--fields", "identifier, project,identifier"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    payload = json.loads(result.stdout)
+    item = payload if isinstance(payload, dict) else payload[0]
+    assert item == {  # noqa: S101
+        "identifier": "ENG-1",
+        "project": {"id": "proj-1", "name": "Backend"},
+    }
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["search", "zotero"],
+        ["issues", "--team", "ENG"],
+        ["issue", "ENG-1"],
+    ],
+)
+@pytest.mark.parametrize("fields", ["bogus", "title,,id", "title,nope"])
+def test_fields_rejects_bad_names_before_any_request(
+    argv: list[str],
+    fields: str,
+) -> None:
+    with respx.mock:
+        route = respx.post(API_URL)
+        result = runner.invoke(app, [*argv, "--fields", fields], env=AUTH)
+    assert result.exit_code == 2  # noqa: S101
+    assert not route.called  # noqa: S101
+    if "nope" in fields or fields == "bogus":
+        assert "assignee" in result.output  # noqa: S101
+
+
+def test_fields_applies_to_all_envelope() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["search", "zotero", "--all", "--json", "--fields", "id"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert payload["results"] == [{"id": "iss-1"}]  # noqa: S101
+
+
+def test_project_is_null_outside_a_project() -> None:
+    nodes = [issue_payload(project=False)]
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "searchIssues": {
+                            "nodes": nodes,
+                            "pageInfo": page_info_payload(),
+                        },
+                    },
+                },
+            ),
+        )
+        result = runner.invoke(
+            app,
+            ["search", "zotero", "--json", "--fields", "project"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    assert json.loads(result.stdout) == [{"project": None}]  # noqa: S101
 
 
 def test_missing_api_key_exits_with_guidance() -> None:
@@ -2933,8 +3322,15 @@ def test_label_resolution_follows_every_page() -> None:
         result = runner.invoke(
             app,
             [
-                "issue", "create", "--team", "eng", "--title", "T",
-                "--label", "label-149", "--json",
+                "issue",
+                "create",
+                "--team",
+                "eng",
+                "--title",
+                "T",
+                "--label",
+                "label-149",
+                "--json",
             ],
             env=AUTH,
         )
@@ -2994,7 +3390,9 @@ def test_label_resolution_stall_fails_cleanly_instead_of_looping() -> None:
             json={
                 "data": {
                     "issueLabels": {
-                        "nodes": [{"id": "l-1", "name": "Bug"}] if after is None else [],
+                        "nodes": [{"id": "l-1", "name": "Bug"}]
+                        if after is None
+                        else [],
                         "pageInfo": page_info_payload(
                             has_next=True,
                             end=f"{after or ''}x",

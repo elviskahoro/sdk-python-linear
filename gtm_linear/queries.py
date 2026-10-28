@@ -618,6 +618,8 @@ class LinearQueries:
         term: str,
         first: int = 50,
         after: str | None = None,
+        *,
+        filter: dict[str, Any] | None = None,  # noqa: A002
     ) -> SearchIssuesResultSearchIssues:
         """Full-text search for issues.
 
@@ -625,6 +627,9 @@ class LinearQueries:
             term: The search term.
             first: Page size.
             after: Cursor from a previous page's ``page_info.end_cursor``.
+            filter: A Linear ``IssueFilter`` as a plain ``dict[str, Any]``, e.g.
+                ``{"team": {"key": {"eq": "ENG"}}}``; results outside it are
+                never returned.
 
         Returns:
             The page: ``.nodes`` and ``.page_info``.
@@ -635,7 +640,7 @@ class LinearQueries:
         """
         data = await self._client.execute_async(
             SEARCH_ISSUES,
-            {"term": term, "first": first, "after": after},
+            {"term": term, "first": first, "after": after, "filter": filter},
         )
         return SearchIssuesResult.model_validate(data).search_issues
 
@@ -734,6 +739,7 @@ class LinearQueries:
         *,
         page_size: int = 50,
         limit: int | None = None,
+        filter: dict[str, Any] | None = None,  # noqa: A002
     ) -> AsyncIterator[IssueSearchResultFields]:
         """Iterate every search hit, following cursors automatically.
 
@@ -741,6 +747,7 @@ class LinearQueries:
             term: The search term.
             page_size: How many results to request per round trip.
             limit: Stop after this many results.
+            filter: A Linear ``IssueFilter`` as a plain ``dict[str, Any]``.
 
         Returns:
             An async iterator over search results.
@@ -748,7 +755,12 @@ class LinearQueries:
         validate_pagination_options(page_size, limit)
 
         async def fetch(cursor: str | None) -> SearchIssuesResultSearchIssues:
-            return await self.search_issues(term, first=page_size, after=cursor)
+            return await self.search_issues(
+                term,
+                first=page_size,
+                after=cursor,
+                filter=filter,
+            )
 
         return paginate(fetch, limit=limit)
 

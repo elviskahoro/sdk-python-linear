@@ -5,6 +5,7 @@ from gtm_linear.models import LinearModel
 from .fragments import (
     IssueFields,
     IssueFieldsAssignee,
+    IssueFieldsProject,
     IssueFieldsState,
     PageInfoFields,
 )
@@ -67,6 +68,10 @@ fragment IssueFields on Issue {
     name
     email
     active
+  }
+  project {
+    id
+    name
   }
 }
 

@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `issue update` accepts several identifiers and `--ids-file`, applying one
+  payload to each with per-item results; any failed item exits 1 (#136).
+- `--fields` on `search`, `issues`, and `issue` selects the `--json` keys, and
+  issue JSON now includes `project` (`{id, name}` or `null`) (#134).
+
 ### Changed
 
 - The `[strawberry]` extra now requires `strawberry-graphql>=0.336.2` (was

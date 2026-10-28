@@ -26,7 +26,12 @@ def user_payload(user_id: str = "u-1") -> dict[str, Any]:
     }
 
 
-def issue_payload(issue_id: str = "iss-1", *, assignee: bool = True) -> dict[str, Any]:
+def issue_payload(
+    issue_id: str = "iss-1",
+    *,
+    assignee: bool = True,
+    project: bool = True,
+) -> dict[str, Any]:
     """A Linear ``Issue`` as the SDK's IssueFields fragment selects it.
 
     Note ``state`` is an object and is never null: Linear's schema types it
@@ -42,6 +47,7 @@ def issue_payload(issue_id: str = "iss-1", *, assignee: bool = True) -> dict[str
         "priority": 2,
         "state": {"id": "st-1", "name": "In Progress", "type": "started"},
         "assignee": user_payload() if assignee else None,
+        "project": {"id": "proj-1", "name": "Backend"} if project else None,
     }
 
 

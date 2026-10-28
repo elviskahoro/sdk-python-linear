@@ -39,6 +39,11 @@ class IssueFieldsAssignee(LinearModel):
     active: bool
 
 
+class IssueFieldsProject(LinearModel):
+    id: str
+    name: str
+
+
 class IssueFields(LinearModel):
     """GraphQL type: Issue."""
 
@@ -50,6 +55,7 @@ class IssueFields(LinearModel):
     priority: float
     state: IssueFieldsState
     assignee: Optional[IssueFieldsAssignee]
+    project: Optional[IssueFieldsProject]
 
 
 class IssueRelationFieldsIssue(LinearModel):
@@ -183,6 +189,11 @@ class IssueSearchResultFieldsAssignee(LinearModel):
     active: bool
 
 
+class IssueSearchResultFieldsProject(LinearModel):
+    id: str
+    name: str
+
+
 class IssueSearchResultFields(LinearModel):
     """GraphQL type: IssueSearchResult."""
 
@@ -194,3 +205,4 @@ class IssueSearchResultFields(LinearModel):
     priority: float
     state: IssueSearchResultFieldsState
     assignee: Optional[IssueSearchResultFieldsAssignee]
+    project: Optional[IssueSearchResultFieldsProject]

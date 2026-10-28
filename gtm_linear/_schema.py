@@ -4922,6 +4922,9 @@ class Issue:
     priority: float = strawberry.field(
         description="The priority of the issue. 0 = No priority, 1 = Urgent, 2 = High, 3 = Medium, 4 = Low."
     )
+    project: Project | None = strawberry.field(
+        description="The project that the issue is associated with. Null if the issue is not part of any project."
+    )
 
     @strawberry.field(description="Relations associated with this issue.")
     def relations(
@@ -5031,6 +5034,9 @@ class IssueSearchResult:
     priority: float = strawberry.field(
         description="The priority of the issue. 0 = No priority, 1 = Urgent, 2 = High, 3 = Medium, 4 = Low."
     )
+    project: Project | None = strawberry.field(
+        description="The project that the issue is associated with. Null if the issue is not part of any project."
+    )
     state: WorkflowState = strawberry.field(
         description="The workflow state (issue status) that the issue is currently in. Workflow states represent the issue's progress through the team's workflow, such as Triage, Todo, In Progress, Done, or Canceled."
     )
@@ -5104,6 +5110,14 @@ class PageInfo:
     start_cursor: str | None = strawberry.field(
         description="Cursor representing the first result in the paginated results."
     )
+
+
+@strawberry.type
+class Project:
+    id: strawberry.ID = strawberry.field(
+        description="The unique identifier of the entity."
+    )
+    name: str = strawberry.field(description="The name of the project.")
 
 
 @strawberry.type

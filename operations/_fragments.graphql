@@ -125,6 +125,10 @@ fragment IssueFields on Issue {
     email
     active
   }
+  project {
+    id
+    name
+  }
 }
 
 fragment IssueSearchResultFields on IssueSearchResult {
@@ -144,5 +148,9 @@ fragment IssueSearchResultFields on IssueSearchResult {
     name
     email
     active
+  }
+  project {
+    id
+    name
   }
 }

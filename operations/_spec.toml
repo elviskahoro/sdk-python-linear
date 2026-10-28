@@ -72,6 +72,7 @@ fields = ["id", "identifier", "title", "description", "url", "priority"]
 [fragments.IssueFields.expand]
 state = ["id", "name", "type"]
 assignee = ["id", "name", "email", "active"]
+project = ["id", "name"]
 
 [fragments.IssueSearchResultFields]
 on = "IssueSearchResult"
@@ -79,6 +80,7 @@ fields = ["id", "identifier", "title", "description", "url", "priority"]
 [fragments.IssueSearchResultFields.expand]
 state = ["id", "name", "type"]
 assignee = ["id", "name", "email", "active"]
+project = ["id", "name"]
 
 
 [operations.GetIssue]
@@ -133,8 +135,8 @@ arguments = { filter = "$filter", first = "$first", after = "$after", orderBy = 
 kind = "query"
 root = "searchIssues"
 fragment = "IssueSearchResultFields"
-variables = { term = "String!", first = "Int!", after = "String" }
-arguments = { term = "$term", first = "$first", after = "$after" }
+variables = { term = "String!", first = "Int!", after = "String", filter = "IssueFilter" }
+arguments = { term = "$term", first = "$first", after = "$after", filter = "$filter" }
 
 [operations.CreateIssue]
 kind = "mutation"
