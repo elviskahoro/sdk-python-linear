@@ -49,7 +49,7 @@ file_dependencies = ["tests/**", "pyproject.toml", "uv.lock", "tach.toml"]
 # name, and empirically (tach 0.35.1) a hyphenated env-resolved name never
 # matches an exclude entry directly -- so `strawberry`/`graphql` below would
 # be ignored exactly when the audit runs inside the dev venv
-# (.rwx/ci.yml's tach-external task). The identity `rename` entries pin the
+# (.rwx/lint.yml tach-external task). The identity `rename` entries pin the
 # resolved names to the module names, making the excludes match in every
 # environment (dev venv, CI, or bare). ruff maps to a distribution of the
 # same name and tomllib is stdlib, so neither needs a rename.

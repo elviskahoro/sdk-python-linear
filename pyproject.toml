@@ -69,7 +69,7 @@ dev = [
   # and `trunk check` has nothing left to reformat. Pinned to the version
   # .trunk/trunk.yaml enables, so both formatters agree on the result.
   "ruff==0.15.14",
-  # `tach check-external` runs in .rwx/ci.yml's tach-external task; the audit
+  # `tach check-external` runs in .rwx/lint.yml tach-external task; the audit
   # cannot be a Trunk lint command because Trunk runs batch lint commands
   # from a sandbox holding only the diff's files, where the audit would flag
   # every dependency whose import sites sit outside the diff as "not used"

@@ -1,0 +1,108 @@
+on:
+  github:
+    push:
+      init:
+        commit-sha: ${{ event.git.sha }}
+        repository: https://github.com/elviskahoro/sdk-python-linear.git
+      if: ${{ event.git.branch == 'main' }}
+  cron:
+    - key: weekly-integration-tests
+      schedule: 17 7 * * 1
+      init:
+        commit-sha: ${{ event.git.sha }}
+        repository: https://github.com/elviskahoro/sdk-python-linear.git
+  cli:
+    # Manual `rwx run` dispatch; the account user holds vault access.
+    init:
+      commit-sha: ${{ event.git.sha }}
+      repository: https://github.com/elviskahoro/sdk-python-linear.git
+
+base:
+  image: ubuntu:24.04
+  config: rwx/base 1.2.0
+
+tasks:
+  - key: code
+    call: git/clone 2.2.0
+    with:
+      repository: ${{ init.repository }}
+      ref: ${{ init.commit-sha }}
+
+  # No packaged `uv/install` leaf exists in the RWX catalog (verified via
+  # `rwx packages list` 2026-10-03 -- `python/install` installs Python, not
+  # uv), so this manual installer stays. Checksum-pinned so an altered or
+  # compromised script at that URL fails closed instead of executing -- same
+  # pattern as gtm-sdk's .rwx/lint.yml uv-install task.
+  # The source workflow's astral-sh/setup-uv resolved the latest uv (it pins
+  # only the action, not uv); this port pins 0.11.29 instead -- the version
+  # the exact steps below were validated against (uv sync --locked + full
+  # pytest suite). Unlike gtm-sdk, this repo's pyproject.toml carries no
+  # [tool.uv] required-version pin, so bumping this is safe as long as the
+  # committed uv.lock still parses and `uv sync --locked` stays clean.
+  - key: uv-install
+    use: [code]
+    run: |
+      set -euo pipefail
+      script="$(mktemp)"
+      trap 'rm -f "${script}"' EXIT
+      curl -LsSf https://astral.sh/uv/0.11.29/install.sh -o "${script}"
+      echo "504a79fd2ed0dcd47e7f04f0792cfd0871f62e24a7fe40fa8ae0f563a369f2bd  ${script}" | sha256sum -c -
+      sh "${script}"
+      echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
+
+  # No `filter:` here -- `uv sync` installs gtm-linear editable and the test
+  # suite imports scripts/ and operations/ too, so the full source tree must
+  # be present (same rationale as gtm-sdk's .rwx/lint.yml deps task).
+  # UV_LOCKED and UV_PYTHON are exported to $RWX_ENV so every downstream
+  # `uv run` inherits them -- the RWX equivalent of the source workflow's
+  # workflow-level `env:` block, which existed so `uv run` steps fail loudly
+  # on lockfile drift instead of silently re-resolving off PyPI. UV_PYTHON
+  # mirrors setup-uv's python-version input (which sets UV_PYTHON).
+  - key: deps
+    use: [uv-install]
+    env:
+      UV_LOCKED: "1"
+      UV_PYTHON: "3.13"
+    run: |
+      uv sync
+      echo "$PWD/.venv/bin" >> "$RWX_ENV/PATH"
+      echo "$PWD/.venv" > "$RWX_ENV/VIRTUAL_ENV"
+      echo "1" > "$RWX_ENV/UV_LOCKED"
+      echo "3.13" > "$RWX_ENV/UV_PYTHON"
+
+  # The live-API half of the network suite: the CLI live wording check plus
+  # the tests/integration suite, with LINEAR_API_KEY from the
+  # `sdk-python-linear` vault. This pipeline has no pull_request
+  # trigger because the runs are main-ref only -- the push trigger only fires
+  # on main, and cron runs against the default branch -- which is exactly what the
+  # locked vault's grant covers
+  # (repository runs on `main`, the same grant .rwx/dagger-ref-drift.yml's
+  # GITHUB_TOKEN relies on). A run whose ref does not match has the secret
+  # resolution refused, and an unresolvable vault secret fails the whole
+  # task BEFORE `run:` executes -- not hypothetical: #163's first three
+  # pushes referenced this secret unconditionally and every pull-request
+  # run failed the pipeline in ~12-35s with no task output. Vault access
+  # matching uses the run's own repository/ref context from the trigger
+  # event, NOT `init` parameters (passing `branch:` in the pull_request
+  # init was tried and reverted for exactly this reason). CLI dispatches
+  # mirror the push init and so exercise the vault path too -- they are
+  # user-initiated, and the account user holds vault access.
+  # Skipping non-main runs is also the secret-safety story: no PR-run code --
+  # same-repo branches included -- ever executes with the key, and fork-PR
+  # runs would not match the repo-scoped vault either. To extend the live
+  # check to PR runs later, grant the specific branch on the vault (a bare
+  # `*` pattern does not cross `/` -- see dagger-ref-drift.yml) and add a
+  # `pull_request` trigger to this pipeline: the task-level `if:` the
+  # live-api task carried in tests.yml was dropped with this move, so the
+  # main-only trigger set above is the only gate left.
+  # cache: false mirrors schema-drift (the result depends on Linear's live
+  # API, not just repo files); cache-key: excluded keeps the credential out
+  # of the task's content-cache fingerprint.
+  - key: integration-tests
+    use: [deps]
+    cache: false
+    env:
+      LINEAR_API_KEY:
+        value: ${{ vaults.sdk-python-linear.secrets.LINEAR_API_KEY }}
+        cache-key: excluded
+    run: uv run pytest -q -m network tests/test_cli.py tests/integration

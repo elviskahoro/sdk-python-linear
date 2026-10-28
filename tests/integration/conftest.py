@@ -122,7 +122,7 @@ def workflow(api_key: str) -> Iterator[LinearWorkflow]:
 
 
 TEAM_NAME_PREFIX = "sdk-it"
-# A team younger than this may still belong to a sibling live-api run
+# A team younger than this may still belong to a sibling integration-tests run
 # (overlapping main pushes, the weekly cron, manual dispatches), so the
 # sweep leaves it alone; crashed-run leftovers outlive the guard and go.
 SWEEP_MIN_TEAM_AGE = timedelta(minutes=45)
@@ -140,7 +140,7 @@ def _sweep_leaked_teams(client: LinearClient) -> None:
     """Delete ``sdk-it`` teams leaked by crashed earlier runs.
 
     Teams younger than ``SWEEP_MIN_TEAM_AGE`` are skipped: a concurrent
-    live-api run may still be executing against one. The listing paginates
+    integration-tests run may still be executing against one. The listing paginates
     so workspaces with more than 100 teams sweep past page 1.
     """
     after: str | None = None
