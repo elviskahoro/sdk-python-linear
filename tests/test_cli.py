@@ -1358,6 +1358,74 @@ def test_issue_update_multi_missing_issue_is_item_error() -> None:
     assert "no issue found with identifier ENG-1" in results[0]["error"]  # noqa: S101
 
 
+def test_issue_update_multi_state_resolution_failure_is_item_error() -> None:
+    # ENG-1's team carries the state, ENG-2's does not, so the per-team
+    # resolution fails for one item only. That failure must become item 2's
+    # error — after item 1's mutation — instead of aborting the batch with
+    # exit 2 and no envelope.
+    state = {
+        "id": "state-1",
+        "name": "In Progress",
+        "type": "started",
+        "color": "#fff",
+        "position": 1.0,
+    }
+    base = _graphql_router(workflow_states=[state])
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        query, variables = body["query"], body["variables"]
+        if _named(query, "GetIssue") and variables["id"] == "ENG-2":
+            data = {"issue": {**issue_payload("iss-2"), "identifier": "ENG-2"}}
+        elif _named(query, "CliIssueTeam") and variables["id"] == "iss-2":
+            data = {"issue": {"team": {"id": "team-2", "key": "OTHER"}}}
+        elif (
+            _named(query, "ListWorkflowStates")
+            and variables["filter"]["team"]["id"]["eq"] == "team-2"
+        ):
+            data = {
+                "workflowStates": {
+                    "nodes": [
+                        {
+                            "id": "state-2",
+                            "name": "Todo",
+                            "type": "unstarted",
+                            "color": "#fff",
+                            "position": 1.0,
+                        },
+                    ],
+                    "pageInfo": page_info_payload(),
+                },
+            }
+        else:
+            return base(request)
+        return httpx.Response(200, json={"data": data})
+
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=respond)
+        result = runner.invoke(
+            app,
+            [
+                "issue",
+                "update",
+                "ENG-1",
+                "ENG-2",
+                "--state",
+                "In Progress",
+                "--apply",
+                "--json",
+            ],
+            env=AUTH,
+        )
+    assert result.exit_code == 1  # noqa: S101
+    payload = json.loads(result.stdout)
+    assert (payload["succeeded"], payload["failed"]) == (1, 1)  # noqa: S101
+    assert payload["results"][0]["applied"] is True  # noqa: S101
+    error = payload["results"][1]["error"]
+    assert "unknown workflow state 'In Progress' for team OTHER" in error  # noqa: S101
+    assert _operation_names(route).count("UpdateIssue") == 1  # noqa: S101
+
+
 def test_issue_update_ids_file_merges_dedupes_and_skips_comments(
     tmp_path: Path,
 ) -> None:
@@ -1382,6 +1450,21 @@ def test_issue_update_ids_file_merges_dedupes_and_skips_comments(
     assert result.exit_code == 0  # noqa: S101
     results = json.loads(result.stdout)["results"]
     assert len(results) == 2  # noqa: S101 - ENG-1 deduped, ENG-2 from file
+
+
+def test_issue_update_dedupes_case_variant_identifiers() -> None:
+    # ENG-1 and eng-1 normalize to the same issue, so the update runs once
+    # rather than sending the same mutation twice.
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["issue", "update", "ENG-1", "eng-1", "--priority", "3", "--apply", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    assert json.loads(result.stdout)["identifier"] == "ENG-1"  # noqa: S101
+    assert _operation_names(route) == ["GetIssue", "UpdateIssue"]  # noqa: S101
 
 
 def test_issue_update_requires_an_identifier() -> None:

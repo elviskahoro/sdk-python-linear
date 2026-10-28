@@ -382,7 +382,11 @@ def _issue_dict(
 
     ``fields`` limits the keys emitted; ``None`` keeps the full shape.
     """
-    full = {
+    # Annotated so the literal's narrow inferred value type (``str | float |
+    # dict[str, str] | None``) does not collide with the declared return type
+    # — dict is invariant in its value type, so the join is not assignable to
+    # ``dict[str, object]`` on return.
+    full: dict[str, object] = {
         "identifier": issue.identifier,
         "title": issue.title,
         "description": issue.description,
@@ -1857,7 +1861,12 @@ class _UpdateFields:
 
 
 def _collect_targets(identifiers: list[str] | None, ids_file: str | None) -> list[str]:
-    """Merge positional identifiers with ``--ids-file`` lines, de-duplicated."""
+    """Merge positional identifiers with ``--ids-file`` lines, de-duplicated.
+
+    De-duplication keys on the normalized identifier — the same form
+    ``_resolve_issue`` looks up — so spellings that fold to one issue
+    (``ENG-1`` / ``eng-1``) run once; the first spelling is kept.
+    """
     collected = list(identifiers or [])
     text = _read_text_source(None, "", ids_file, "--ids-file")
     if text is not None:
@@ -1865,7 +1874,12 @@ def _collect_targets(identifiers: list[str] | None, ids_file: str | None) -> lis
             stripped = line.strip()
             if stripped and not stripped.startswith("#"):
                 collected.append(stripped)
-    targets = list(dict.fromkeys(collected))
+    unique: dict[str, str] = {}
+    for raw in collected:
+        key = _normalize_issue_identifier(raw)
+        if key not in unique:
+            unique[key] = raw
+    targets = list(unique.values())
     if not targets:
         message = "provide at least one issue identifier or --ids-file"
         raise typer.BadParameter(message, param_hint="issue update")
@@ -1942,8 +1956,9 @@ def _update_item(
     label = identifier
     captured = io.StringIO()
     try:
-        # Resolvers report through _fail (stderr + Exit); keep that message as
-        # this item's error instead of aborting the batch.
+        # Resolvers report through _fail (stderr + Exit) or BadParameter;
+        # either message becomes this item's error instead of aborting the
+        # batch mid-way.
         with contextlib.redirect_stderr(captured):
             resolved, update_input, payload, target = _build_update(
                 linear,
@@ -1970,6 +1985,12 @@ def _update_item(
     except typer.Exit:
         error = captured.getvalue().strip().removeprefix("error: ")
         error = error or "could not resolve update"
+    except typer.BadParameter as exc:
+        # Friendly-reference resolvers (--state/--label/--assignee/--project)
+        # raise BadParameter rather than going through _fail; their outcome
+        # can depend on the item's team, so it is a per-item error here too,
+        # and `str(exc)` already carries the message without stderr scraping.
+        error = str(exc)
     except (
         LinearAPIError,
         httpx.InvalidURL,
