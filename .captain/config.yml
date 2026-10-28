@@ -1,0 +1,28 @@
+test-suites:
+  sdk-python-linear-pytest:
+    command: uv run pytest -q --report-log=tmp/sdk-python-linear-pytest.json
+    results:
+      path: tmp/sdk-python-linear-pytest.json
+    output:
+      print-summary: true
+    retries:
+      attempts: 2
+      command: uv run pytest -q --report-log=tmp/sdk-python-linear-pytest.json {{ tests }}
+  sdk-python-linear-pytest-network:
+    command: uv run pytest -q -m network --report-log=tmp/sdk-python-linear-pytest-network.json
+    results:
+      path: tmp/sdk-python-linear-pytest-network.json
+    output:
+      print-summary: true
+    retries:
+      attempts: 2
+      command: uv run pytest -q -m network --report-log=tmp/sdk-python-linear-pytest-network.json {{ tests }}
+  sdk-python-linear-pytest-integration:
+    command: uv run pytest -q -m network tests/test_cli.py tests/integration --report-log=tmp/sdk-python-linear-pytest-integration.json
+    results:
+      path: tmp/sdk-python-linear-pytest-integration.json
+    output:
+      print-summary: true
+    retries:
+      attempts: 2
+      command: uv run pytest -q -m network tests/test_cli.py tests/integration --report-log=tmp/sdk-python-linear-pytest-integration.json {{ tests }}
