@@ -142,9 +142,11 @@ KNOWN_IMPORTS = {
 
 def _import_block(body: str) -> str:
     """Emit exactly the imports `body` references, grouped by module."""
+    # Docstring prose ("identifier in UUID v4 format") must not keep an import alive.
+    code = re.sub(r'""".*?"""', "", body)
     by_module: dict[str, set[str]] = {}
     for name, module in KNOWN_IMPORTS.items():
-        if re.search(rf"\b{name}\b", body):
+        if re.search(rf"\b{name}\b", code):
             by_module.setdefault(module, set()).add(name)
     return "".join(
         f"from {module} import {', '.join(sorted(names))}\n"
