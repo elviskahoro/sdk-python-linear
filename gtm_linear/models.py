@@ -25,4 +25,5 @@ class LinearModel(BaseModel):
         extra="ignore",
         alias_generator=to_camel,
         populate_by_name=True,
+        validate_assignment=True,
     )

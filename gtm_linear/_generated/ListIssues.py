@@ -11,7 +11,7 @@ from .fragments import (
 )
 
 
-class PaginationOrderBy(Enum):
+class PaginationOrderBy(str, Enum):
     """By which field should the pagination order by"""
 
     createdAt = "createdAt"

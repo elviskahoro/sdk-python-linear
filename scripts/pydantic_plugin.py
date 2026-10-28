@@ -284,7 +284,7 @@ class PydanticPlugin(PythonPlugin):
     def _print_enum_type(self, type_: GraphQLEnum) -> str:
         type_docs, _ = _descriptions()
         indent = 4 * " "
-        lines = [f"class {type_.name}(Enum):"]
+        lines = [f"class {type_.name}(str, Enum):"]
         if type_.name in type_docs:
             lines += [textwrap.indent(_docstring(type_docs[type_.name]), indent), ""]
         for value in type_.values:
