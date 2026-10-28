@@ -38,6 +38,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `tests-*.yml` pipeline naming. `.trunk/trunk.yaml`'s merge-queue
   `required_statuses` moves in the same change; a status rename landing
   without it would stall the queue on a name that no longer posts.
+- CI pytest runs through RWX Captain (`captain run <suite>`, suites in
+  `.captain/config.yml`) instead of `uv run pytest` directly, gaining
+  retries and per-test insights in RWX; the dev group gains
+  `pytest-reportlog` for the report-log ingestion. Local runs stay
+  `uv run pytest -q`.
 
 ### Fixed
 

@@ -53,6 +53,7 @@ gtm-linear = "gtm_linear.cli:main"
 dev = [
   "pytest>=8.0",
   "pytest-asyncio>=0.23",
+  "pytest-reportlog>=0.4",
   "respx @ git+https://github.com/elviskahoro/respx@c14645dfce6d10349cd5e3dba19c1a2003fd4032",
   # Codegen toolchain. Build-time only: scripts/codegen.py turns Linear's SDL
   # into the Pydantic models under gtm_linear/_generated/.

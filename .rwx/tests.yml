@@ -128,14 +128,17 @@ tasks:
       echo "1" > "$RWX_ENV/UV_LOCKED"
       echo "3.13" > "$RWX_ENV/UV_PYTHON"
 
+  - key: captain
+    call: rwx/install-captain 1.2.0
+
   # Ports the source workflow's `test` job: Tests / Operations are current /
   # Generated code is current, same steps, same order.
   - key: test
-    use: [deps]
+    use: [deps, captain]
     env:
       REQUIRE_JQ: "1"
     run: |
-      uv run pytest -q
+      captain run sdk-python-linear-pytest
       # Fails if operations/*.graphql drifted from operations/_spec.toml.
       uv run python scripts/gen_operations.py --check
       # Fails if a generated model was hand-edited or the schema pin moved
@@ -185,6 +188,6 @@ tasks:
   # default and does not detect non-determinism (see
   # https://www.rwx.com/docs/caching).
   - key: schema-drift
-    use: [deps]
+    use: [deps, captain]
     cache: false
-    run: uv run pytest -q -m network
+    run: captain run sdk-python-linear-pytest-network

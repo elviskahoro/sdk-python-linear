@@ -70,6 +70,9 @@ tasks:
       echo "1" > "$RWX_ENV/UV_LOCKED"
       echo "3.13" > "$RWX_ENV/UV_PYTHON"
 
+  - key: captain
+    call: rwx/install-captain 1.2.0
+
   # The live-API half of the network suite: the CLI live wording check plus
   # the tests/integration suite, with LINEAR_API_KEY from the
   # `sdk-python-linear` vault. This pipeline has no pull_request
@@ -99,10 +102,10 @@ tasks:
   # API, not just repo files); cache-key: excluded keeps the credential out
   # of the task's content-cache fingerprint.
   - key: integration-tests
-    use: [deps]
+    use: [deps, captain]
     cache: false
     env:
       LINEAR_API_KEY:
         value: ${{ vaults.sdk-python-linear.secrets.LINEAR_API_KEY }}
         cache-key: excluded
-    run: uv run pytest -q -m network tests/test_cli.py tests/integration
+    run: captain run sdk-python-linear-pytest-integration

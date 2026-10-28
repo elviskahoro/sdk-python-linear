@@ -18,6 +18,9 @@ trunk check --all                             # lint (run uv sync first: pyright
                                               # resolve deps through .venv)
 ```
 
+CI runs pytest through Captain (`captain run <suite>`, suites in
+`.captain/config.yml`); locally keep using `uv run pytest -q`.
+
 ## Architecture Overview
 
 `gtm_linear` is a typed SDK over Linear's GraphQL API: `client.py` owns the
