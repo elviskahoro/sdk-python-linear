@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from ._generated.CreateAttachment import AttachmentCreateInput
     from ._generated.CreateIssue import IssueCreateInput
     from ._generated.CreateIssueRelation import IssueRelationCreateInput
+    from ._generated.ListIssueComments import ListIssueCommentsResultIssueComments
     from ._generated.ListIssues import ListIssuesResultIssues
     from ._generated.ListWorkflowStates import ListWorkflowStatesResultWorkflowStates
     from ._generated.SearchIssues import SearchIssuesResultSearchIssues
@@ -261,6 +262,18 @@ class LinearWorkflow:
             after,
             order_by,
             include_archived=include_archived,
+        )
+
+    async def list_issue_comments_page_async(
+        self,
+        issue_id: str,
+        first: int = 50,
+        after: str | None = None,
+    ) -> ListIssueCommentsResultIssueComments:
+        return await self._queries.list_issue_comments_page(
+            issue_id,
+            first=first,
+            after=after,
         )
 
     @_sync_doc(LinearQueries.list_issues_page)
