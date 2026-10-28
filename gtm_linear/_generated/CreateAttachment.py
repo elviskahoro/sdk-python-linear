@@ -6,12 +6,17 @@ from .fragments import AttachmentFields
 
 
 class CreateAttachmentResultAttachmentCreate(LinearModel):
+    """The result of an attachment mutation."""
+
     success: bool
+    """Whether the operation was successful."""
     attachment: AttachmentFields
+    """The issue attachment that was created."""
 
 
 class CreateAttachmentResult(LinearModel):
     attachment_create: CreateAttachmentResultAttachmentCreate
+    """Creates a new attachment, or updates existing if the same `url` and `issueId` is used. To create an integration-aware attachment, use the integration-specific mutations such as `attachmentLinkZendesk`, `attachmentLinkSlack`, or `attachmentLinkURL` instead."""
 
 
 class AttachmentCreateInput(LinearModel):

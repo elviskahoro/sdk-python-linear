@@ -13,17 +13,24 @@ from .fragments import (
 
 
 class SLADayCountType(Enum):
+    """Which day count to use for SLA calculations."""
+
     all = "all"
     onlyBusinessDays = "onlyBusinessDays"
 
 
 class UpdateIssueResultIssueUpdate(LinearModel):
+    """The result of an issue mutation, containing the created or updated issue and a success indicator."""
+
     success: bool
+    """Whether the operation was successful."""
     issue: Optional[IssueFields]
+    """The issue that was created or updated."""
 
 
 class UpdateIssueResult(LinearModel):
     issue_update: UpdateIssueResultIssueUpdate
+    """Updates an issue."""
 
 
 class IssueUpdateInput(LinearModel):

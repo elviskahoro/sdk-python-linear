@@ -21,28 +21,54 @@ from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
 from graphql import (
+    GraphQLField as GraphQLField_,
     GraphQLInputObjectType,
     GraphQLInterfaceType,
     GraphQLObjectType as GqlObjectType,
+    GraphQLSchema,
     build_schema,
+    get_named_type,
 )
 from strawberry.codegen import CodegenFile
 from strawberry.codegen.plugins.python import (
     PythonPlugin,
     PythonType as StrawberryPythonType,
 )
-from strawberry.codegen.types import GraphQLObjectType, GraphQLOptional, GraphQLScalar
+from strawberry.codegen.types import (
+    GraphQLList,
+    GraphQLObjectType,
+    GraphQLOptional,
+    GraphQLScalar,
+)
 
 if TYPE_CHECKING:
-    from strawberry.codegen.types import GraphQLField, GraphQLOperation, GraphQLType
+    from strawberry.codegen.types import (
+        GraphQLEnum,
+        GraphQLField,
+        GraphQLOperation,
+        GraphQLType,
+    )
 
 SCHEMA_FILE = Path(__file__).resolve().parent.parent / "schema" / "linear.graphql"
 
 
 @lru_cache(maxsize=1)
+def _schema() -> GraphQLSchema:
+    return build_schema(SCHEMA_FILE.read_text())
+
+
+def _describe(member: GraphQLField_) -> str | None:
+    """Description plus a ``Deprecated:`` note when Linear has deprecated the member."""
+    parts = [member.description] if member.description else []
+    if member.deprecation_reason:
+        parts.append(f"Deprecated: {member.deprecation_reason}")
+    return " ".join(parts) or None
+
+
+@lru_cache(maxsize=1)
 def _descriptions() -> tuple[dict[str, str], dict[tuple[str, str], str]]:
     """Return (type descriptions, (type, field) descriptions) from the pinned SDL."""
-    schema = build_schema(SCHEMA_FILE.read_text())
+    schema = _schema()
     types: dict[str, str] = {}
     fields: dict[tuple[str, str], str] = {}
     for name, gql in schema.type_map.items():
@@ -55,11 +81,17 @@ def _descriptions() -> tuple[dict[str, str], dict[tuple[str, str], str]]:
             (GqlObjectType, GraphQLInterfaceType, GraphQLInputObjectType),
         ):
             for fname, fld in gql.fields.items():
-                if fld.description:
-                    fields[name, fname] = fld.description
-        # Enum values are skipped: Linear's SDL carries no descriptions on them,
-        # and nothing consumes such entries (enums print via _print_enum_type).
+                if doc := _describe(fld):
+                    fields[name, fname] = doc
+        # Enum values are skipped: Linear's SDL carries no descriptions on them.
     return types, fields
+
+
+def _schema_names(field: GraphQLField) -> list[str]:
+    """Candidate GraphQL field names for a (possibly snake_cased) generated field."""
+    head, *rest = field.name.split("_")
+    camel = head + "".join(part.title() for part in rest)
+    return [k for k in (field.name, camel, field.alias) if k]
 
 
 def _docstring(text: str) -> str:
@@ -163,7 +195,7 @@ class PydanticPlugin(PythonPlugin):
     def generate_code(
         self,
         types: list[GraphQLType],
-        operation: GraphQLOperation,  # noqa: ARG002 - fixed by the plugin API
+        operation: GraphQLOperation,
     ) -> list[CodegenFile]:
         """Emit one module whose import block matches what its body references.
 
@@ -173,6 +205,7 @@ class PydanticPlugin(PythonPlugin):
         which would otherwise leave a dangling unused import in every generated
         module.
         """
+        self._nested = self._resolve_nested(types, operation)
         bodies = [t for t in (self._print_type(type_) for type_ in types) if t]
         body = "\n\n".join(bodies)
 
@@ -192,19 +225,79 @@ class PydanticPlugin(PythonPlugin):
         return [CodegenFile(self.outfile_name, code.strip())]
 
     _gql_type: str | None = None
+    _nested: dict[str, str] = {}  # noqa: RUF012 - rebound per generate_code call
+
+    @staticmethod
+    def _object_of(type_: GraphQLType) -> GraphQLObjectType | None:
+        while isinstance(type_, (GraphQLOptional, GraphQLList)):
+            type_ = type_.of_type
+        return type_ if isinstance(type_, GraphQLObjectType) else None
+
+    def _resolve_nested(
+        self,
+        types: list[GraphQLType],
+        operation: GraphQLOperation,
+    ) -> dict[str, str]:
+        """Map each inline class name to its GraphQL type, walking down from the root.
+
+        Strawberry only records ``graphql_typename`` on fragment classes, so inline
+        classes are resolved by following each parent field through the schema.
+        """
+        schema = _schema()
+        root = (
+            schema.mutation_type if operation.kind == "mutation" else schema.query_type
+        )
+        resolved: dict[str, str] = {}
+        if root is not None:
+            resolved[f"{operation.name}Result"] = root.name
+        changed = True
+        while changed:
+            changed = False
+            for type_ in types:
+                if not isinstance(type_, GraphQLObjectType):
+                    continue
+                parent = type_.graphql_typename or resolved.get(type_.name)
+                gql = schema.type_map.get(parent or "")
+                if not isinstance(gql, (GqlObjectType, GraphQLInterfaceType)):
+                    continue
+                for field in type_.fields:
+                    child = self._object_of(field.type)
+                    gql_field = next(
+                        (
+                            gql.fields[k]
+                            for k in _schema_names(field)
+                            if k in gql.fields
+                        ),
+                        None,
+                    )
+                    if child is None or gql_field is None or child.graphql_typename:
+                        continue
+                    name = get_named_type(gql_field.type).name
+                    if resolved.get(child.name) != name:
+                        resolved[child.name] = name
+                        changed = True
+        return resolved
+
+    def _print_enum_type(self, type_: GraphQLEnum) -> str:
+        type_docs, _ = _descriptions()
+        indent = 4 * " "
+        lines = [f"class {type_.name}(Enum):"]
+        if type_.name in type_docs:
+            lines += [textwrap.indent(_docstring(type_docs[type_.name]), indent), ""]
+        for value in type_.values:
+            lines.append(textwrap.indent(self._print_enum_value(value), indent))
+        return "\n".join(lines)
 
     def _print_field(self, field: GraphQLField) -> str:
         line = super()._print_field(field)
         if self._gql_type is None:
             return line
         _, field_docs = _descriptions()
-        head, *rest = field.name.split("_")
-        camel = head + "".join(part.title() for part in rest)
         doc = next(
             (
                 field_docs[self._gql_type, key]
-                for key in (field.name, camel, field.alias)
-                if key and (self._gql_type, key) in field_docs
+                for key in _schema_names(field)
+                if (self._gql_type, key) in field_docs
             ),
             None,
         )
@@ -212,8 +305,10 @@ class PydanticPlugin(PythonPlugin):
 
     def _print_object_type(self, type_: GraphQLObjectType) -> str:
         type_docs, _ = _descriptions()
-        self._gql_type = type_.graphql_typename or (
-            type_.name if type_.name in type_docs else None
+        self._gql_type = (
+            type_.graphql_typename
+            or self._nested.get(type_.name)
+            or (type_.name if type_.name in type_docs else None)
         )
         try:
             return self._print_object_body(type_)

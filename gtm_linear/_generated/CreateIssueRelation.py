@@ -11,6 +11,8 @@ from .fragments import (
 
 
 class IssueRelationType(Enum):
+    """The type of the issue relation."""
+
     blocks = "blocks"
     duplicate = "duplicate"
     related = "related"
@@ -18,12 +20,17 @@ class IssueRelationType(Enum):
 
 
 class CreateIssueRelationResultIssueRelationCreate(LinearModel):
+    """The result of an issue relation mutation, containing the created or updated issue relation and a success indicator."""
+
     success: bool
+    """Whether the operation was successful."""
     issue_relation: IssueRelationFields
+    """The issue relation that was created or updated."""
 
 
 class CreateIssueRelationResult(LinearModel):
     issue_relation_create: CreateIssueRelationResultIssueRelationCreate
+    """Creates a new issue relation."""
 
 
 class IssueRelationCreateInput(LinearModel):

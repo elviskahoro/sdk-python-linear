@@ -37,21 +37,36 @@ class CommentFields(LinearModel):
 
 
 class IssueFieldsState(LinearModel):
+    """A state in a team's workflow, representing an issue status such as Triage, Backlog, Todo, In Progress, In Review, Done, or Canceled. Each team has its own set of workflow states that define the progression of issues through the team's process. Workflow states have a type that categorizes them (triage, backlog, unstarted, started, completed, canceled), a position that determines their display order, and a color for visual identification. States can be inherited from parent teams to sub-teams."""
+
     id: str
+    """The unique identifier of the entity."""
     name: str
+    """The state's human-readable name (e.g., 'In Progress', 'Done', 'Backlog')."""
     type: str
+    """The type of the state. One of \"triage\", \"backlog\", \"unstarted\", \"started\", \"completed\", \"canceled\", \"duplicate\"."""
 
 
 class IssueFieldsAssignee(LinearModel):
+    """A user that belongs to a workspace. Users can have different roles (admin, member, guest, or app) that determine their level of access. Users can be members of multiple teams, and can be active or deactivated. Guest users have limited access scoped to specific teams they are invited to."""
+
     id: str
+    """The unique identifier of the entity."""
     name: str
+    """The user's full name."""
     email: str
+    """The user's email address."""
     active: bool
+    """Whether the user account is active or disabled (suspended)."""
 
 
 class IssueFieldsProject(LinearModel):
+    """A project is a collection of issues working toward a shared goal. Projects have start and target dates, milestones, status tracking, and progress metrics. They can span multiple teams and be grouped under initiatives."""
+
     id: str
+    """The unique identifier of the entity."""
     name: str
+    """The name of the project."""
 
 
 class IssueFields(LinearModel):
@@ -78,13 +93,21 @@ class IssueFields(LinearModel):
 
 
 class IssueRelationFieldsIssue(LinearModel):
+    """An issue is the core work item in Linear. Issues belong to a team, have a workflow status, can be assigned to users, carry a priority level, and can be organized into projects and cycles. Issues support sub-issues (parent-child hierarchy up to 10 levels deep), labels, due dates, estimates, and SLA tracking. They can also be linked to other issues via relations, attached to releases, and tracked through their full history of changes."""
+
     id: str
+    """The unique identifier of the entity."""
     identifier: str
+    """Issue's human readable identifier (e.g. ENG-123)."""
 
 
 class IssueRelationFieldsRelatedIssue(LinearModel):
+    """An issue is the core work item in Linear. Issues belong to a team, have a workflow status, can be assigned to users, carry a priority level, and can be organized into projects and cycles. Issues support sub-issues (parent-child hierarchy up to 10 levels deep), labels, due dates, estimates, and SLA tracking. They can also be linked to other issues via relations, attached to releases, and tracked through their full history of changes."""
+
     id: str
+    """The unique identifier of the entity."""
     identifier: str
+    """Issue's human readable identifier (e.g. ENG-123)."""
 
 
 class IssueRelationFields(LinearModel):
@@ -161,17 +184,29 @@ class PageInfoFields(LinearModel):
 
 
 class IssueContextCommentFieldsUser(LinearModel):
+    """A user that belongs to a workspace. Users can have different roles (admin, member, guest, or app) that determine their level of access. Users can be members of multiple teams, and can be active or deactivated. Guest users have limited access scoped to specific teams they are invited to."""
+
     id: str
+    """The unique identifier of the entity."""
     name: str
+    """The user's full name."""
     email: str
+    """The user's email address."""
     active: bool
+    """Whether the user account is active or disabled (suspended)."""
 
 
 class IssueContextCommentFieldsExternalUser(LinearModel):
+    """An external user who interacts with Linear through an integrated external service (such as Slack, Jira, GitHub, GitLab, Salesforce, or Microsoft Teams) but does not have a Linear account. External users can create issues, post comments, and add reactions from their respective platforms. They are identified by service-specific user IDs and may optionally have an email address. External users are scoped to a single workspace."""
+
     id: str
+    """The unique identifier of the entity."""
     display_name: str
+    """The external user's display name. Unique within each workspace. Can match the display name of an actual user."""
     name: str
+    """The external user's full name."""
     email: Optional[str]
+    """The external user's email address."""
 
 
 class IssueContextCommentFields(LinearModel):
@@ -192,17 +227,29 @@ class IssueContextCommentFields(LinearModel):
 
 
 class IssueContextRelationFieldsIssue(LinearModel):
+    """An issue is the core work item in Linear. Issues belong to a team, have a workflow status, can be assigned to users, carry a priority level, and can be organized into projects and cycles. Issues support sub-issues (parent-child hierarchy up to 10 levels deep), labels, due dates, estimates, and SLA tracking. They can also be linked to other issues via relations, attached to releases, and tracked through their full history of changes."""
+
     id: str
+    """The unique identifier of the entity."""
     identifier: str
+    """Issue's human readable identifier (e.g. ENG-123)."""
     title: str
+    """The issue's title. This is the primary human-readable summary of the work item."""
     url: str
+    """Issue URL."""
 
 
 class IssueContextRelationFieldsRelatedIssue(LinearModel):
+    """An issue is the core work item in Linear. Issues belong to a team, have a workflow status, can be assigned to users, carry a priority level, and can be organized into projects and cycles. Issues support sub-issues (parent-child hierarchy up to 10 levels deep), labels, due dates, estimates, and SLA tracking. They can also be linked to other issues via relations, attached to releases, and tracked through their full history of changes."""
+
     id: str
+    """The unique identifier of the entity."""
     identifier: str
+    """Issue's human readable identifier (e.g. ENG-123)."""
     title: str
+    """The issue's title. This is the primary human-readable summary of the work item."""
     url: str
+    """Issue URL."""
 
 
 class IssueContextRelationFields(LinearModel):
@@ -236,21 +283,36 @@ class WorkflowStateFields(LinearModel):
 
 
 class IssueSearchResultFieldsState(LinearModel):
+    """A state in a team's workflow, representing an issue status such as Triage, Backlog, Todo, In Progress, In Review, Done, or Canceled. Each team has its own set of workflow states that define the progression of issues through the team's process. Workflow states have a type that categorizes them (triage, backlog, unstarted, started, completed, canceled), a position that determines their display order, and a color for visual identification. States can be inherited from parent teams to sub-teams."""
+
     id: str
+    """The unique identifier of the entity."""
     name: str
+    """The state's human-readable name (e.g., 'In Progress', 'Done', 'Backlog')."""
     type: str
+    """The type of the state. One of \"triage\", \"backlog\", \"unstarted\", \"started\", \"completed\", \"canceled\", \"duplicate\"."""
 
 
 class IssueSearchResultFieldsAssignee(LinearModel):
+    """A user that belongs to a workspace. Users can have different roles (admin, member, guest, or app) that determine their level of access. Users can be members of multiple teams, and can be active or deactivated. Guest users have limited access scoped to specific teams they are invited to."""
+
     id: str
+    """The unique identifier of the entity."""
     name: str
+    """The user's full name."""
     email: str
+    """The user's email address."""
     active: bool
+    """Whether the user account is active or disabled (suspended)."""
 
 
 class IssueSearchResultFieldsProject(LinearModel):
+    """A project is a collection of issues working toward a shared goal. Projects have start and target dates, milestones, status tracking, and progress metrics. They can span multiple teams and be grouped under initiatives."""
+
     id: str
+    """The unique identifier of the entity."""
     name: str
+    """The name of the project."""
 
 
 class IssueSearchResultFields(LinearModel):

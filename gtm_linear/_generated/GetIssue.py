@@ -10,6 +10,7 @@ from .fragments import (
 
 class GetIssueResult(LinearModel):
     issue: IssueFields
+    """One specific issue, looked up by its unique identifier."""
 
 
 class GetIssueVariables(LinearModel):

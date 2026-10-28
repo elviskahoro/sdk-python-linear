@@ -7,12 +7,17 @@ from .fragments import CommentFields
 
 
 class CreateCommentResultCommentCreate(LinearModel):
+    """The result of a comment mutation."""
+
     success: bool
+    """Whether the operation was successful."""
     comment: CommentFields
+    """The comment that was created or updated."""
 
 
 class CreateCommentResult(LinearModel):
     comment_create: CreateCommentResultCommentCreate
+    """Creates a new comment."""
 
 
 class CommentCreateInput(LinearModel):

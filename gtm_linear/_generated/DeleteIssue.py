@@ -3,11 +3,15 @@ from gtm_linear.models import LinearModel
 
 
 class DeleteIssueResultIssueDelete(LinearModel):
+    """A generic payload return from entity archive mutations."""
+
     success: bool
+    """Whether the operation was successful."""
 
 
 class DeleteIssueResult(LinearModel):
     issue_delete: DeleteIssueResultIssueDelete
+    """Deletes (trashes) an issue."""
 
 
 class DeleteIssueVariables(LinearModel):
