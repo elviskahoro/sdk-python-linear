@@ -167,15 +167,29 @@ class LinearQueries:
             The page with typed comment nodes and cursor metadata. A missing issue
             produces a valid empty page.
         """
-        data = await self._client.execute_async(
-            LIST_ISSUE_COMMENTS,
-            {
-                "id": issue_id,
-                "first": first,
-                "after": after,
-                "includeArchived": include_archived,
-            },
-        )
+        try:
+            data = await self._client.execute_async(
+                LIST_ISSUE_COMMENTS,
+                {
+                    "id": issue_id,
+                    "first": first,
+                    "after": after,
+                    "includeArchived": include_archived,
+                },
+            )
+        except LinearGraphQLError as exc:
+            # Linear returns unknown issue identifiers as a top-level
+            # ``errors`` array (pinned in ``tests/test_queries.py``), and
+            # ``LinearClient._handle_response`` raises on it before ``data``
+            # reaches the null-``issue`` guard below — so translate an
+            # issue-not-found into the documented valid empty page (mirroring
+            # ``get_issue``). A not-found for a different referenced entity
+            # — a team, a user — still propagates.
+            if any(looks_like_not_found(e) for e in exc.errors):
+                return ListIssueCommentsResultIssueComments.model_validate(
+                    _empty_page_payload(),
+                )
+            raise
         if data.get("issue") is None and "issue" in data:
             return ListIssueCommentsResultIssueComments.model_validate(
                 _empty_page_payload(),
@@ -212,15 +226,29 @@ class LinearQueries:
         include_archived: bool = False,
     ) -> ListIssueAttachmentsResultIssueAttachments:
         """Fetch one cursor page of an issue's attachments and source metadata."""
-        data = await self._client.execute_async(
-            LIST_ISSUE_ATTACHMENTS,
-            {
-                "id": issue_id,
-                "first": first,
-                "after": after,
-                "includeArchived": include_archived,
-            },
-        )
+        try:
+            data = await self._client.execute_async(
+                LIST_ISSUE_ATTACHMENTS,
+                {
+                    "id": issue_id,
+                    "first": first,
+                    "after": after,
+                    "includeArchived": include_archived,
+                },
+            )
+        except LinearGraphQLError as exc:
+            # Linear returns unknown issue identifiers as a top-level
+            # ``errors`` array (pinned in ``tests/test_queries.py``), and
+            # ``LinearClient._handle_response`` raises on it before ``data``
+            # reaches the null-``issue`` guard below — so translate an
+            # issue-not-found into the documented valid empty page (mirroring
+            # ``get_issue``). A not-found for a different referenced entity
+            # — a team, a user — still propagates.
+            if any(looks_like_not_found(e) for e in exc.errors):
+                return ListIssueAttachmentsResultIssueAttachments.model_validate(
+                    _empty_page_payload(),
+                )
+            raise
         if data.get("issue") is None and "issue" in data:
             return ListIssueAttachmentsResultIssueAttachments.model_validate(
                 _empty_page_payload(),
@@ -259,15 +287,29 @@ class LinearQueries:
         include_archived: bool = False,
     ) -> ListIssueRelationsResultIssueRelations:
         """Fetch one cursor page of outgoing issue relations."""
-        data = await self._client.execute_async(
-            LIST_ISSUE_RELATIONS,
-            {
-                "id": issue_id,
-                "first": first,
-                "after": after,
-                "includeArchived": include_archived,
-            },
-        )
+        try:
+            data = await self._client.execute_async(
+                LIST_ISSUE_RELATIONS,
+                {
+                    "id": issue_id,
+                    "first": first,
+                    "after": after,
+                    "includeArchived": include_archived,
+                },
+            )
+        except LinearGraphQLError as exc:
+            # Linear returns unknown issue identifiers as a top-level
+            # ``errors`` array (pinned in ``tests/test_queries.py``), and
+            # ``LinearClient._handle_response`` raises on it before ``data``
+            # reaches the null-``issue`` guard below — so translate an
+            # issue-not-found into the documented valid empty page (mirroring
+            # ``get_issue``). A not-found for a different referenced entity
+            # — a team, a user — still propagates.
+            if any(looks_like_not_found(e) for e in exc.errors):
+                return ListIssueRelationsResultIssueRelations.model_validate(
+                    _empty_page_payload(),
+                )
+            raise
         if data.get("issue") is None and "issue" in data:
             return ListIssueRelationsResultIssueRelations.model_validate(
                 _empty_page_payload(),
@@ -304,15 +346,31 @@ class LinearQueries:
         include_archived: bool = False,
     ) -> ListIssueInverseRelationsResultIssueInverseRelations:
         """Fetch one cursor page of incoming (inverse) issue relations."""
-        data = await self._client.execute_async(
-            LIST_ISSUE_INVERSE_RELATIONS,
-            {
-                "id": issue_id,
-                "first": first,
-                "after": after,
-                "includeArchived": include_archived,
-            },
-        )
+        try:
+            data = await self._client.execute_async(
+                LIST_ISSUE_INVERSE_RELATIONS,
+                {
+                    "id": issue_id,
+                    "first": first,
+                    "after": after,
+                    "includeArchived": include_archived,
+                },
+            )
+        except LinearGraphQLError as exc:
+            # Linear returns unknown issue identifiers as a top-level
+            # ``errors`` array (pinned in ``tests/test_queries.py``), and
+            # ``LinearClient._handle_response`` raises on it before ``data``
+            # reaches the null-``issue`` guard below — so translate an
+            # issue-not-found into the documented valid empty page (mirroring
+            # ``get_issue``). A not-found for a different referenced entity
+            # — a team, a user — still propagates.
+            if any(looks_like_not_found(e) for e in exc.errors):
+                return (
+                    ListIssueInverseRelationsResultIssueInverseRelations.model_validate(
+                        _empty_page_payload(),
+                    )
+                )
+            raise
         if data.get("issue") is None and "issue" in data:
             return ListIssueInverseRelationsResultIssueInverseRelations.model_validate(
                 _empty_page_payload(),

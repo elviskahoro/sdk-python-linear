@@ -41,6 +41,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hand-written model from before #13 (commit `867104f`), so `issue.status`
   raised `AttributeError` while the README promised it would work;
   `issue.state.name` is the working spelling.
+- `LinearQueries.list_issue_comments_page`,
+  `list_issue_attachments_page`, `list_issue_relations_page`, and
+  `list_issue_inverse_relations_page` and their `iter_issue_*` wrappers now
+  return a valid empty page when the issue does not exist (matching their
+  docstrings) instead of raising `LinearGraphQLError`. Linear reports unknown
+  `issue(id:)` identifiers as a top-level GraphQL `errors` array, which
+  `LinearClient._handle_response` raises on before the methods' null-`issue`
+  guard runs; the methods now mirror the `get_issue` `looks_like_not_found`
+  pattern and translate that shape to the typed empty page (closes #168).
 
 ## [0.4.0] - 2026-10-09
 
