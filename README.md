@@ -620,9 +620,8 @@ Tests use `respx` to mock `httpx2` — no network access required. `pytest-async
 
 1. **Filtering coverage**: Issue filters are plain `dict[str, Any]` mappings that mirror Linear's nested filter tree. Use `execute_async` for other Linear filters.
 2. **Schema coverage**: Only a focused subset of Linear resources is typed. Cycles, projects-as-containers, workflow mutations, and webhooks remain absent.
-3. **Search filtering**: `search_issues` accepts a text term plus an optional `IssueFilter` (`team`/`state`/...); the CLI `search` command exposes `--team` and `--state`.
-4. **Subscriptions**: Not supported. Linear's `subscription` API requires WebSockets — the client is HTTP-only.
-5. **Status filtering**: Workflow-state query results include the state ID and type. More advanced filters still require `execute_async`.
+3. **Subscriptions**: Not supported. Linear's `subscription` API requires WebSockets — the client is HTTP-only.
+4. **Status filtering**: Workflow-state query results include the state ID and type. More advanced filters still require `execute_async`.
 
 ---
 
