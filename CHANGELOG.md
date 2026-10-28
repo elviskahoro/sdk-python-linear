@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `projects`, `project <id|slug|url|name>`, `project update` (preview unless
+  `--apply`; descriptions over 255 chars rejected up front), `project issues`,
+  and `search --project` (#127).
 - `issue update` accepts several identifiers and `--ids-file`, applying one
   payload to each with per-item results; any failed item exits 1 (#136).
 - `--fields` on `search`, `issues`, and `issue` selects the `--json` keys, and
