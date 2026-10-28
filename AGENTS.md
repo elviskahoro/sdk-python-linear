@@ -23,6 +23,9 @@ trunk check --all                             # lint (run uv sync first: pyright
                                               # resolve deps through .venv)
 ```
 
+CI runs pytest through Captain (`captain run <suite>`, suites in
+`.captain/config.yml`); locally keep using `uv run pytest -q`.
+
 ## Landing PRs
 
 PRs land through the Trunk Merge Queue, not the GitHub Merge button.
