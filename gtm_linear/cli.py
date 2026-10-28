@@ -2393,6 +2393,12 @@ def search(
             "(requires --team).",
         ),
     ] = None,
+    project: Annotated[
+        str | None,
+        typer.Option(
+            help="Only return issues in this project (name, UUID, slug, or URL).",
+        ),
+    ] = None,
     limit: Annotated[
         int | None,
         typer.Option(
@@ -2418,16 +2424,23 @@ def search(
         error_msg = "--all cannot be combined with --limit"
         raise typer.BadParameter(error_msg, param_hint="--limit")
     state_value = _non_empty_filter(state, "--state")
+    project_value = _non_empty_filter(project, "--project")
     if state_value is not None and team is None:
         error_msg = "--state requires --team"
         raise typer.BadParameter(error_msg, param_hint="--state")
     with _workflow() as linear:
         issue_filter: dict[str, Any] | None = None
+        if project_value is not None:
+            project_id = _lookup_project(linear, project_value, "--project")["id"]
+            issue_filter = {"project": {"id": {"eq": project_id}}}
         if team is not None:
             resolved = linear.get_team_by_key(team)
             if resolved is None:
                 _fail(f"no Linear team with key {team!r}")
-            issue_filter = {"team": {"key": {"eq": team}}}
+            issue_filter = {
+                **(issue_filter or {}),
+                "team": {"key": {"eq": team}},
+            }
             if state_value is not None:
                 _require_workflow_state(linear, resolved.id, team, state_value)
                 issue_filter["state"] = {"name": {"eq": state_value}}
@@ -2456,6 +2469,345 @@ def search(
         complete=complete,
         kind="results",
     )
+
+
+# --- projects ---
+
+# Linear rejects project descriptions longer than this (issues have no limit).
+PROJECT_DESCRIPTION_MAX = 255
+_PROJECT_FIELDS = "id name url slugId description targetDate status { id name type }"
+_SLUG_RE = re.compile(r"(?:^|-)([0-9a-f]{12})$", re.IGNORECASE)
+
+
+class _ProjectCommandGroup(TyperGroup):
+    """Support ``project REF`` as a read alongside ``update`` and ``issues``."""
+
+    def resolve_command(
+        self,
+        ctx: _click.Context,
+        args: list[str],
+    ) -> tuple[str | None, _click.Command | None, list[str]]:
+        if args and args[0] not in self.commands and not args[0].startswith("-"):
+            args = ["_read", *args]
+        return super().resolve_command(ctx, args)
+
+
+project_app = typer.Typer(
+    cls=_ProjectCommandGroup,
+    help="Read, update, and list issues of Linear projects.",
+    invoke_without_command=True,
+    no_args_is_help=True,
+    pretty_exceptions_show_locals=False,
+    pretty_exceptions_enable=False,
+)
+
+
+def _project_dict(project: dict[str, Any]) -> dict[str, Any]:
+    status = project.get("status")
+    return {
+        "id": project.get("id"),
+        "name": project.get("name"),
+        "url": project.get("url"),
+        "description": project.get("description"),
+        "state": status.get("name") if isinstance(status, dict) else None,
+        "targetDate": project.get("targetDate"),
+    }
+
+
+def _lookup_project(linear: LinearWorkflow, ref: str, option: str) -> dict[str, Any]:
+    """Fetch a project by UUID, slug, URL (suffix), or exact name."""
+    ref = ref.strip()
+    path = ref.split("?", 1)[0].split("#", 1)[0].rstrip("/")
+    # Project URLs are .../project/<name>-<slug>[/overview|/issues...].
+    if "/project/" in path:
+        path = path.split("/project/", 1)[1]
+    tail = path.split("/", 1)[0] if "/" in path else path
+    if _UUID_RE.fullmatch(tail):
+        key = tail
+    elif slug := _SLUG_RE.search(tail):
+        key = slug.group(1)
+    else:
+        key = _resolve_project(linear, ref, option)
+    data = linear.client.execute(
+        f"query CliGetProject($id: String!) {{ project(id: $id) {{ {_PROJECT_FIELDS} }} }}",
+        {"id": key},
+    )
+    project = data.get("project")
+    if not isinstance(project, dict) or not isinstance(project.get("id"), str):
+        _fail(f"unexpected project response from Linear for {_cell(ref)!r}")
+    return project
+
+
+def _validate_project_description(value: str) -> None:
+    if len(value) > PROJECT_DESCRIPTION_MAX:
+        message = (
+            f"project description is {len(value)} characters; Linear limits "
+            f"project descriptions to {PROJECT_DESCRIPTION_MAX}"
+        )
+        raise typer.BadParameter(message, param_hint="--description")
+
+
+def _print_project(project: dict[str, Any]) -> None:
+    info = _project_dict(project)
+    typer.echo(_cell(str(info["name"])))
+    typer.echo(f" url: {_cell(str(info['url']))}")
+    typer.echo(f" state: {_cell(str(info['state'] or '-'))}")
+    typer.echo(f" target date: {_cell(str(info['targetDate'] or '-'))}")
+    typer.echo(f" id: {_cell(str(info['id']))}")
+    if info["description"]:
+        typer.echo(" description:")
+        for line in _clean(str(info["description"])).splitlines():
+            typer.echo(f"   {line}")
+
+
+@app.command()
+def projects(
+    *,
+    limit: Annotated[
+        int | None,
+        typer.Option(
+            min=1,
+            max=MAX_PAGE_SIZE,
+            help=f"Max projects (1-{MAX_PAGE_SIZE}, default 25).",
+        ),
+    ] = None,
+    fetch_all: AllOpt = False,
+    as_json: JsonOpt = False,
+) -> None:
+    """List projects (id, name, url)."""
+    if fetch_all and limit is not None:
+        error_msg = "--all cannot be combined with --limit"
+        raise typer.BadParameter(error_msg, param_hint="--limit")
+    page_size = MAX_PAGE_SIZE if fetch_all else (limit if limit is not None else 25)
+
+    with _workflow() as linear:
+
+        async def fetch_page(cursor: str | None) -> _RawConnectionPage:
+            data = await linear.client.execute_async(
+                "query CliListProjects($after: String, $first: Int!) "
+                "{ projects(after: $after, first: $first) "
+                f"{{ nodes {{ {_PROJECT_FIELDS} }} pageInfo "
+                "{ hasNextPage endCursor hasPreviousPage startCursor } } }",
+                {"after": cursor, "first": page_size},
+            )
+            return _raw_connection_page(data, "projects")
+
+        found, complete, pagination_error = _collect_paginated_sync(
+            linear,
+            fetch_page,
+            limit=None if fetch_all else page_size,
+        )
+    if pagination_error is not None:
+        _render_pagination_failure(
+            found,
+            pagination_error,
+            as_json=as_json,
+            serialize=_project_dict,
+        )
+    if not complete:
+        _note_more_results("projects", len(found))
+    if as_json:
+        results = [_project_dict(p) for p in found]
+        if fetch_all:
+            payload: object = {
+                "results": results,
+                "complete": complete,
+                "truncated": not complete,
+            }
+        else:
+            payload = results
+        typer.echo(json.dumps(payload, indent=2))
+        return
+    if not found:
+        typer.echo("no projects found")
+    for p in found:
+        typer.echo(f"{_cell(str(p['id']))}  {_cell(str(p.get('name')))}")
+        typer.echo(f"  {_cell(str(p.get('url')))}")
+    typer.echo(
+        "complete: all projects fetched"
+        if complete
+        else "incomplete: more projects may remain",
+    )
+
+
+@project_app.command(name="_read", hidden=True)
+def project_read(
+    ref: Annotated[str, typer.Argument(help="Project UUID, slug, URL, or name.")],
+    *,
+    as_json: JsonOpt = False,
+) -> None:
+    """Show one project, including its description."""
+    with _workflow() as linear:
+        project = _lookup_project(linear, ref, "REF")
+    if as_json:
+        typer.echo(json.dumps(_project_dict(project), indent=2))
+        return
+    _print_project(project)
+
+
+@project_app.command(name="issues")
+def project_issues(
+    ref: Annotated[str, typer.Argument(help="Project UUID, slug, URL, or name.")],
+    *,
+    limit: Annotated[
+        int | None,
+        typer.Option(
+            min=1,
+            max=MAX_PAGE_SIZE,
+            help=f"Max issues to fetch (1-{MAX_PAGE_SIZE}, default 25).",
+        ),
+    ] = None,
+    fetch_all: AllOpt = False,
+    verbose: VerboseOpt = False,
+    as_json: JsonOpt = False,
+    fields: FieldsOpt = None,
+) -> None:
+    """List the issues in a project, newest updated first."""
+    if fetch_all and limit is not None:
+        error_msg = "--all cannot be combined with --limit"
+        raise typer.BadParameter(error_msg, param_hint="--limit")
+    fields_value = _parse_fields(fields)
+    with _workflow() as linear:
+        project_id = _lookup_project(linear, ref, "REF")["id"]
+        found, complete, pagination_error = _read_team_issue_results(
+            linear,
+            {"project": {"id": {"eq": project_id}}},
+            fetch_all=fetch_all,
+            limit=limit,
+        )
+    if pagination_error is not None:
+        _render_pagination_failure(
+            found,
+            pagination_error,
+            as_json=as_json,
+            serialize=lambda i: _issue_dict(i, fields_value),
+        )
+    if not complete:
+        _note_more_results("issues", len(found))
+    _print_issues(
+        found,
+        as_json=as_json,
+        verbose=verbose,
+        all_results=fetch_all,
+        complete=complete,
+        fields=fields_value,
+    )
+
+
+def _resolve_project_status(linear: LinearWorkflow, value: str) -> str:
+    data = linear.client.execute(
+        "query CliProjectStatuses { projectStatuses { nodes { id name type } } }",
+        {},
+    )
+    connection = data.get("projectStatuses")
+    items = connection.get("nodes") if isinstance(connection, dict) else None
+    if not isinstance(items, list):
+        _fail("unexpected projectStatuses response from Linear")
+    wanted = value.casefold()
+    matches = [s for s in items if str(s.get("name", "")).casefold() == wanted] or [
+        s for s in items if str(s.get("type", "")).casefold() == wanted
+    ]
+    if len(matches) != 1:
+        names = [str(s.get("name")) for s in items]
+        problem = "ambiguous" if matches else "unknown"
+        message = f"{problem} project state {value!r}; candidates: {_candidates(names)}"
+        raise typer.BadParameter(message, param_hint="--state")
+    return matches[0]["id"]
+
+
+@project_app.command(name="update")
+def project_update(
+    ref: Annotated[str, typer.Argument(help="Project UUID, slug, URL, or name.")],
+    *,
+    description: Annotated[
+        str | None,
+        typer.Option(
+            help=f"Replace the description (max {PROJECT_DESCRIPTION_MAX} chars).",
+        ),
+    ] = None,
+    description_file: Annotated[
+        str | None,
+        typer.Option(
+            "--description-file",
+            help="Read the new description from this file (or - for stdin).",
+        ),
+    ] = None,
+    name: Annotated[str | None, typer.Option(help="Rename the project.")] = None,
+    state: Annotated[
+        str | None,
+        typer.Option(help="Project status name or type, e.g. Started."),
+    ] = None,
+    target_date: Annotated[
+        str | None,
+        typer.Option("--target-date", help="Target date, YYYY-MM-DD."),
+    ] = None,
+    apply: ApplyOpt = False,
+    as_json: JsonOpt = False,
+) -> None:
+    """Update a project; previews unless --apply is given."""
+    text = _read_text_source(
+        description,
+        "--description",
+        description_file,
+        "--description-file",
+    )
+    name = _validate_text(name, "--name")
+    state = _validate_text(state, "--state")
+    target_date = _validate_text(target_date, "--target-date")
+    if text is not None:
+        _validate_project_description(text)
+    if target_date is not None and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", target_date):
+        message = "must be YYYY-MM-DD"
+        raise typer.BadParameter(message, param_hint="--target-date")
+    if text is None and name is None and state is None and target_date is None:
+        message = (
+            "no update fields given; pass --description, --name, --state, "
+            "or --target-date"
+        )
+        raise typer.BadParameter(message)
+    with _workflow() as linear:
+        project = _lookup_project(linear, ref, "REF")
+        payload: dict[str, Any] = {}
+        if text is not None:
+            payload["description"] = text
+        if name is not None:
+            payload["name"] = name
+        if target_date is not None:
+            payload["targetDate"] = target_date
+        if state is not None:
+            payload["statusId"] = _resolve_project_status(linear, state)
+        target = {"id": project["id"], "name": str(project.get("name"))}
+        if not apply:
+            _render_preview("project.update", target, payload, as_json=as_json)
+            return
+        try:
+            data = linear.client.execute(
+                "mutation CliUpdateProject($id: String!, $input: ProjectUpdateInput!) "
+                "{ projectUpdate(id: $id, input: $input) { success project "
+                f"{{ {_PROJECT_FIELDS} }} }} }}",
+                {"id": project["id"], "input": payload},
+            )
+            result = data.get("projectUpdate")
+            updated = result.get("project") if isinstance(result, dict) else None
+            if not isinstance(updated, dict) or not result.get("success"):
+                message = "Linear did not return the updated project"
+                raise ValueError(message)  # noqa: TRY301
+        except (
+            LinearAPIError,
+            httpx.InvalidURL,
+            httpx.HTTPError,
+            ValidationError,
+            ValueError,
+        ) as exc:
+            _render_write_failure("project.update", target, exc, as_json=as_json)
+    if as_json:
+        typer.echo(json.dumps(_project_dict(updated), indent=2))
+        return
+    typer.echo(f"Updated project {_cell(str(updated.get('name')))}")
+    _print_project(updated)
+
+
+app.add_typer(project_app, name="project")
 
 
 def main() -> None:
