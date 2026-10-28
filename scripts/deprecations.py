@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import graphql.language.ast as gql_ast
 from graphql import (
@@ -25,6 +26,9 @@ from graphql import (
     parse,
     visit,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Collection
 
 SPEC_FILE = Path(__file__).resolve().parent.parent / "operations" / "_spec.toml"
 
@@ -46,7 +50,7 @@ def deprecation_allowlist() -> set[str]:
 def find_deprecations(
     schema: GraphQLSchema,
     operations: list[tuple[str, str]],
-    opaque_inputs: set[str] = frozenset(),  # type: ignore[assignment]
+    opaque_inputs: Collection[str] = frozenset(),
 ) -> list[str]:
     """Report deprecated fields, arguments, enum values and input fields in use.
 

@@ -14,7 +14,7 @@ class AttachmentFields(LinearModel):
     created_at: datetime
     """The time at which the entity was created."""
     updated_at: datetime
-    """The last time at which the entity was meaningfully updated. This is the same as the creation time if the entity hasn't\n    been updated after creation."""
+    """The last time at which the entity was meaningfully updated. This is the same as the creation time if the entity hasn't been updated after creation."""
     subtitle: Optional[str]
     """Content for the subtitle line in the Linear attachment widget."""
     title: str
@@ -97,7 +97,7 @@ class IssueRelationFields(LinearModel):
     created_at: datetime
     """The time at which the entity was created."""
     updated_at: datetime
-    """The last time at which the entity was meaningfully updated. This is the same as the creation time if the entity hasn't\n    been updated after creation."""
+    """The last time at which the entity was meaningfully updated. This is the same as the creation time if the entity hasn't been updated after creation."""
     issue: IssueRelationFieldsIssue
     """The source issue whose relationship is being described. This is the issue from which the relation originates."""
     related_issue: IssueRelationFieldsRelatedIssue

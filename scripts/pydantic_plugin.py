@@ -21,7 +21,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
 from graphql import (
-    GraphQLEnumType,
     GraphQLInputObjectType,
     GraphQLInterfaceType,
     GraphQLObjectType as GqlObjectType,
@@ -58,21 +57,17 @@ def _descriptions() -> tuple[dict[str, str], dict[tuple[str, str], str]]:
             for fname, fld in gql.fields.items():
                 if fld.description:
                     fields[name, fname] = fld.description
-        elif isinstance(gql, GraphQLEnumType):
-            for vname, val in gql.values.items():
-                if val.description:
-                    fields[name, vname] = val.description
+        # Enum values are skipped: Linear's SDL carries no descriptions on them,
+        # and nothing consumes such entries (enums print via _print_enum_type).
     return types, fields
 
 
 def _docstring(text: str) -> str:
     """Render ``text`` as a triple-quoted literal safe to embed in generated code."""
-    escaped = (
-        text.replace("\\", "\\\\")
-        .replace('"', '\\"')
-        .replace("\r", "\\r")
-        .replace("\n", "\\n")
-    )
+    # SDL block descriptions carry the source's line wrapping and indentation;
+    # collapse internal whitespace so every emitted docstring is one clean line.
+    flattened = re.sub(r"\s+", " ", text).strip()
+    escaped = flattened.replace("\\", "\\\\").replace('"', '\\"')
     return f'"""{escaped}"""'
 
 
