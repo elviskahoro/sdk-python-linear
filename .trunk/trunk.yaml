@@ -432,10 +432,7 @@ merge:
   # - "Entire Gates": advisory only (not a required check on main), and not
   #   waited on here: it does not post on PRs opened before the Entire app was
   #   installed (~2026-10-10) and has been observed stuck IN_PROGRESS on an
-  #   already-merged PR. It reports neutral on new PRs, which counts as
-  #   passing for required checks (GitHub: success/skipped/neutral all
-  #   satisfy required status checks), so the ruleset is satisfied without
-  #   the queue waiting on it. Revisit once it posts reliably on every PR.
+  #   already-merged PR. Revisit once it posts reliably on every PR.
   # - "pullfrog" / "Corridor Review": review-run mirrors without pass/fail
   #   semantics (pullfrog's verdict itself is "pullfrog-approval" above).
   # - Netlify deploy previews and header/redirect/pages checks: only post on
