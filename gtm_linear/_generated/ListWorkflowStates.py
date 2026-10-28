@@ -5,7 +5,7 @@ from gtm_linear.models import LinearModel
 from .fragments import PageInfoFields, WorkflowStateFields
 
 
-class PaginationOrderBy(Enum):
+class PaginationOrderBy(str, Enum):
     """By which field should the pagination order by"""
 
     createdAt = "createdAt"

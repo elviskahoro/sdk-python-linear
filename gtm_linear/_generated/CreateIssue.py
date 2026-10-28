@@ -11,7 +11,7 @@ from .fragments import (
 )
 
 
-class SLADayCountType(Enum):
+class SLADayCountType(str, Enum):
     """Which day count to use for SLA calculations."""
 
     all = "all"

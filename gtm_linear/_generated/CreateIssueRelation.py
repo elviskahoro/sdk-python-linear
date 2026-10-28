@@ -9,7 +9,7 @@ from .fragments import (
 )
 
 
-class IssueRelationType(Enum):
+class IssueRelationType(str, Enum):
     """The type of the issue relation."""
 
     blocks = "blocks"

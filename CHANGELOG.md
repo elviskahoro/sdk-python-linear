@@ -18,6 +18,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Generated enums are now `(str, Enum)`: members compare equal to their string
+  value, `json.dumps` serializes them, and `isinstance(x, str)` is true (#152).
+- `LinearModel` sets `validate_assignment=True`; assigning a wrong-typed value to
+  a model field now raises `ValidationError` (#152). Minor version bump to 0.5.0.
 - The `[strawberry]` extra now requires `strawberry-graphql>=0.336.2` (was
   0.328.0). Field descriptions are no longer scrubbed, so `gtm_linear._schema`
   carries Linear's docs.

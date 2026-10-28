@@ -251,3 +251,26 @@ def test_shipped_schema_accepts_nested_pagination_arguments() -> None:
             codegen._compose(codegen.OPERATIONS_DIR / f"{name}.graphql", fragments),
         )
         assert not validate(shipped, document), f"{name} rejected by shipped schema"
+
+
+def test_generated_enums_are_str_enums() -> None:
+    import json
+
+    from gtm_linear._generated.CreateIssueRelation import IssueRelationType
+
+    assert IssueRelationType.blocks == "blocks"
+    assert json.dumps(IssueRelationType.blocks) == '"blocks"'
+
+
+def test_models_validate_assignment() -> None:
+    import pytest
+    from pydantic import ValidationError
+
+    from gtm_linear.models import LinearModel
+
+    class M(LinearModel):
+        n: float
+
+    m = M(n=1)
+    with pytest.raises(ValidationError):
+        m.n = "high"  # type: ignore[assignment]
