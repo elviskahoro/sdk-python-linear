@@ -49,6 +49,7 @@ import re
 import sys
 import unicodedata
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, NoReturn, Protocol, TypeVar
 
@@ -2528,11 +2529,19 @@ def _lookup_project(linear: LinearWorkflow, ref: str, option: str) -> dict[str, 
         key = slug.group(1)
     else:
         key = _resolve_project(linear, ref, option)
-    data = linear.client.execute(
-        f"query CliGetProject($id: String!) {{ project(id: $id) {{ {_PROJECT_FIELDS} }} }}",
-        {"id": key},
-    )
+    try:
+        data = linear.client.execute(
+            f"query CliGetProject($id: String!) "
+            f"{{ project(id: $id) {{ {_PROJECT_FIELDS} }} }}",
+            {"id": key},
+        )
+    except LinearAPIError as exc:
+        if any(looks_like_not_found(error, "project") for error in exc.errors):
+            _fail(f"no project found matching {ref!r}")
+        raise
     project = data.get("project")
+    if project is None:
+        _fail(f"no project found matching {ref!r}")
     if not isinstance(project, dict) or not isinstance(project.get("id"), str):
         _fail(f"unexpected project response from Linear for {_cell(ref)!r}")
     return project
@@ -2545,6 +2554,25 @@ def _validate_project_description(value: str) -> None:
             f"project descriptions to {PROJECT_DESCRIPTION_MAX}"
         )
         raise typer.BadParameter(message, param_hint="--description")
+
+
+def _validate_target_date(value: str | None) -> None:
+    """Reject malformed and non-existent calendar dates before any request.
+
+    The strict shape alone still accepts impossible dates (``2027-02-30``)
+    that Linear would only reject on ``--apply``; ``date.fromisoformat``
+    enforces the calendar up front, like the description and name checks.
+    """
+    if value is None:
+        return
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        message = "must be YYYY-MM-DD"
+        raise typer.BadParameter(message, param_hint="--target-date")
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        message = f"{value} is not a valid calendar date"
+        raise typer.BadParameter(message, param_hint="--target-date") from None
 
 
 def _print_project(project: dict[str, Any]) -> None:
@@ -2756,9 +2784,7 @@ def project_update(
     target_date = _validate_text(target_date, "--target-date")
     if text is not None:
         _validate_project_description(text)
-    if target_date is not None and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", target_date):
-        message = "must be YYYY-MM-DD"
-        raise typer.BadParameter(message, param_hint="--target-date")
+    _validate_target_date(target_date)
     if text is None and name is None and state is None and target_date is None:
         message = (
             "no update fields given; pass --description, --name, --state, "
@@ -2789,7 +2815,11 @@ def project_update(
             )
             result = data.get("projectUpdate")
             updated = result.get("project") if isinstance(result, dict) else None
-            if not isinstance(updated, dict) or not result.get("success"):
+            if (
+                not isinstance(result, dict)
+                or not isinstance(updated, dict)
+                or not result.get("success")
+            ):
                 message = "Linear did not return the updated project"
                 raise ValueError(message)  # noqa: TRY301
         except (

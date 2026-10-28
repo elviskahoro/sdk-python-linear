@@ -4,17 +4,15 @@ from __future__ import annotations
 
 import json
 import re
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
+import httpx2 as httpx
 import pytest
 import respx
 from typer.testing import CliRunner
 
 from gtm_linear.cli import PROJECT_DESCRIPTION_MAX, app
 from tests.conftest import API_URL, issue_payload, page_info_payload
-
-if TYPE_CHECKING:
-    import httpx2 as httpx
 
 runner = CliRunner()
 AUTH = {"LINEAR_API_KEY": "lin_api_test"}
@@ -47,8 +45,6 @@ def _router(
     sent: list[dict[str, Any]] = []
 
     def respond(request: httpx.Request) -> Any:
-        import httpx2 as httpx  # noqa: PLC0415
-
         body = json.loads(request.content)
         sent.append(body)
         query, variables = body["query"], body["variables"]
@@ -271,9 +267,104 @@ def test_project_update_accepts_description_at_limit() -> None:
     assert result.exit_code == 0  # noqa: S101
 
 
+def test_project_update_rejects_impossible_date_before_any_request() -> None:
+    with respx.mock:
+        route = respx.post(API_URL)
+        result = runner.invoke(
+            app,
+            ["project", "update", UUID, "--target-date", "2027-02-30", "--apply"],
+            env=AUTH,
+        )
+    assert result.exit_code == 2  # noqa: S101
+    assert "2027-02-30 is not a valid calendar date" in result.output  # noqa: S101
+    assert route.call_count == 0  # noqa: S101
+
+
+def test_project_update_rejects_unpadded_date_before_any_request() -> None:
+    with respx.mock:
+        route = respx.post(API_URL)
+        result = runner.invoke(
+            app,
+            ["project", "update", UUID, "--target-date", "2027-1-31", "--apply"],
+            env=AUTH,
+        )
+    assert result.exit_code == 2  # noqa: S101
+    assert "must be YYYY-MM-DD" in result.output  # noqa: S101
+    assert route.call_count == 0  # noqa: S101
+
+
+def test_project_update_accepts_leap_day() -> None:
+    respond, _ = _router()
+    with respx.mock:
+        respx.post(API_URL).mock(side_effect=respond)
+        result = runner.invoke(
+            app,
+            ["project", "update", UUID, "--target-date", "2028-02-29", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0, result.output  # noqa: S101
+
+
 def test_project_update_requires_a_field() -> None:
     result = runner.invoke(app, ["project", "update", UUID], env=AUTH)
     assert result.exit_code == 2  # noqa: S101
+
+
+def test_project_not_found_via_api_error_is_a_clean_error() -> None:
+    """Linear reports unknown project ids as a GraphQL error, not null data.
+
+    The payload mirrors the live-captured Issue wording pinned in
+    ``tests/test_cli.py`` (2026-10-02); the Project phrasing is assumed to
+    match until a live capture lands.
+    """
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "errors": [
+                        {
+                            "message": "Entity not found: Project",
+                            "extensions": {
+                                "type": "invalid input",
+                                "code": "INPUT_ERROR",
+                                "statusCode": 400,
+                                "userError": True,
+                                "userPresentableMessage": (
+                                    "Could not find referenced Project."
+                                ),
+                            },
+                        },
+                    ],
+                },
+            ),
+        )
+        result = runner.invoke(app, ["project", UUID], env=AUTH)
+    assert result.exit_code == 1  # noqa: S101
+    assert f"no project found matching '{UUID}'" in result.output  # noqa: S101
+
+
+def test_project_not_found_via_null_project_is_a_clean_error() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(200, json={"data": {"project": None}}),
+        )
+        result = runner.invoke(app, ["project", "0123456789ab"], env=AUTH)
+    assert result.exit_code == 1  # noqa: S101
+    assert "no project found matching '0123456789ab'" in result.output  # noqa: S101
+
+
+def test_project_unknown_name_is_a_usage_error() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={"data": {"projects": {"nodes": []}}},
+            ),
+        )
+        result = runner.invoke(app, ["project", "Nope"], env=AUTH)
+    assert result.exit_code == 2  # noqa: S101
+    assert "no project named 'Nope'" in result.output  # noqa: S101
 
 
 def test_project_issues_all_across_pages_with_metadata() -> None:
