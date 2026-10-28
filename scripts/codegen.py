@@ -92,6 +92,10 @@ from graphql import (
 )
 from graphql.utilities import get_default_value_ast
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from scripts.deprecations import find_deprecations  # noqa: E402
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -137,10 +141,13 @@ KNOWN_IMPORTS = {
 
 
 def _import_block(body: str) -> str:
-    """Emit exactly the imports `body` references, grouped by module."""
+    """Emit exactly the imports `body`'s code references, grouped by module."""
+    # Docstrings are stripped from the scan: prose like "identifier in UUID v4
+    # format" must not keep an import alive that no annotation references.
+    code = re.sub(r'""".*?"""', "", body, flags=re.DOTALL)
     by_module: dict[str, set[str]] = {}
     for name, module in KNOWN_IMPORTS.items():
-        if re.search(rf"\b{name}\b", body):
+        if re.search(rf"\b{name}\b", code):
             by_module.setdefault(module, set()).add(name)
     return "".join(
         f"from {module} import {', '.join(sorted(names))}\n"
@@ -350,6 +357,14 @@ def _collect(
                     close_over_input(resolved, set())
 
     return touched, whole, opaque
+
+
+def _deprecations(
+    schema: GraphQLSchema,
+    operations: list[tuple[str, str]],
+) -> list[str]:
+    """Deprecated schema members the operations use (see ``deprecations.py``)."""
+    return find_deprecations(schema, operations, OPAQUE_INPUTS)
 
 
 def _prune(
@@ -1059,6 +1074,14 @@ def generate(schema_out: Path, generated_out: Path) -> None:
     schema = build_schema(SCHEMA_FILE.read_text())
     print(f"validating {len(composed)} operation(s) against the pinned schema")
     touched, whole, opaque = _collect(schema, composed)
+    deprecated = _deprecations(schema, composed)
+    if deprecated:
+        listing = "\n".join(f"    {d}" for d in deprecated)
+        msg = (
+            "operations use deprecated Linear schema members (fix them or add "
+            f"to allow_deprecated in operations/_spec.toml):\n{listing}"
+        )
+        raise SystemExit(msg)
 
     sdl = _sanitize_sdl(_prune(schema, touched, whole, opaque))
     print(

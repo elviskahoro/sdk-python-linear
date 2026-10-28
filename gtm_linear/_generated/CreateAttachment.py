@@ -5,27 +5,46 @@ from .fragments import AttachmentFields
 
 
 class CreateAttachmentResultAttachmentCreate(LinearModel):
+    """The result of an attachment mutation."""
+
     success: bool
+    """Whether the operation was successful."""
     attachment: AttachmentFields
+    """The issue attachment that was created."""
 
 
 class CreateAttachmentResult(LinearModel):
     attachment_create: CreateAttachmentResultAttachmentCreate
+    """Creates a new attachment, or updates existing if the same `url` and `issueId` is used. To create an integration-aware attachment, use the integration-specific mutations such as `attachmentLinkZendesk`, `attachmentLinkSlack`, or `attachmentLinkURL` instead."""
 
 
 class AttachmentCreateInput(LinearModel):
+    """Input for creating a new issue attachment."""
+
     comment_body: Optional[str] = None
+    """Create a linked comment with markdown body."""
     comment_body_data: Optional[dict[str, Any]] = None
+    """[Internal] Create a linked comment with Prosemirror body. Please use `commentBody` instead."""
     create_as_user: Optional[str] = None
+    """Create attachment as a user with the provided name. This option is only available to OAuth applications creating attachments in `actor=application` mode."""
     display_icon_url: Optional[str] = None
+    """Provide an external user avatar URL. Can only be used in conjunction with the `createAsUser` options. This option is only available to OAuth applications creating attachments in `actor=app` mode."""
     group_by_source: Optional[bool] = None
+    """Indicates if attachments for the same source application should be grouped in the Linear UI."""
     icon_url: Optional[str] = None
+    """An icon url to display with the attachment. Should be of jpg or png format. Maximum of 1MB in size. Dimensions should be 20x20px for optimal display quality."""
     id: Optional[str] = None
+    """The identifier in UUID v4 format. If none is provided, the backend will generate one."""
     issue_id: str
+    """The issue to associate the attachment with. Can be a UUID or issue identifier (e.g., 'LIN-123')."""
     metadata: Optional[dict[str, Any]] = None
+    """Attachment metadata object with string and number values."""
     subtitle: Optional[str] = None
+    """The attachment subtitle."""
     title: str
+    """The attachment title."""
     url: str
+    """Attachment location which is also used as an unique identifier for the attachment. If another attachment is created with the same `url` value, existing record is updated instead."""
 
 
 class CreateAttachmentVariables(LinearModel):

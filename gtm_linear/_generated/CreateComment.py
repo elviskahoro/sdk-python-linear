@@ -6,33 +6,58 @@ from .fragments import CommentFields
 
 
 class CreateCommentResultCommentCreate(LinearModel):
+    """The result of a comment mutation."""
+
     success: bool
+    """Whether the operation was successful."""
     comment: CommentFields
+    """The comment that was created or updated."""
 
 
 class CreateCommentResult(LinearModel):
     comment_create: CreateCommentResultCommentCreate
+    """Creates a new comment."""
 
 
 class CommentCreateInput(LinearModel):
+    """Input for creating a new comment."""
+
     body: Optional[str] = None
+    """The comment content in markdown format."""
     body_data: Optional[Any] = None
+    """[Internal] The comment content as a Prosemirror document."""
     create_as_user: Optional[str] = None
+    """Create comment as a user with the provided name. This option is only available to OAuth applications creating comments in `actor=app` mode."""
     create_on_synced_slack_thread: Optional[bool] = None
+    """Flag to indicate this comment should be created on the issue's synced Slack comment thread. If no synced Slack comment thread exists, the mutation will fail. If there are multiple synced Slack threads on the issue, the oldest one will be targeted."""
     created_at: Optional[datetime] = None
+    """The time at which the comment was created (e.g. if importing from another system). Must be a time in the past. If none is provided, the backend will generate the time as now."""
     display_icon_url: Optional[str] = None
+    """Provide an external user avatar URL. Can only be used in conjunction with the `createAsUser` options. This option is only available to OAuth applications creating comments in `actor=app` mode."""
     do_not_subscribe_to_issue: Optional[bool] = None
+    """Flag to prevent auto subscription to the issue the comment is created on."""
     document_content_id: Optional[str] = None
+    """The document content to associate the comment with."""
     id: Optional[str] = None
+    """The identifier in UUID v4 format. If none is provided, the backend will generate one."""
     initiative_id: Optional[str] = None
+    """The initiative to associate the comment with."""
     initiative_update_id: Optional[str] = None
+    """The initiative update to associate the comment with."""
     issue_id: Optional[str] = None
+    """The issue to associate the comment with. Can be a UUID or issue identifier (e.g., 'LIN-123')."""
     parent_id: Optional[str] = None
+    """The parent comment under which to nest a current comment."""
     post_id: Optional[str] = None
+    """The post to associate the comment with."""
     project_id: Optional[str] = None
+    """The project to associate the comment with."""
     project_update_id: Optional[str] = None
+    """The project update to associate the comment with."""
     quoted_text: Optional[str] = None
+    """The text that this comment references. Only defined for inline comments."""
     subscriber_ids: Optional[list[str]] = None
+    """[INTERNAL] The identifiers of the users subscribing to this comment thread."""
 
 
 class CreateCommentVariables(LinearModel):

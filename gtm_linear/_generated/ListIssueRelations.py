@@ -15,11 +15,15 @@ class ListIssueRelationsResultIssueRelations(LinearModel):
 
 
 class ListIssueRelationsResultIssue(LinearModel):
+    """An issue is the core work item in Linear. Issues belong to a team, have a workflow status, can be assigned to users, carry a priority level, and can be organized into projects and cycles. Issues support sub-issues (parent-child hierarchy up to 10 levels deep), labels, due dates, estimates, and SLA tracking. They can also be linked to other issues via relations, attached to releases, and tracked through their full history of changes."""
+
     relations: ListIssueRelationsResultIssueRelations
+    """Relations associated with this issue."""
 
 
 class ListIssueRelationsResult(LinearModel):
     issue: ListIssueRelationsResultIssue
+    """One specific issue, looked up by its unique identifier."""
 
 
 class ListIssueRelationsVariables(LinearModel):

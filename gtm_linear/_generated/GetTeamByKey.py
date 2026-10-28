@@ -9,6 +9,7 @@ class GetTeamByKeyResultTeams(LinearModel):
 
 class GetTeamByKeyResult(LinearModel):
     teams: GetTeamByKeyResultTeams
+    """All teams whose issues the user can access. This includes public teams and private teams the user is a member of. This may differ from `administrableTeams`, which returns teams whose settings the user can change but whose issues they don't necessarily have access to."""
 
 
 class GetTeamByKeyVariables(LinearModel):

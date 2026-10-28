@@ -5,6 +5,7 @@ from .fragments import UserFields
 
 class GetUserResult(LinearModel):
     user: UserFields
+    """Fetches a specific user by their ID."""
 
 
 class GetUserVariables(LinearModel):

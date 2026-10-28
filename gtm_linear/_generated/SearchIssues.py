@@ -17,6 +17,7 @@ class SearchIssuesResultSearchIssues(LinearModel):
 
 class SearchIssuesResult(LinearModel):
     search_issues: SearchIssuesResultSearchIssues
+    """Search issues by text query using full-text and vector search. Results are ranked by relevance unless an orderBy parameter is specified. Supports optional issue filters and comment inclusion. Rate-limited to 30 requests per minute."""
 
 
 class SearchIssuesVariables(LinearModel):

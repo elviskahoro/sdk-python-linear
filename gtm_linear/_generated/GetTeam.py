@@ -5,6 +5,7 @@ from .fragments import TeamFields
 
 class GetTeamResult(LinearModel):
     team: TeamFields
+    """Fetches a specific team by its ID."""
 
 
 class GetTeamVariables(LinearModel):

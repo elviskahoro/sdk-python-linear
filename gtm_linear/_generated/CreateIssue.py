@@ -12,56 +12,101 @@ from .fragments import (
 
 
 class SLADayCountType(Enum):
+    """Which day count to use for SLA calculations."""
+
     all = "all"
     onlyBusinessDays = "onlyBusinessDays"
 
 
 class CreateIssueResultIssueCreate(LinearModel):
+    """The result of an issue mutation, containing the created or updated issue and a success indicator."""
+
     success: bool
+    """Whether the operation was successful."""
     issue: Optional[IssueFields]
+    """The issue that was created or updated."""
 
 
 class CreateIssueResult(LinearModel):
     issue_create: CreateIssueResultIssueCreate
+    """Creates a new issue."""
 
 
 class IssueCreateInput(LinearModel):
+    """Input for creating a new issue. At minimum, a team must be specified. A title is required unless a template is provided. All other fields are optional and will use defaults from the team or template if not specified."""
+
     assignee_id: Optional[str] = None
+    """The identifier of the user to assign the issue to."""
     completed_at: Optional[datetime] = None
+    """The time at which the issue was completed (e.g. if importing from another system). Must be a time in the past and after createdAt. Cannot be provided with an incompatible workflow state."""
     create_as_user: Optional[str] = None
+    """Create issue as a user with the provided name. This option is only available to OAuth applications creating issues in `actor=app` mode."""
     created_at: Optional[datetime] = None
+    """The time at which the issue was created (e.g. if importing from another system). Must be a time in the past. If none is provided, the backend will generate the time as now."""
     cycle_id: Optional[str] = None
+    """The cycle associated with the issue."""
     delegate_id: Optional[str] = None
+    """The identifier of the agent user to delegate the issue to."""
     description: Optional[str] = None
+    """The issue description in markdown format."""
     description_data: Optional[Any] = None
+    """[Internal] The issue description as a Prosemirror document."""
     display_icon_url: Optional[str] = None
+    """Provide an external user avatar URL. Can only be used in conjunction with the `createAsUser` options. This option is only available to OAuth applications creating comments in `actor=app` mode."""
     due_date: Optional[date] = None
+    """The date at which the issue is due."""
     estimate: Optional[int] = None
+    """The estimated complexity of the issue."""
     id: Optional[str] = None
+    """The identifier in UUID v4 format. If none is provided, the backend will generate one."""
     inherits_shared_access: Optional[bool] = None
+    """[Internal] Whether this issue should inherit shared access from its parent issue. Set to false to opt out of automatic shared access inheritance when creating a sub-issue."""
     label_ids: Optional[list[str]] = None
+    """The identifiers of the issue labels associated with this ticket."""
     last_applied_template_id: Optional[str] = None
+    """The ID of the last template applied to the issue."""
     parent_id: Optional[str] = None
+    """The identifier of the parent issue. Can be a UUID or issue identifier (e.g., 'LIN-123')."""
     preserve_sort_order_on_create: Optional[bool] = None
+    """Whether the passed sort order should be preserved."""
     priority: Optional[int] = None
+    """The priority of the issue. 0 = No priority, 1 = Urgent, 2 = High, 3 = Medium, 4 = Low."""
     priority_sort_order: Optional[float] = None
+    """The position of the issue related to other issues, when ordered by priority."""
     project_id: Optional[str] = None
+    """The project associated with the issue."""
     project_milestone_id: Optional[str] = None
+    """The project milestone associated with the issue."""
     reference_comment_id: Optional[str] = None
+    """The comment the issue is referencing."""
     release_ids: Optional[list[str]] = None
+    """The identifiers of the releases to associate with this issue."""
     sla_breaches_at: Optional[datetime] = None
+    """[Internal] The time at which an issue will be considered in breach of SLA."""
     sla_started_at: Optional[datetime] = None
+    """[Internal] The time at which the issue's SLA was started."""
     sla_type: Optional[SLADayCountType] = None
+    """The SLA day count type for the issue. Whether SLA should be business days only or calendar days (default)."""
     sort_order: Optional[float] = None
+    """The position of the issue related to other issues."""
     source_comment_id: Optional[str] = None
+    """The comment the issue is created from."""
     source_pull_request_comment_id: Optional[str] = None
+    """[Internal] The pull request comment the issue is created from."""
     state_id: Optional[str] = None
+    """The team state of the issue."""
     sub_issue_sort_order: Optional[float] = None
+    """The position of the issue in parent's sub-issue list."""
     subscriber_ids: Optional[list[str]] = None
+    """The identifiers of the users subscribing to this ticket."""
     team_id: str
+    """The identifier of the team associated with the issue."""
     template_id: Optional[str] = None
+    """The identifier of a template the issue should be created from. If other values are provided in the input, they will override template values."""
     title: Optional[str] = None
+    """The title of the issue."""
     use_default_template: Optional[bool] = None
+    """Whether to use the default template for the team. When set to true, the default template of this team based on user's membership will be applied."""
 
 
 class CreateIssueVariables(LinearModel):

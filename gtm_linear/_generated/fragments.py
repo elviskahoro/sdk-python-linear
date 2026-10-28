@@ -10,199 +10,329 @@ class AttachmentFields(LinearModel):
     """GraphQL type: Attachment."""
 
     id: str
+    """The unique identifier of the entity."""
     created_at: datetime
+    """The time at which the entity was created."""
     updated_at: datetime
+    """The last time at which the entity was meaningfully updated. This is the same as the creation time if the entity hasn't been updated after creation."""
     subtitle: Optional[str]
+    """Content for the subtitle line in the Linear attachment widget."""
     title: str
+    """Content for the title line in the Linear attachment widget."""
     url: str
+    """The URL of the external resource this attachment links to. Also serves as a unique identifier for the attachment within an issue; no two attachments on the same issue can share the same URL."""
 
 
 class CommentFields(LinearModel):
     """GraphQL type: Comment."""
 
     id: str
+    """The unique identifier of the entity."""
     body: str
+    """The comment content in markdown format. This is a derived representation of the canonical bodyData ProseMirror content."""
     url: str
+    """Comment's URL."""
     created_at: datetime
+    """The time at which the entity was created."""
 
 
 class IssueFieldsState(LinearModel):
+    """A state in a team's workflow, representing an issue status such as Triage, Backlog, Todo, In Progress, In Review, Done, or Canceled. Each team has its own set of workflow states that define the progression of issues through the team's process. Workflow states have a type that categorizes them (triage, backlog, unstarted, started, completed, canceled), a position that determines their display order, and a color for visual identification. States can be inherited from parent teams to sub-teams."""
+
     id: str
+    """The unique identifier of the entity."""
     name: str
+    """The state's human-readable name (e.g., 'In Progress', 'Done', 'Backlog')."""
     type: str
+    """The type of the state. One of \"triage\", \"backlog\", \"unstarted\", \"started\", \"completed\", \"canceled\", \"duplicate\"."""
 
 
 class IssueFieldsAssignee(LinearModel):
+    """A user that belongs to a workspace. Users can have different roles (admin, member, guest, or app) that determine their level of access. Users can be members of multiple teams, and can be active or deactivated. Guest users have limited access scoped to specific teams they are invited to."""
+
     id: str
+    """The unique identifier of the entity."""
     name: str
+    """The user's full name."""
     email: str
+    """The user's email address."""
     active: bool
+    """Whether the user account is active or disabled (suspended)."""
 
 
 class IssueFieldsProject(LinearModel):
+    """A project is a collection of issues working toward a shared goal. Projects have start and target dates, milestones, status tracking, and progress metrics. They can span multiple teams and be grouped under initiatives."""
+
     id: str
+    """The unique identifier of the entity."""
     name: str
+    """The name of the project."""
 
 
 class IssueFields(LinearModel):
     """GraphQL type: Issue."""
 
     id: str
+    """The unique identifier of the entity."""
     identifier: str
+    """Issue's human readable identifier (e.g. ENG-123)."""
     title: str
+    """The issue's title. This is the primary human-readable summary of the work item."""
     description: Optional[str]
+    """The issue's description in markdown format."""
     url: str
+    """Issue URL."""
     priority: float
+    """The priority of the issue. 0 = No priority, 1 = Urgent, 2 = High, 3 = Medium, 4 = Low."""
     state: IssueFieldsState
+    """The workflow state (issue status) that the issue is currently in. Workflow states represent the issue's progress through the team's workflow, such as Triage, Todo, In Progress, Done, or Canceled."""
     assignee: Optional[IssueFieldsAssignee]
+    """The user to whom the issue is assigned. Null if the issue is unassigned."""
     project: Optional[IssueFieldsProject]
+    """The project that the issue is associated with. Null if the issue is not part of any project."""
 
 
 class IssueRelationFieldsIssue(LinearModel):
+    """An issue is the core work item in Linear. Issues belong to a team, have a workflow status, can be assigned to users, carry a priority level, and can be organized into projects and cycles. Issues support sub-issues (parent-child hierarchy up to 10 levels deep), labels, due dates, estimates, and SLA tracking. They can also be linked to other issues via relations, attached to releases, and tracked through their full history of changes."""
+
     id: str
+    """The unique identifier of the entity."""
     identifier: str
+    """Issue's human readable identifier (e.g. ENG-123)."""
 
 
 class IssueRelationFieldsRelatedIssue(LinearModel):
+    """An issue is the core work item in Linear. Issues belong to a team, have a workflow status, can be assigned to users, carry a priority level, and can be organized into projects and cycles. Issues support sub-issues (parent-child hierarchy up to 10 levels deep), labels, due dates, estimates, and SLA tracking. They can also be linked to other issues via relations, attached to releases, and tracked through their full history of changes."""
+
     id: str
+    """The unique identifier of the entity."""
     identifier: str
+    """Issue's human readable identifier (e.g. ENG-123)."""
 
 
 class IssueRelationFields(LinearModel):
     """GraphQL type: IssueRelation."""
 
     id: str
+    """The unique identifier of the entity."""
     type: str
+    """The type of relationship between the source issue and the related issue. Possible values include blocks, duplicate, and related."""
     created_at: datetime
+    """The time at which the entity was created."""
     updated_at: datetime
+    """The last time at which the entity was meaningfully updated. This is the same as the creation time if the entity hasn't been updated after creation."""
     issue: IssueRelationFieldsIssue
+    """The source issue whose relationship is being described. This is the issue from which the relation originates."""
     related_issue: IssueRelationFieldsRelatedIssue
+    """The target issue that the source issue is related to. The relation type describes how the source issue relates to this issue."""
 
 
 class TeamFields(LinearModel):
     """GraphQL type: Team."""
 
     id: str
+    """The unique identifier of the entity."""
     name: str
+    """The team's name."""
     key: str
+    """The team's unique key, used as a prefix in issue identifiers (e.g., 'ENG' in 'ENG-123') and in URLs."""
 
 
 class UserFields(LinearModel):
     """GraphQL type: User."""
 
     id: str
+    """The unique identifier of the entity."""
     name: str
+    """The user's full name."""
     email: str
+    """The user's email address."""
     active: bool
+    """Whether the user account is active or disabled (suspended)."""
 
 
 class IssueContextAttachmentFields(LinearModel):
     """GraphQL type: Attachment."""
 
     id: str
+    """The unique identifier of the entity."""
     title: str
+    """Content for the title line in the Linear attachment widget."""
     url: str
+    """The URL of the external resource this attachment links to. Also serves as a unique identifier for the attachment within an issue; no two attachments on the same issue can share the same URL."""
     source: Optional[dict[str, Any]]
+    """Information about the source which created the attachment."""
     source_type: Optional[str]
+    """The source type of the attachment, derived from the source metadata. Returns the integration type (e.g., 'github', 'slack', 'zendesk') or 'unknown' if no source is set."""
     metadata: dict[str, Any]
+    """Integration-specific metadata for this attachment. The schema varies by source type and may include fields such as pull request status, review counts, commit information, ticket status, or other data from the external system."""
     created_at: datetime
+    """The time at which the entity was created."""
 
 
 class PageInfoFields(LinearModel):
     """GraphQL type: PageInfo."""
 
     end_cursor: Optional[str]
+    """Cursor representing the last result in the paginated results."""
     has_next_page: bool
+    """Indicates if there are more results when paginating forward."""
     has_previous_page: bool
+    """Indicates if there are more results when paginating backward."""
     start_cursor: Optional[str]
+    """Cursor representing the first result in the paginated results."""
 
 
 class IssueContextCommentFieldsUser(LinearModel):
+    """A user that belongs to a workspace. Users can have different roles (admin, member, guest, or app) that determine their level of access. Users can be members of multiple teams, and can be active or deactivated. Guest users have limited access scoped to specific teams they are invited to."""
+
     id: str
+    """The unique identifier of the entity."""
     name: str
+    """The user's full name."""
     email: str
+    """The user's email address."""
     active: bool
+    """Whether the user account is active or disabled (suspended)."""
 
 
 class IssueContextCommentFieldsExternalUser(LinearModel):
+    """An external user who interacts with Linear through an integrated external service (such as Slack, Jira, GitHub, GitLab, Salesforce, or Microsoft Teams) but does not have a Linear account. External users can create issues, post comments, and add reactions from their respective platforms. They are identified by service-specific user IDs and may optionally have an email address. External users are scoped to a single workspace."""
+
     id: str
+    """The unique identifier of the entity."""
     display_name: str
+    """The external user's display name. Unique within each workspace. Can match the display name of an actual user."""
     name: str
+    """The external user's full name."""
     email: Optional[str]
+    """The external user's email address."""
 
 
 class IssueContextCommentFields(LinearModel):
     """GraphQL type: Comment."""
 
     id: str
+    """The unique identifier of the entity."""
     body: str
+    """The comment content in markdown format. This is a derived representation of the canonical bodyData ProseMirror content."""
     url: str
+    """Comment's URL."""
     created_at: datetime
+    """The time at which the entity was created."""
     user: Optional[IssueContextCommentFieldsUser]
+    """The user who wrote the comment. Null for comments created by integrations or bots without a user association."""
     external_user: Optional[IssueContextCommentFieldsExternalUser]
+    """The external user who wrote the comment, when the comment was created through an integration such as Slack or Intercom. Null for comments created by workspace users."""
 
 
 class IssueContextRelationFieldsIssue(LinearModel):
+    """An issue is the core work item in Linear. Issues belong to a team, have a workflow status, can be assigned to users, carry a priority level, and can be organized into projects and cycles. Issues support sub-issues (parent-child hierarchy up to 10 levels deep), labels, due dates, estimates, and SLA tracking. They can also be linked to other issues via relations, attached to releases, and tracked through their full history of changes."""
+
     id: str
+    """The unique identifier of the entity."""
     identifier: str
+    """Issue's human readable identifier (e.g. ENG-123)."""
     title: str
+    """The issue's title. This is the primary human-readable summary of the work item."""
     url: str
+    """Issue URL."""
 
 
 class IssueContextRelationFieldsRelatedIssue(LinearModel):
+    """An issue is the core work item in Linear. Issues belong to a team, have a workflow status, can be assigned to users, carry a priority level, and can be organized into projects and cycles. Issues support sub-issues (parent-child hierarchy up to 10 levels deep), labels, due dates, estimates, and SLA tracking. They can also be linked to other issues via relations, attached to releases, and tracked through their full history of changes."""
+
     id: str
+    """The unique identifier of the entity."""
     identifier: str
+    """Issue's human readable identifier (e.g. ENG-123)."""
     title: str
+    """The issue's title. This is the primary human-readable summary of the work item."""
     url: str
+    """Issue URL."""
 
 
 class IssueContextRelationFields(LinearModel):
     """GraphQL type: IssueRelation."""
 
     id: str
+    """The unique identifier of the entity."""
     type: str
+    """The type of relationship between the source issue and the related issue. Possible values include blocks, duplicate, and related."""
     created_at: datetime
+    """The time at which the entity was created."""
     issue: IssueContextRelationFieldsIssue
+    """The source issue whose relationship is being described. This is the issue from which the relation originates."""
     related_issue: IssueContextRelationFieldsRelatedIssue
+    """The target issue that the source issue is related to. The relation type describes how the source issue relates to this issue."""
 
 
 class WorkflowStateFields(LinearModel):
     """GraphQL type: WorkflowState."""
 
     id: str
+    """The unique identifier of the entity."""
     name: str
+    """The state's human-readable name (e.g., 'In Progress', 'Done', 'Backlog')."""
     type: str
+    """The type of the state. One of \"triage\", \"backlog\", \"unstarted\", \"started\", \"completed\", \"canceled\", \"duplicate\"."""
     color: str
+    """The state's UI color as a HEX string."""
     position: float
+    """The position of the state in the team's workflow. States are displayed in ascending order of position within their type group."""
 
 
 class IssueSearchResultFieldsState(LinearModel):
+    """A state in a team's workflow, representing an issue status such as Triage, Backlog, Todo, In Progress, In Review, Done, or Canceled. Each team has its own set of workflow states that define the progression of issues through the team's process. Workflow states have a type that categorizes them (triage, backlog, unstarted, started, completed, canceled), a position that determines their display order, and a color for visual identification. States can be inherited from parent teams to sub-teams."""
+
     id: str
+    """The unique identifier of the entity."""
     name: str
+    """The state's human-readable name (e.g., 'In Progress', 'Done', 'Backlog')."""
     type: str
+    """The type of the state. One of \"triage\", \"backlog\", \"unstarted\", \"started\", \"completed\", \"canceled\", \"duplicate\"."""
 
 
 class IssueSearchResultFieldsAssignee(LinearModel):
+    """A user that belongs to a workspace. Users can have different roles (admin, member, guest, or app) that determine their level of access. Users can be members of multiple teams, and can be active or deactivated. Guest users have limited access scoped to specific teams they are invited to."""
+
     id: str
+    """The unique identifier of the entity."""
     name: str
+    """The user's full name."""
     email: str
+    """The user's email address."""
     active: bool
+    """Whether the user account is active or disabled (suspended)."""
 
 
 class IssueSearchResultFieldsProject(LinearModel):
+    """A project is a collection of issues working toward a shared goal. Projects have start and target dates, milestones, status tracking, and progress metrics. They can span multiple teams and be grouped under initiatives."""
+
     id: str
+    """The unique identifier of the entity."""
     name: str
+    """The name of the project."""
 
 
 class IssueSearchResultFields(LinearModel):
     """GraphQL type: IssueSearchResult."""
 
     id: str
+    """The unique identifier of the entity."""
     identifier: str
+    """Issue's human readable identifier (e.g. ENG-123)."""
     title: str
+    """The issue's title. This is the primary human-readable summary of the work item."""
     description: Optional[str]
+    """The issue's description in markdown format."""
     url: str
+    """Issue URL."""
     priority: float
+    """The priority of the issue. 0 = No priority, 1 = Urgent, 2 = High, 3 = Medium, 4 = Low."""
     state: IssueSearchResultFieldsState
+    """The workflow state (issue status) that the issue is currently in. Workflow states represent the issue's progress through the team's workflow, such as Triage, Todo, In Progress, Done, or Canceled."""
     assignee: Optional[IssueSearchResultFieldsAssignee]
+    """The user to whom the issue is assigned. Null if the issue is unassigned."""
     project: Optional[IssueSearchResultFieldsProject]
+    """The project that the issue is associated with. Null if the issue is not part of any project."""

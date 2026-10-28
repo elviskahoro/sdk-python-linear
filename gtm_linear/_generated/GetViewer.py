@@ -5,6 +5,7 @@ from .fragments import UserFields
 
 class GetViewerResult(LinearModel):
     viewer: UserFields
+    """The currently authenticated user making the API request."""
 
 
 DOCUMENT = """\

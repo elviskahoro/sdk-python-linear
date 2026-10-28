@@ -27,6 +27,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import sys
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -42,6 +43,11 @@ from graphql import (
 )
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR.parent))
+
+from scripts.codegen import OPAQUE_INPUTS  # noqa: E402
+from scripts.deprecations import find_deprecations  # noqa: E402
+
 REPO_ROOT = SCRIPT_DIR.parent
 SCHEMA_FILE = REPO_ROOT / "schema" / "linear.graphql"
 OPERATIONS_DIR = REPO_ROOT / "operations"
@@ -72,6 +78,16 @@ def _selectable(field: Any) -> bool:  # noqa: ANN401
 
 
 def _leaf_fields(type_: Any, exclude: set[str]) -> list[str]:  # noqa: ANN401
+    skipped = sorted(
+        name
+        for name, field in type_.fields.items()
+        if _is_leaf(field.type) and field.deprecation_reason and name not in exclude
+    )
+    if skipped:
+        print(
+            f'  note: fields = "all" on {type_.name} skips deprecated: '
+            + ", ".join(skipped),
+        )
     return sorted(
         name
         for name, field in type_.fields.items()
@@ -96,11 +112,6 @@ def _resolve_fields(
     if missing:
         msg = f"{where}: {type_.name} has no field(s) {', '.join(missing)}"
         raise SystemExit(msg)
-    deprecated = [f for f in spec_fields if type_.fields[f].deprecation_reason]
-    if deprecated:
-        print(
-            f"  warning: {where} selects deprecated field(s): {', '.join(deprecated)}",
-        )
     return list(spec_fields)
 
 
@@ -358,8 +369,23 @@ def generate(out_dir: Path) -> list[str]:
     )
 
     written = ["_fragments.graphql"]
-    for name, op in spec["operations"].items():
-        text = _render_operation(name, op, schema, fragments)
+    rendered_ops = {
+        name: _render_operation(name, op, schema, fragments)
+        for name, op in spec["operations"].items()
+    }
+    deprecated = find_deprecations(
+        schema,
+        [("_fragments.graphql", "\n".join(rendered_fragments)), *rendered_ops.items()],
+        OPAQUE_INPUTS,
+    )
+    if deprecated:
+        listing = "\n".join(f"    {d}" for d in deprecated)
+        msg = (
+            "spec selects deprecated Linear schema members (fix them or add to "
+            f"allow_deprecated in operations/_spec.toml):\n{listing}"
+        )
+        raise SystemExit(msg)
+    for name, text in rendered_ops.items():
         (out_dir / f"{name}.graphql").write_text(f"{text}\n")
         written.append(f"{name}.graphql")
 

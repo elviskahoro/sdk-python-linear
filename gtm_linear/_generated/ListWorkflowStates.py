@@ -6,6 +6,8 @@ from .fragments import PageInfoFields, WorkflowStateFields
 
 
 class PaginationOrderBy(Enum):
+    """By which field should the pagination order by"""
+
     createdAt = "createdAt"
     updatedAt = "updatedAt"
 
@@ -17,6 +19,7 @@ class ListWorkflowStatesResultWorkflowStates(LinearModel):
 
 class ListWorkflowStatesResult(LinearModel):
     workflow_states: ListWorkflowStatesResultWorkflowStates
+    """All issue workflow states (issue statuses). Returns a paginated list of workflow states visible to the authenticated user, across all teams they have access to."""
 
 
 class ListWorkflowStatesVariables(LinearModel):

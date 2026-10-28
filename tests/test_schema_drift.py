@@ -38,6 +38,10 @@ def test_operations_still_valid_against_upstream_schema() -> None:
 
     fragments = codegen._fragment_definitions()
     failures: list[str] = []
+    composed = [(p.name, codegen._compose(p, fragments)) for p in OPERATIONS]
+    failures.extend(
+        f"deprecated: {d}" for d in codegen._deprecations(upstream, composed)
+    )
     for path in OPERATIONS:
         document = parse(codegen._compose(path, fragments))
         errors = validate(upstream, document)

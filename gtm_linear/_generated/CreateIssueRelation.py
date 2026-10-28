@@ -10,6 +10,8 @@ from .fragments import (
 
 
 class IssueRelationType(Enum):
+    """The type of the issue relation."""
+
     blocks = "blocks"
     duplicate = "duplicate"
     related = "related"
@@ -17,19 +19,30 @@ class IssueRelationType(Enum):
 
 
 class CreateIssueRelationResultIssueRelationCreate(LinearModel):
+    """The result of an issue relation mutation, containing the created or updated issue relation and a success indicator."""
+
     success: bool
+    """Whether the operation was successful."""
     issue_relation: IssueRelationFields
+    """The issue relation that was created or updated."""
 
 
 class CreateIssueRelationResult(LinearModel):
     issue_relation_create: CreateIssueRelationResultIssueRelationCreate
+    """Creates a new issue relation."""
 
 
 class IssueRelationCreateInput(LinearModel):
+    """Input for creating a new issue relation between two issues. Both the source issue and related issue must be specified along with the relationship type."""
+
     id: Optional[str] = None
+    """The identifier in UUID v4 format. If none is provided, the backend will generate one."""
     issue_id: str
+    """The identifier of the issue that is related to another issue. Can be a UUID or issue identifier (e.g., 'LIN-123')."""
     related_issue_id: str
+    """The identifier of the related issue. Can be a UUID or issue identifier (e.g., 'LIN-123')."""
     type: IssueRelationType
+    """The type of relation of the issue to the related issue."""
 
 
 class CreateIssueRelationVariables(LinearModel):

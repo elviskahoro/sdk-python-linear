@@ -12,6 +12,8 @@ from .fragments import (
 
 
 class PaginationOrderBy(Enum):
+    """By which field should the pagination order by"""
+
     createdAt = "createdAt"
     updatedAt = "updatedAt"
 
@@ -23,6 +25,7 @@ class ListIssuesResultIssues(LinearModel):
 
 class ListIssuesResult(LinearModel):
     issues: ListIssuesResultIssues
+    """All issues. Returns a paginated list of issues visible to the authenticated user. Can be filtered by various criteria including team, assignee, state, labels, project, and cycle."""
 
 
 class ListIssuesVariables(LinearModel):

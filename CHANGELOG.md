@@ -21,6 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The `[strawberry]` extra now requires `strawberry-graphql>=0.336.2` (was
   0.328.0). Field descriptions are no longer scrubbed, so `gtm_linear._schema`
   carries Linear's docs.
+- Generated models (`gtm_linear/_generated/*`) now render Linear's SDL type and
+  field descriptions as docstrings, so `help()` and IDE hovers document every
+  field on the shipped classes (#150).
 - The tag-triggered PyPI publish moves from GitHub Actions (`pypi.yml`) to
   `.rwx/publish.yml`, publishing with a `PYPI_TOKEN` vault secret instead of
   trusted publishing. GitHub Actions now only runs the Pullfrog harness.
