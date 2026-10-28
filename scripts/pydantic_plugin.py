@@ -210,8 +210,11 @@ class PydanticPlugin(PythonPlugin):
         body = "\n\n".join(bodies)
 
         used_imports: dict[str, set[str]] = {}
+        # Docstrings are stripped from the scan: prose like "identifier in UUID
+        # v4 format" must not keep an import alive that no annotation references.
+        code = re.sub(r'""".*?"""', "", body, flags=re.DOTALL)
         for module, names in self.imports.items():
-            referenced = {n for n in names if re.search(rf"\b{re.escape(n)}\b", body)}
+            referenced = {n for n in names if re.search(rf"\b{re.escape(n)}\b", code)}
             if referenced:
                 used_imports[module] = referenced
 

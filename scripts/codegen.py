@@ -141,9 +141,10 @@ KNOWN_IMPORTS = {
 
 
 def _import_block(body: str) -> str:
-    """Emit exactly the imports `body` references, grouped by module."""
-    # Docstring prose ("identifier in UUID v4 format") must not keep an import alive.
-    code = re.sub(r'""".*?"""', "", body)
+    """Emit exactly the imports `body`'s code references, grouped by module."""
+    # Docstrings are stripped from the scan: prose like "identifier in UUID v4
+    # format" must not keep an import alive that no annotation references.
+    code = re.sub(r'""".*?"""', "", body, flags=re.DOTALL)
     by_module: dict[str, set[str]] = {}
     for name, module in KNOWN_IMPORTS.items():
         if re.search(rf"\b{name}\b", code):
