@@ -442,10 +442,12 @@ merge:
   # - "RWX: integration-tests.yml (pull request)": gated by its trigger's
   #   `if:` to PRs authored by the repo owner, so it never posts a usable
   #   verdict on bot/collaborator PRs -- on entire[bot]/pullfrog PRs it
-  #   errors out immediately ("This run failed to start"). Owner PR runs
-  #   resolve the `sdk-python-linear-it` key unattended (approvals
+  #   never posts a status at all. (Pre-#191 it errored out immediately
+  #   with "This run failed to start" -- the expression path was broken
+  #   for every PR, not just non-owner ones; #191 fixed it.) Owner PR
+  #   runs resolve the `sdk-python-linear-it` key unattended (approvals
   #   disabled, `**` grant; see .rwx/integration-tests.yml), so requiring
-  #   it would fail every non-owner queue entry. History: #186 briefly
+  #   it would stall every non-owner queue entry. History: #186 briefly
   #   gated the vault behind approvals, leaving this status pending until
   #   a human approved -- #189 removed that.
   #
