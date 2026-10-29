@@ -2178,6 +2178,30 @@ def test_search_team_resolves_by_name_when_key_misses() -> None:
     }
 
 
+def test_search_ambiguous_team_name_fails_before_searching() -> None:
+    inner = _graphql_router()
+    teams = [
+        {"id": "team-1", "key": "ENG", "name": "Core"},
+        {"id": "team-2", "key": "PLT", "name": "Core"},
+    ]
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        query = json.loads(request.content)["query"]
+        if _named(query, "GetTeamByKey"):
+            return httpx.Response(200, json={"data": {"teams": {"nodes": []}}})
+        if _named(query, "CliResolveTeamName"):
+            return httpx.Response(200, json={"data": {"teams": {"nodes": teams}}})
+        return inner(request)
+
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=respond)
+        result = runner.invoke(app, ["search", "term", "--team", "core"], env=AUTH)
+    assert result.exit_code == 2  # noqa: S101
+    assert "ambiguous team 'core'" in result.output  # noqa: S101
+    assert "ENG" in result.output  # noqa: S101
+    assert "SearchIssues" not in _operation_names(route)  # noqa: S101
+
+
 def test_search_state_accepts_state_type() -> None:
     with respx.mock:
         route = respx.post(API_URL).mock(
