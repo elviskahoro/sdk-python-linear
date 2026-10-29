@@ -558,6 +558,55 @@ def _require_workflow_state(
         raise typer.BadParameter(error_msg, param_hint="--state")
 
 
+def _resolve_team_by_key_or_name(
+    linear: LinearWorkflow,
+    value: str,
+) -> tuple[str, str]:
+    """Resolve a team key (any casing) or, failing that, an exact team name."""
+    by_key = linear.get_team_by_key(value.upper())
+    if by_key is not None:
+        return by_key.id, by_key.key
+    data = linear.client.execute(
+        f"query {{ teams(first: {MAX_PAGE_SIZE}) {{ nodes {{ id key name }} }} }}",
+    )
+    teams_data = data.get("teams")
+    nodes = teams_data.get("nodes") if isinstance(teams_data, dict) else None
+    if isinstance(nodes, list):
+        for node in nodes:
+            if (
+                isinstance(node, dict)
+                and isinstance(node.get("id"), str)
+                and isinstance(node.get("key"), str)
+                and isinstance(node.get("name"), str)
+                and node["name"].casefold() == value.casefold()
+            ):
+                return node["id"], node["key"]
+    _fail(f"no Linear team with key or name {value!r}")
+
+
+_STATE_TYPES = frozenset(
+    {"triage", "backlog", "unstarted", "started", "completed", "canceled"},
+)
+
+
+def _search_state_filter(
+    linear: LinearWorkflow,
+    team_id: str,
+    team_key: str,
+    state: str,
+) -> dict[str, Any]:
+    """Filter by exact state name; fall back to a state type like ``started``."""
+    names = {
+        s.name for s in linear.iter_workflow_states(team_id, page_size=MAX_PAGE_SIZE)
+    }
+    if state in names:
+        return {"name": {"eq": state}}
+    if state.lower() in _STATE_TYPES:
+        return {"type": {"eq": state.lower()}}
+    error_msg = f"unknown workflow state {state!r} for team {team_key}"
+    raise typer.BadParameter(error_msg, param_hint="--state")
+
+
 def _build_team_issue_filter(
     linear: LinearWorkflow,
     team_id: str,
@@ -2383,14 +2432,15 @@ def search(
     team: Annotated[
         str | None,
         typer.Option(
-            callback=_normalize_optional_team_key,
-            help="Only return issues from this team key, e.g. ENG (any casing).",
+            help="Only return issues from this team: key (any casing, e.g. ENG) "
+            "or exact name (case-insensitive).",
         ),
     ] = None,
     state: Annotated[
         str | None,
         typer.Option(
-            help="Only return issues in this exact workflow-state name "
+            help="Only return issues in this workflow-state name, or state "
+            "type (triage, backlog, unstarted, started, completed, canceled) "
             "(requires --team).",
         ),
     ] = None,
@@ -2426,6 +2476,7 @@ def search(
         raise typer.BadParameter(error_msg, param_hint="--limit")
     state_value = _non_empty_filter(state, "--state")
     project_value = _non_empty_filter(project, "--project")
+    team = _non_empty_filter(team, "--team")
     if state_value is not None and team is None:
         error_msg = "--state requires --team"
         raise typer.BadParameter(error_msg, param_hint="--state")
@@ -2435,16 +2486,18 @@ def search(
             project_id = _lookup_project(linear, project_value, "--project")["id"]
             issue_filter = {"project": {"id": {"eq": project_id}}}
         if team is not None:
-            resolved = linear.get_team_by_key(team)
-            if resolved is None:
-                _fail(f"no Linear team with key {team!r}")
+            team_id, team_key = _resolve_team_by_key_or_name(linear, team)
             issue_filter = {
                 **(issue_filter or {}),
-                "team": {"key": {"eq": team}},
+                "team": {"key": {"eq": team_key}},
             }
             if state_value is not None:
-                _require_workflow_state(linear, resolved.id, team, state_value)
-                issue_filter["state"] = {"name": {"eq": state_value}}
+                issue_filter["state"] = _search_state_filter(
+                    linear,
+                    team_id,
+                    team_key,
+                    state_value,
+                )
         results_found, complete, pagination_error = _read_search_results(
             linear,
             term,

@@ -2147,8 +2147,48 @@ def test_search_unknown_team_fails_before_searching() -> None:
         route = respx.post(API_URL).mock(side_effect=_graphql_router(team=None))
         result = runner.invoke(app, ["search", "term", "--team", "NOPE"], env=AUTH)
     assert result.exit_code == 1  # noqa: S101
-    assert "no Linear team with key 'NOPE'" in result.output  # noqa: S101
-    assert "SearchIssues" not in _operation_names(route)  # noqa: S101
+    assert "no Linear team with key or name 'NOPE'" in result.output  # noqa: S101
+    assert not any(  # noqa: S101
+        "searchIssues" in json.loads(call.request.content)["query"]
+        for call in route.calls
+    )
+
+
+def test_search_team_resolves_by_name_when_key_misses() -> None:
+    inner = _graphql_router()
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        if _named(json.loads(request.content)["query"], "GetTeamByKey"):
+            return httpx.Response(200, json={"data": {"teams": {"nodes": []}}})
+        return inner(request)
+
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=respond)
+        result = runner.invoke(
+            app,
+            ["search", "term", "--team", "engineering"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    assert _sent_variables(route, "SearchIssues")["filter"] == {  # noqa: S101
+        "team": {"key": {"eq": "ENG"}},
+    }
+
+
+def test_search_state_accepts_state_type() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            side_effect=_graphql_router(workflow_states=[_IN_PROGRESS]),
+        )
+        result = runner.invoke(
+            app,
+            ["search", "term", "--team", "ENG", "--state", "Started"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    assert _sent_variables(route, "SearchIssues")["filter"]["state"] == {  # noqa: S101
+        "type": {"eq": "started"},
+    }
 
 
 def test_search_unknown_state_fails_before_searching() -> None:
