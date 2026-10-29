@@ -5,18 +5,15 @@ on:
         commit-sha: ${{ event.git.sha }}
         repository: https://github.com/elviskahoro/sdk-python-linear.git
       if: ${{ event.git.branch == 'main' }}
-    # PR runs reach the vault too, but only behind a human approval. The
-    # `sdk-python-linear-it` vault grants `main` outright, so pushes and cron
-    # run unattended; a PR's head ref matches no grant, which with approvals
-    # enabled makes RWX pause the task and request approval from the vault's
-    # approvers instead of failing it (approvals-disabled is the fail-before-
-    # `run:` path #163 hit). Fork PRs need a maintainer to start the run at
-    # all, then still need the approval.
+    # PR runs reach the vault unattended, but only for PRs authored by the
+    # repo owner: the `if:` below is the author gate (vault grants match only
+    # repo + branch pattern, never author). See the integration-tests task.
     pull_request:
       init:
         commit-sha: ${{ event.git.sha }}
         repository: https://github.com/elviskahoro/sdk-python-linear.git
         event-type: pull_request
+      if: ${{ event.github.pull_request.user.login == 'elviskahoro' }}
   cron:
     - key: weekly-integration-tests
       schedule: 17 7 * * 1
@@ -91,36 +88,23 @@ tasks:
   #
   # That vault is deliberately NOT the `sdk-python-linear` one the other
   # pipelines use. It holds exactly one secret -- a key for a disposable
-  # Linear workspace -- because PR runs can reach it, and a PR can edit this
-  # file in the same commit to exfiltrate whatever the vault holds. Keeping
-  # `GITHUB_TOKEN` and `PYPI_TOKEN` in the main-only vault
-  # means approving a PR run here risks a throwaway workspace, not the
-  # publishing credentials. Never add another secret to `sdk-python-linear-it`.
+  # Linear workspace we accept may leak -- because PR runs reach it with no
+  # approval, and a PR can edit this file to exfiltrate whatever the vault
+  # holds. `GITHUB_TOKEN` and `PYPI_TOKEN` stay in the main-only vault.
+  # Never add another secret to `sdk-python-linear-it`.
   #
   # Access model (`rwx vaults show sdk-python-linear-it`): locked, repository
-  # grant `elviskahoro/sdk-python-linear:main`, approvals enabled with one
-  # required approval. Pushes to main and cron runs match the grant and run
-  # unattended; every other ref -- PR head refs included -- matches nothing,
-  # and because approvals are enabled RWX pauses the task and requests
-  # approval rather than failing it. Deliberately not granting `**`: that
-  # would match every branch and no approval would ever be requested, handing
-  # the key to any same-repo PR automatically.
+  # grants `elviskahoro/sdk-python-linear:**` and `:main`, approvals disabled.
+  # Every same-repo ref resolves the key unattended. Approvals must stay off:
+  # a ref matching no grant fails before `run:` when approvals are disabled,
+  # which is why `**` is granted rather than relying on approval to pause.
+  # The only author gate is the `pull_request` trigger's `if:` above; a branch
+  # pushed by another collaborator is not covered by it.
   #
-  # Two constraints that cost #163 several red runs:
-  #   - Vault matching uses the run's own repository/ref context from the
-  #     trigger event, NOT `init` parameters. Passing `branch:` in a
-  #     pull_request init was tried and reverted for exactly this reason.
-  #   - With approvals DISABLED, an unresolvable vault secret fails the task
-  #     before `run:` executes -- a ~12-35s red with no task output. If PR
-  #     runs start failing that way again, check that approvals are still on
-  #     and that the vault's "Allow public repositories" toggle is still set
-  #     (UI-only -- it is invisible to `rwx vaults show`, and a vault rejects
-  #     public-repo access by default).
-  #
-  # The suite runs whole on an approved PR rather than splitting reads from
-  # writes: approval is the gate, and the writes only touch the disposable
-  # workspace. The `network_writes` marker exists for a reads-only task
-  # (`-m 'network and not network_writes'`) if that is ever wanted.
+  # Vault matching uses the run's own repository/ref context from the trigger
+  # event, NOT `init` parameters (#163 tried `branch:` in the init and
+  # reverted). The vault's "Allow public repositories" toggle is UI-only and
+  # invisible to `rwx vaults show`; keep it set.
   #
   # cache: false mirrors schema-drift (the result depends on Linear's live
   # API, not just repo files); cache-key: excluded keeps the credential out
