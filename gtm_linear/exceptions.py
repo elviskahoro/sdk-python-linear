@@ -49,8 +49,9 @@ def looks_like_not_found(error: GraphQLError, entity: str = "issue") -> bool:
     """Best-effort not-found detection for Linear's GraphQL errors.
 
     ``entity`` names the entity the caller looked up (``"issue"`` by default,
-    or ``"team"`` / ``"user"``); the Team and User wording is assumed to
-    mirror the pinned Issue wording and has not been captured live.
+    or ``"team"`` / ``"user"``); the Issue wording is pinned live by
+    ``tests/test_cli.py`` and the Team and User wording by the live checks in
+    ``tests/integration/test_reads.py``.
 
     Linear sends no dedicated code (``INPUT_ERROR`` is shared with genuine
     input errors), so match its wording — the message names the Issue entity
