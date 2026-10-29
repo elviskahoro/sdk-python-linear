@@ -70,3 +70,18 @@ Pass it for a single command rather than exporting it, and confirm the org:
 
 Do not print token values or read vault secrets. Changing vault grants or
 approvers is outward-facing: confirm with the user first.
+
+### Running the live-API tests
+
+The `LINEAR_API_KEY` lives in the locked `sdk-python-linear` vault, which only
+main runs and the account user can read, so branch and PR runs cannot use it.
+Dispatch the integration pipeline manually instead; it runs your pushed commit
+with the key and no local secret is needed:
+
+    git push -u origin HEAD
+    RWX_ACCESS_TOKEN="$<matching variable>" rwx run .rwx/integration-tests.yml --wait
+
+Fetch task output (pass/fail counts) with:
+
+    RWX_ACCESS_TOKEN="$<matching variable>" rwx results <run-id>
+    RWX_ACCESS_TOKEN="$<matching variable>" rwx logs <run-id> --task integration-tests --output "$(mktemp -d)"

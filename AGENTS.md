@@ -81,3 +81,7 @@ typed read/write paths, `pagination.py` drives cursor connections, and
 Read .entire/agent-guide.md for this repository's workflow, source inspection, and verification guidance.
 @.entire/agent-guide.md
 <!-- entire-agent:end -->
+
+Live-API tests (`-m network`) need the vault key: push the branch, then
+`rwx run .rwx/integration-tests.yml --wait` (see `.entire/agent-guide.md`,
+"RWX access").
