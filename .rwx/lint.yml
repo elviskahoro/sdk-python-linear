@@ -94,9 +94,9 @@ tasks:
   # descends from it), so presence is verified with git cat-file instead of
   # re-fetching. Fork PRs get full lint coverage here (unlike gtm-sdk's
   # Bazel gate, which skips them for secret safety) because this task uses
-  # no secrets. Incremental mode against the exact base commit also keeps
-  # the known pre-existing pyright findings out of the gate unless a PR
-  # touches those lines.
+  # no secrets. Incremental mode against the exact base commit keeps the
+  # required PR status diff-scoped -- a PR only lints its own changes --
+  # while the push/cli trunk-check-full task below lints the whole tree.
   # The launcher is checksum-pinned (same rationale as uv-install):
   # trunk.io/releases/trunk is latest-only -- no versioned URL exists -- so
   # the bytes are pinned and any upstream change fails closed instead of

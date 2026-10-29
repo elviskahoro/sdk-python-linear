@@ -43,6 +43,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   retries and per-test insights in RWX; the dev group gains
   `pytest-reportlog` for the report-log ingestion. Local runs stay
   `uv run pytest -q`.
+- CI resolves dependencies under a 7-day cooldown: `[tool.uv]` gains
+  `exclude-newer = "7 days"`, so `uv lock` skips releases published in the
+  last week and a bump can legitimately resolve older than PyPI's latest;
+  the re-lock moves strawberry-graphql 0.337.2 back to 0.336.2 (0.337.2 was
+  published inside the window) (#179).
+- `.rwx/lint.yml` gains a main-only `push` trigger and a manual `cli`
+  dispatch, both running the new full-repo `trunk-check-full` task — a
+  post-merge safety net that turns main red on drift that slipped past the
+  diff-scoped PR gate (#179).
 
 ### Fixed
 
