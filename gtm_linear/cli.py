@@ -438,11 +438,6 @@ def _normalize_team_key(value: str) -> str:
     return normalized
 
 
-def _normalize_optional_team_key(value: str | None) -> str | None:
-    """``_normalize_team_key`` for options where ``--team`` may be omitted."""
-    return None if value is None else _normalize_team_key(value)
-
-
 def _non_empty_filter(value: str | None, option: str) -> str | None:
     """Trim a free-form filter value and reject empty values as usage errors."""
     if value is None:
