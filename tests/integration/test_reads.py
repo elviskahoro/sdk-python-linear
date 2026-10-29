@@ -125,9 +125,9 @@ def test_sync_open_team_issues(workflow: LinearWorkflow, team) -> None:
 
 
 # A well-formed UUID that no Linear entity owns: `get_team`/`get_user` only
-# return None for it if Linear's wording still matches `looks_like_not_found`,
-# which `exceptions.py` documents as assumed-but-never-captured for Team and
-# User. A rewording upstream raises here instead of silently turning the
+# return None for it if Linear's wording still matches `looks_like_not_found`;
+# these tests are the live pins for the Team and User wording. A rewording
+# upstream raises here instead of silently turning the
 # documented `-> ... | None` contract into an exception.
 _ABSENT_ID = "00000000-0000-4000-8000-000000000000"
 
