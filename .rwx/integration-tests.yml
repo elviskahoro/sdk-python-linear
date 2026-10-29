@@ -79,6 +79,23 @@ tasks:
       echo "1" > "$RWX_ENV/UV_LOCKED"
       echo "3.13" > "$RWX_ENV/UV_PYTHON"
 
+  # TEMPORARY PROBE (#165 Part 1) -- remove before merge. Keyless, so it runs
+  # even when the vault refuses the integration-tests task, and prints the git
+  # context a `pull_request` run actually carries. Vault grants match this
+  # context, not `init`, so it is the only way to see which branch pattern a
+  # PR run would need.
+  - key: trigger-context-probe
+    run: |
+      echo "git.branch=[${RWX_PROBE_BRANCH}]"
+      echo "git.sha=[${RWX_PROBE_SHA}]"
+      echo "pr.head.ref=[${RWX_PROBE_HEAD_REF}]"
+      echo "pr.base.ref=[${RWX_PROBE_BASE_REF}]"
+    env:
+      RWX_PROBE_BRANCH: ${{ event.git.branch }}
+      RWX_PROBE_SHA: ${{ event.git.sha }}
+      RWX_PROBE_HEAD_REF: ${{ event.github.pull_request.pull_request.head.ref }}
+      RWX_PROBE_BASE_REF: ${{ event.github.pull_request.pull_request.base.ref }}
+
   - key: captain
     call: rwx/install-captain 1.2.0
 
