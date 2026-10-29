@@ -422,11 +422,12 @@ merge:
   # the bot-authored #100/#101). Required since 2026-10-16 to match the repo
   # ruleset, which gates PR admission and merges into main on the GitHub side.
   #
-  # The lint gate's PR mode diffs against the PR's exact base commit
-  # (--upstream=$MERGE_BASE, see .rwx/lint.yml), so the known
-  # pre-existing pyright findings (gtm_linear/pagination.py,
-  # gtm_linear/queries.py) only fail it when a PR touches those lines --
-  # they do not block unrelated PRs or the queue.
+  # The lint gate is two-layered: its PR mode diffs against the PR's
+  # exact base commit (--upstream=$MERGE_BASE, see .rwx/lint.yml), so the
+  # required PR status stays diff-scoped and pre-existing tree state can
+  # never block an unrelated PR or the queue, while push/cli runs of the
+  # same pipeline lint the whole tree (trunk-check-full) and turn main
+  # red on drift that slipped past incremental PR runs.
   #
   # Deliberately excluded -- each of these would deadlock the queue:
   # - "Entire Gates": advisory only (not a required check on main), and not

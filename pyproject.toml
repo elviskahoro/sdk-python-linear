@@ -33,7 +33,8 @@ dependencies = [
 [project.optional-dependencies]
 # Ships gtm_linear._schema, the generated Strawberry mirror of Linear's types, for
 # callers re-exposing Linear data through their own GraphQL server. Floor is 0.336.2:
-# regeneration is byte-identical there, and CI locks a newer 0.337.x. It also imports
+# regeneration is byte-identical there, and CI's lock pins exactly the floor (the
+# exclude-newer cooldown re-lock moved it back from 0.337.2). It also imports
 # under 0.316 + graphql-core 3.2, but 0.316's metadata wrongly permits graphql-core
 # 3.3 (which breaks it at import), so the floor keeps the extra on a pair that
 # cannot resolve into that trap. strawberry.codegen is explicitly experimental and
@@ -115,6 +116,8 @@ include = [
 ]
 
 [tool.uv]
+# Dependency cooldown: ignore packages published in the last 7 days.
+exclude-newer = "7 days"
 # The respx fork prefers `httpx` when installed and falls back to `httpx2`.
 # Drop its transitive `httpx` requirement so it mocks `httpx2`.
 # Remove once respx ships httpx2 support upstream.
