@@ -438,11 +438,6 @@ def _normalize_team_key(value: str) -> str:
     return normalized
 
 
-def _normalize_optional_team_key(value: str | None) -> str | None:
-    """``_normalize_team_key`` for options where ``--team`` may be omitted."""
-    return None if value is None else _normalize_team_key(value)
-
-
 def _non_empty_filter(value: str | None, option: str) -> str | None:
     """Trim a free-form filter value and reject empty values as usage errors."""
     if value is None:
@@ -556,6 +551,54 @@ def _require_workflow_state(
     if state not in state_names:
         error_msg = f"unknown workflow state {state!r} for team {team_key}"
         raise typer.BadParameter(error_msg, param_hint="--state")
+
+
+def _resolve_team_by_key_or_name(
+    linear: LinearWorkflow,
+    value: str,
+) -> tuple[str, str]:
+    """Resolve a team key (any casing) or, failing that, an exact team name."""
+    by_key = linear.get_team_by_key(value.upper())
+    if by_key is not None:
+        return by_key.id, by_key.key
+    # Ask Linear for the exact name instead of scanning a teams page: a
+    # workspace with more than MAX_PAGE_SIZE teams would leave the target
+    # team past the cutoff, and this lookup would wrongly claim it does
+    # not exist.
+    nodes = _raw_nodes(
+        linear,
+        "query CliResolveTeamName($filter: TeamFilter) "
+        "{ teams(filter: $filter, first: 1) { nodes { id key } } }",
+        {"filter": {"name": {"eqIgnoreCase": value}}},
+        "teams",
+    )
+    if not nodes:
+        _fail(f"no Linear team with key or name {value!r}")
+    key = nodes[0].get("key")
+    if not isinstance(key, str):
+        _fail("unexpected teams response from Linear")
+    return nodes[0]["id"], key
+
+
+def _search_state_filter(
+    linear: LinearWorkflow,
+    team_id: str,
+    team_key: str,
+    state: str,
+) -> dict[str, Any]:
+    """Filter by exact state name; fall back to a state type like ``started``."""
+    states = list(linear.iter_workflow_states(team_id, page_size=MAX_PAGE_SIZE))
+    if state in {s.name for s in states}:
+        return {"name": {"eq": state}}
+    # Gate the type fallback on the types the team's workflow actually uses
+    # rather than a client-side allowlist: Linear exposes state types as open
+    # strings (the SDL documents ``duplicate`` beyond the common six), so a
+    # fixed list would reject real types, and anything matching no state
+    # still has to fail before the search request.
+    if state.lower() in {s.type for s in states}:
+        return {"type": {"eq": state.lower()}}
+    error_msg = f"unknown workflow state {state!r} for team {team_key}"
+    raise typer.BadParameter(error_msg, param_hint="--state")
 
 
 def _build_team_issue_filter(
@@ -2383,14 +2426,15 @@ def search(
     team: Annotated[
         str | None,
         typer.Option(
-            callback=_normalize_optional_team_key,
-            help="Only return issues from this team key, e.g. ENG (any casing).",
+            help="Only return issues from this team: key (any casing, e.g. ENG) "
+            "or exact name (case-insensitive).",
         ),
     ] = None,
     state: Annotated[
         str | None,
         typer.Option(
-            help="Only return issues in this exact workflow-state name "
+            help="Only return issues in this workflow-state name, or a "
+            "state type the team's workflow uses, e.g. started "
             "(requires --team).",
         ),
     ] = None,
@@ -2426,6 +2470,7 @@ def search(
         raise typer.BadParameter(error_msg, param_hint="--limit")
     state_value = _non_empty_filter(state, "--state")
     project_value = _non_empty_filter(project, "--project")
+    team = _non_empty_filter(team, "--team")
     if state_value is not None and team is None:
         error_msg = "--state requires --team"
         raise typer.BadParameter(error_msg, param_hint="--state")
@@ -2435,16 +2480,18 @@ def search(
             project_id = _lookup_project(linear, project_value, "--project")["id"]
             issue_filter = {"project": {"id": {"eq": project_id}}}
         if team is not None:
-            resolved = linear.get_team_by_key(team)
-            if resolved is None:
-                _fail(f"no Linear team with key {team!r}")
+            team_id, team_key = _resolve_team_by_key_or_name(linear, team)
             issue_filter = {
                 **(issue_filter or {}),
-                "team": {"key": {"eq": team}},
+                "team": {"key": {"eq": team_key}},
             }
             if state_value is not None:
-                _require_workflow_state(linear, resolved.id, team, state_value)
-                issue_filter["state"] = {"name": {"eq": state_value}}
+                issue_filter["state"] = _search_state_filter(
+                    linear,
+                    team_id,
+                    team_key,
+                    state_value,
+                )
         results_found, complete, pagination_error = _read_search_results(
             linear,
             term,
