@@ -89,3 +89,26 @@ def test_sync_facade(workflow: LinearWorkflow, team) -> None:
     ids = [i.id for i in workflow.iter_team_issues(team.id, page_size=2, limit=5)]
     assert len(ids) == len(set(ids))
     assert workflow.get_viewer().id
+
+
+async def test_pagination_spans_multiple_pages(queries: LinearQueries, team) -> None:
+    # The team fixture seeds 3 issues, so page_size=1 forces several cursors.
+    one_page = await queries.list_issues_page(
+        {"team": {"id": {"eq": team.id}}},
+        first=1,
+    )
+    assert len(one_page.nodes) == 1
+    assert one_page.page_info.has_next_page
+    ids = [i.id async for i in queries.iter_team_issues(team.id, page_size=1)]
+    assert len(ids) >= 3
+    assert len(ids) == len(set(ids))
+
+
+async def test_iter_search_issues_is_iterable(queries: LinearQueries) -> None:
+    hits = [h async for h in queries.iter_search_issues("seed", page_size=2, limit=3)]
+    assert len(hits) <= 3
+
+
+def test_sync_open_team_issues(workflow: LinearWorkflow, team) -> None:
+    issues = workflow.list_open_team_issues(team.id, first=5)
+    assert len(issues) <= 5

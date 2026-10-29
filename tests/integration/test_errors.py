@@ -21,3 +21,10 @@ async def test_trailing_newline_key_authenticates(api_key: str) -> None:
     async with LinearClient(api_key=api_key + "\n") as c:
         viewer = await LinearQueries(c).get_viewer()
     assert viewer.id
+
+
+async def test_invalid_input_maps_to_graphql_error(api_key: str) -> None:
+    async with LinearClient(api_key=api_key) as c:
+        with pytest.raises(LinearGraphQLError) as info:
+            await c.execute("query { viewer { notAField } }")
+    assert info.value.codes

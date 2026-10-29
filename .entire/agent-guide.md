@@ -52,3 +52,21 @@ If an ordinary task query fails, continue with useful remaining tools or direct
 source inspection. Do not automatically install, configure, or repair tools.
 
 <!-- entire-agent-activation: {"schema_version":1,"enabled":["graph","brain"]} -->
+
+## RWX access
+
+The `rwx` CLI needs an access token, and the sandbox environment usually holds
+several, one per organization. Find the one for this repo's organization
+(`elviskahoro`) by listing variable *names* only, never values:
+
+    env | grep -i -E '^(RWX|RWC)_' | sed 's/=.*//'
+
+Pass it for a single command rather than exporting it, and confirm the org:
+
+    RWX_ACCESS_TOKEN="$<matching variable>" rwx whoami
+    RWX_ACCESS_TOKEN="$<matching variable>" rwx vaults list
+    RWX_ACCESS_TOKEN="$<matching variable>" rwx vaults show sdk-python-linear
+    RWX_ACCESS_TOKEN="$<matching variable>" rwx run .rwx/tests.yml
+
+Do not print token values or read vault secrets. Changing vault grants or
+approvers is outward-facing: confirm with the user first.
