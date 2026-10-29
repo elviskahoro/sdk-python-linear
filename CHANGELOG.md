@@ -15,6 +15,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   payload to each with per-item results; any failed item exits 1 (#136).
 - `--fields` on `search`, `issues`, and `issue` selects the `--json` keys, and
   issue JSON now includes `project` (`{id, name}` or `null`) (#134).
+- `search --team` accepts a team key (any casing) or an exact team name
+  (case-insensitive; ambiguous names fail listing the candidates), and
+  `--state` accepts a workflow-state name or a state type the team's workflow
+  uses, e.g. `started`; unknown teams or states fail before any search (#135).
 
 ### Changed
 

@@ -568,12 +568,17 @@ def _resolve_team_by_key_or_name(
     nodes = _raw_nodes(
         linear,
         "query CliResolveTeamName($filter: TeamFilter) "
-        "{ teams(filter: $filter, first: 1) { nodes { id key } } }",
+        f"{{ teams(filter: $filter, first: {_CANDIDATE_LIMIT}) "
+        "{ nodes { id key name } } }",
         {"filter": {"name": {"eqIgnoreCase": value}}},
         "teams",
     )
     if not nodes:
         _fail(f"no Linear team with key or name {value!r}")
+    if len(nodes) > 1:
+        names = [f"{n.get('name')} ({n.get('key')})" for n in nodes]
+        error_msg = f"ambiguous team {value!r}; candidates: {_candidates(names)}"
+        raise typer.BadParameter(error_msg, param_hint="--team")
     key = nodes[0].get("key")
     if not isinstance(key, str):
         _fail("unexpected teams response from Linear")
