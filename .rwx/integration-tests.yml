@@ -13,9 +13,6 @@ on:
         commit-sha: ${{ event.git.sha }}
         repository: https://github.com/elviskahoro/sdk-python-linear.git
         event-type: pull_request
-        # TEMPORARY PROBE (#165 Part 1) -- remove with trigger-context-probe.
-        probe-branch: ${{ event.git.branch }}
-        probe-head-ref: ${{ event.github.pull_request.pull_request.head.ref }}
       if: ${{ event.github.pull_request.pull_request.user.login == 'elviskahoro' }}
   cron:
     - key: weekly-integration-tests
@@ -81,23 +78,6 @@ tasks:
       echo "$PWD/.venv" > "$RWX_ENV/VIRTUAL_ENV"
       echo "1" > "$RWX_ENV/UV_LOCKED"
       echo "3.13" > "$RWX_ENV/UV_PYTHON"
-
-  # TEMPORARY PROBE (#165 Part 1) -- remove before merge. Keyless, so it runs
-  # even when the vault refuses the integration-tests task, and prints the git
-  # context a `pull_request` run actually carries. Vault grants match this
-  # context, not `init`, so it is the only way to see which branch pattern a
-  # PR run would need.
-  - key: trigger-context-probe
-    run: |
-      echo "git.branch=[${RWX_PROBE_BRANCH}]"
-      echo "git.sha=[${RWX_PROBE_SHA}]"
-      echo "pr.head.ref=[${RWX_PROBE_HEAD_REF}]"
-      echo "pr.base.ref=[${RWX_PROBE_BASE_REF}]"
-    env:
-      RWX_PROBE_BRANCH: ${{ init.probe-branch }}
-      RWX_PROBE_SHA: ${{ init.commit-sha }}
-      RWX_PROBE_HEAD_REF: ${{ init.probe-head-ref }}
-      RWX_PROBE_BASE_REF: ${{ init.event-type }}
 
   - key: captain
     call: rwx/install-captain 1.2.0
