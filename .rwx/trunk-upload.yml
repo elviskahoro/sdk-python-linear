@@ -1,0 +1,135 @@
+on:
+  github:
+    push:
+      init:
+        commit-sha: ${{ event.git.sha }}
+        repository: https://github.com/elviskahoro/sdk-python-linear.git
+        event-type: push
+        branch: ${{ event.git.branch }}
+        pr-number: ""
+      if: ${{ event.git.branch == 'main' }}
+    # Same author gate as integration-tests.yml: vault grants match only
+    # repo + ref, never author, so this `if:` is the only thing keeping other
+    # collaborators' PRs from resolving the Trunk token. Fork PRs never match.
+    pull_request:
+      init:
+        commit-sha: ${{ event.git.sha }}
+        repository: https://github.com/elviskahoro/sdk-python-linear.git
+        event-type: pull_request
+        branch: ${{ event.git.branch }}
+        pr-number: ${{ event.github.pull_request.pull_request.number }}
+      if: ${{ event.github.pull_request.pull_request.user.login == 'elviskahoro' }}
+
+base:
+  image: ubuntu:24.04
+  config: rwx/base 1.2.0
+
+tasks:
+  - key: code
+    call: git/clone 2.2.0
+    with:
+      repository: ${{ init.repository }}
+      ref: ${{ init.commit-sha }}
+
+  # No packaged `uv/install` leaf exists in the RWX catalog (verified via
+  # `rwx packages list` 2026-10-03 -- `python/install` installs Python, not
+  # uv), so this manual installer stays. Checksum-pinned so an altered or
+  # compromised script at that URL fails closed instead of executing -- same
+  # pattern as gtm-sdk's .rwx/lint.yml uv-install task.
+  # The source workflow's astral-sh/setup-uv resolved the latest uv (it pins
+  # only the action, not uv); this port pins 0.11.29 instead -- the version
+  # the exact steps below were validated against (uv sync --locked + full
+  # pytest suite). Unlike gtm-sdk, this repo's pyproject.toml carries no
+  # [tool.uv] required-version pin, so bumping this is safe as long as the
+  # committed uv.lock still parses and `uv sync --locked` stays clean.
+  - key: uv-install
+    use: [code]
+    run: |
+      set -euo pipefail
+      script="$(mktemp)"
+      trap 'rm -f "${script}"' EXIT
+      curl -LsSf https://astral.sh/uv/0.11.29/install.sh -o "${script}"
+      echo "504a79fd2ed0dcd47e7f04f0792cfd0871f62e24a7fe40fa8ae0f563a369f2bd  ${script}" | sha256sum -c -
+      sh "${script}"
+      echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
+
+  # No `filter:` here -- `uv sync` installs gtm-linear editable and the test
+  # suite imports scripts/ and operations/ too, so the full source tree must
+  # be present (same rationale as gtm-sdk's .rwx/lint.yml deps task).
+  # UV_LOCKED and UV_PYTHON are exported to $RWX_ENV so every downstream
+  # `uv run` inherits them -- the RWX equivalent of the source workflow's
+  # workflow-level `env:` block, which existed so `uv run` steps fail loudly
+  # on lockfile drift instead of silently re-resolving off PyPI. UV_PYTHON
+  # mirrors setup-uv's python-version input (which sets UV_PYTHON).
+  - key: deps
+    use: [uv-install]
+    env:
+      UV_LOCKED: "1"
+      UV_PYTHON: "3.13"
+    run: |
+      uv sync
+      echo "$PWD/.venv/bin" >> "$RWX_ENV/PATH"
+      echo "$PWD/.venv" > "$RWX_ENV/VIRTUAL_ENV"
+      echo "1" > "$RWX_ENV/UV_LOCKED"
+      echo "3.13" > "$RWX_ENV/UV_PYTHON"
+
+  - key: captain
+    call: rwx/install-captain 1.2.0
+
+  # Runs the offline suite and records its exit code instead of failing, so
+  # the upload task below still receives a failed run -- flaky and failing
+  # tests are exactly what Trunk needs to see. `verify` re-fails the pipeline.
+  # Captain's retry command writes a separate JUnit file (see
+  # .captain/config.yml); upload both.
+  - key: test
+    use: [deps, captain]
+    env:
+      REQUIRE_JQ: "1"
+    run: |
+      mkdir -p tmp
+      set +e
+      captain run sdk-python-linear-pytest
+      echo "$?" > tmp/test-exit-code
+
+  # Uploads to Trunk Flaky Tests. TRUNK_API_TOKEN is the org-wide Trunk API
+  # token (the Analytics CLI accepts no scoped key), so it lives in its own
+  # `sdk-python-linear-trunk` vault -- never in `sdk-python-linear`, which holds
+  # GITHUB_TOKEN and PYPI_TOKEN. Access model: locked, grants
+  # `elviskahoro/sdk-python-linear:**` and `:main`, approvals disabled, same
+  # reasoning as `sdk-python-linear-it` (see integration-tests.yml). Never add
+  # another secret to it. cache: false + cache-key: excluded keep the token
+  # out of the content-cache fingerprint and make every run actually upload.
+  # RWX is not a CI provider Trunk auto-detects, so CUSTOM=true plus the
+  # job/branch/PR variables attribute the run.
+  - key: trunk-upload
+    use: [test]
+    cache: false
+    env:
+      TRUNK_API_TOKEN:
+        value: ${{ vaults.sdk-python-linear-trunk.secrets.TRUNK_API_TOKEN }}
+        cache-key: excluded
+      TRUNK_ORG_SLUG: elviskahoro
+      CUSTOM: "true"
+      JOB_URL: https://cloud.rwx.com/mint/elviskahoro/runs/${{ run.id }}
+      BRANCH: ${{ init.branch }}
+      PR_NUMBER: ${{ init.pr-number }}
+      COMMIT_BRANCH: ${{ init.branch }}
+      REPO: https://github.com/elviskahoro/sdk-python-linear.git
+    run: |
+      set -euo pipefail
+      curl -fsSL --retry 3 -o /tmp/trunk https://trunk.io/releases/trunk
+      chmod +x /tmp/trunk
+      /tmp/trunk flakytests upload \
+        --junit-paths "tmp/junit-*.xml" \
+        --org-url-slug "${TRUNK_ORG_SLUG}" \
+        --token "${TRUNK_API_TOKEN}"
+
+  # Pass/fail of the pipeline still follows the tests, then the --check gates.
+  - key: verify
+    use: [trunk-upload]
+    run: |
+      code="$(cat tmp/test-exit-code)"
+      if [ "${code}" != "0" ]; then
+        echo "pytest failed (exit ${code}); results were uploaded to Trunk" >&2
+        exit "${code}"
+      fi
