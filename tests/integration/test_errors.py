@@ -1,4 +1,10 @@
-"""Live error-contract checks."""
+"""Live error-contract checks.
+
+Timeout mapping is deliberately absent: provoking one live would mean racing
+Linear's response time, so ``tests/test_client.py`` pins it against respx
+instead. Not-found wording is pinned by the live check in ``tests/test_cli.py``
+and, for Team and User, by ``test_reads.py``.
+"""
 
 from __future__ import annotations
 

@@ -5,6 +5,18 @@ on:
         commit-sha: ${{ event.git.sha }}
         repository: https://github.com/elviskahoro/sdk-python-linear.git
       if: ${{ event.git.branch == 'main' }}
+    # PR runs reach the vault too, but only behind a human approval. The
+    # `sdk-python-linear-it` vault grants `main` outright, so pushes and cron
+    # run unattended; a PR's head ref matches no grant, which with approvals
+    # enabled makes RWX pause the task and request approval from the vault's
+    # approvers instead of failing it (approvals-disabled is the fail-before-
+    # `run:` path #163 hit). Fork PRs need a maintainer to start the run at
+    # all, then still need the approval.
+    pull_request:
+      init:
+        commit-sha: ${{ event.git.sha }}
+        repository: https://github.com/elviskahoro/sdk-python-linear.git
+        event-type: pull_request
   cron:
     - key: weekly-integration-tests
       schedule: 17 7 * * 1
@@ -75,29 +87,41 @@ tasks:
 
   # The live-API half of the network suite: the CLI live wording check plus
   # the tests/integration suite, with LINEAR_API_KEY from the
-  # `sdk-python-linear` vault. This pipeline has no pull_request
-  # trigger because the runs are main-ref only -- the push trigger only fires
-  # on main, and cron runs against the default branch -- which is exactly what the
-  # locked vault's grant covers
-  # (repository runs on `main`, the same grant .rwx/dagger-ref-drift.yml's
-  # GITHUB_TOKEN relies on). A run whose ref does not match has the secret
-  # resolution refused, and an unresolvable vault secret fails the whole
-  # task BEFORE `run:` executes -- not hypothetical: #163's first three
-  # pushes referenced this secret unconditionally and every pull-request
-  # run failed the pipeline in ~12-35s with no task output. Vault access
-  # matching uses the run's own repository/ref context from the trigger
-  # event, NOT `init` parameters (passing `branch:` in the pull_request
-  # init was tried and reverted for exactly this reason). CLI dispatches
-  # mirror the push init and so exercise the vault path too -- they are
-  # user-initiated, and the account user holds vault access.
-  # Skipping non-main runs is also the secret-safety story: no PR-run code --
-  # same-repo branches included -- ever executes with the key, and fork-PR
-  # runs would not match the repo-scoped vault either. To extend the live
-  # check to PR runs later, grant the specific branch on the vault (a bare
-  # `*` pattern does not cross `/` -- see dagger-ref-drift.yml) and add a
-  # `pull_request` trigger to this pipeline: the task-level `if:` the
-  # live-api task carried in tests.yml was dropped with this move, so the
-  # main-only trigger set above is the only gate left.
+  # `sdk-python-linear-it` vault.
+  #
+  # That vault is deliberately NOT the `sdk-python-linear` one the other
+  # pipelines use. It holds exactly one secret -- a key for a disposable
+  # Linear workspace -- because PR runs can reach it, and a PR can edit this
+  # file in the same commit to exfiltrate whatever the vault holds. Keeping
+  # `GITHUB_TOKEN` and `PYPI_TOKEN` in the main-only vault
+  # means approving a PR run here risks a throwaway workspace, not the
+  # publishing credentials. Never add another secret to `sdk-python-linear-it`.
+  #
+  # Access model (`rwx vaults show sdk-python-linear-it`): locked, repository
+  # grant `elviskahoro/sdk-python-linear:main`, approvals enabled with one
+  # required approval. Pushes to main and cron runs match the grant and run
+  # unattended; every other ref -- PR head refs included -- matches nothing,
+  # and because approvals are enabled RWX pauses the task and requests
+  # approval rather than failing it. Deliberately not granting `**`: that
+  # would match every branch and no approval would ever be requested, handing
+  # the key to any same-repo PR automatically.
+  #
+  # Two constraints that cost #163 several red runs:
+  #   - Vault matching uses the run's own repository/ref context from the
+  #     trigger event, NOT `init` parameters. Passing `branch:` in a
+  #     pull_request init was tried and reverted for exactly this reason.
+  #   - With approvals DISABLED, an unresolvable vault secret fails the task
+  #     before `run:` executes -- a ~12-35s red with no task output. If PR
+  #     runs start failing that way again, check that approvals are still on
+  #     and that the vault's "Allow public repositories" toggle is still set
+  #     (UI-only -- it is invisible to `rwx vaults show`, and a vault rejects
+  #     public-repo access by default).
+  #
+  # The suite runs whole on an approved PR rather than splitting reads from
+  # writes: approval is the gate, and the writes only touch the disposable
+  # workspace. The `network_writes` marker exists for a reads-only task
+  # (`-m 'network and not network_writes'`) if that is ever wanted.
+  #
   # cache: false mirrors schema-drift (the result depends on Linear's live
   # API, not just repo files); cache-key: excluded keeps the credential out
   # of the task's content-cache fingerprint.
@@ -106,6 +130,6 @@ tasks:
     cache: false
     env:
       LINEAR_API_KEY:
-        value: ${{ vaults.sdk-python-linear.secrets.LINEAR_API_KEY }}
+        value: ${{ vaults.sdk-python-linear-it.secrets.LINEAR_API_KEY }}
         cache-key: excluded
     run: captain run sdk-python-linear-pytest-integration

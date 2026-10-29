@@ -62,6 +62,7 @@ def test_search_json_returns_list(ready_team: TeamFields, title_prefix: str) -> 
     assert isinstance(json.loads(_ok(["search", title_prefix, "--json"]).stdout), list)
 
 
+@pytest.mark.network_writes
 def test_writes_are_dry_run_without_apply_and_land_with_it(
     ready_team: TeamFields,
     title_prefix: str,

@@ -2053,7 +2053,7 @@ def test_search_accepts_terms_that_look_like_options() -> None:
 
 @pytest.mark.network
 def test_issue_not_found_wording_against_live_api() -> None:
-    """Pin Linear's live not-found wording (CI `integration-tests` pipeline on main pushes and cron; needs auth).
+    """Pin Linear's live not-found wording (CI `integration-tests` pipeline on main pushes, cron, and approved PR runs; needs auth).
 
     The not-found heuristic matches Linear's message wording, so a rewording
     upstream would silently degrade `issue` to the generic error line. This

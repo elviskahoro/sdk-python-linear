@@ -87,7 +87,14 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-markers = ["network: hits the public internet; deselected by default"]
+markers = [
+  "network: hits the public internet; deselected by default",
+  # The mutating subset of `network`, so CI can gate it separately from the
+  # read-only live checks: `pytest -m 'network and not network_writes'`.
+  # Deselecting it does NOT make the run read-only -- the session-scoped
+  # `team` fixture still creates and deletes its own team either way.
+  "network_writes: live test that creates, updates or deletes Linear data",
+]
 addopts = "-m 'not network'"
 
 [project.urls]
