@@ -115,6 +115,8 @@ include = [
 ]
 
 [tool.uv]
+# Dependency cooldown: ignore packages published in the last 7 days.
+exclude-newer = "7 days"
 # The respx fork prefers `httpx` when installed and falls back to `httpx2`.
 # Drop its transitive `httpx` requirement so it mocks `httpx2`.
 # Remove once respx ships httpx2 support upstream.

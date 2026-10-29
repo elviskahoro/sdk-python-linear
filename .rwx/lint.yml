@@ -19,14 +19,20 @@ on:
         # silently widen or narrow the lint scope whenever main has moved
         # since the PR branched.
         base-sha: ${{ event.github.pull_request.pull_request.base.sha }}
-        # Deliberately no push or cli trigger. gtm-sdk also runs the full-repo
-        # `trunk check --all --ci` on pushes to main as a post-merge safety net;
-        # this repo currently carries known pyright findings
-        # (gtm_linear/pagination.py, gtm_linear/queries.py) that --all fails on,
-        # and per the maintainer they stay unfixed for now, so that gate would be
-        # born red on every main push. Add the push full-lint task (and a manual
-        # cli dispatch for validation) once those findings are cleared. PR runs of
-        # this pipeline validate the wiring in the meantime.
+    push:
+      init:
+        commit-sha: ${{ event.git.sha }}
+        repository: https://github.com/elviskahoro/sdk-python-linear.git
+        event-type: push
+        base-sha: ""
+      if: ${{ event.git.branch == 'main' }}
+  cli:
+    # Manual `rwx run` dispatch to validate the full-repo push path.
+    init:
+      commit-sha: ${{ event.git.sha }}
+      repository: https://github.com/elviskahoro/sdk-python-linear.git
+      event-type: push
+      base-sha: ""
 
 base:
   image: ubuntu:24.04
@@ -104,13 +110,28 @@ tasks:
   # `--ci` and `< /dev/null` are required, not cosmetic: without them trunk
   # can hang on an interactive prompt with no TTY/stdin (observed on gtm-sdk:
   # 2.5+ minutes of repeated cursor-clear escapes, no progress).
-  # No `if: init.event-type` guard (gtm-sdk has one because it also has push
-  # and cli tasks): with pull_request as the only trigger it is always true,
-  # and if a trigger is added later without a base-sha, the cat-file guard
-  # below fails loudly rather than silently skipping the lint and posting a
-  # green status.
-  - key: trunk-check-pr
+  # Gated on event-type: push and cli runs take trunk-check-full instead.
+  - key: trunk-install
     use: [deps]
+    run: |
+      set -euo pipefail
+      trunk_launcher="$(mktemp)"
+      if ! curl -fsSL https://trunk.io/releases/trunk -o "${trunk_launcher}" ||
+        ! echo "700f8bbedfd226595999ea2202b9a7af75ba8398dd711f5f159f5bbba6cbf322  ${trunk_launcher}" | sha256sum -c -; then
+        rm -f "${trunk_launcher}"
+        echo "error: trunk launcher download or checksum failed" >&2
+        exit 1
+      fi
+      if ! install -m 755 "${trunk_launcher}" /usr/local/bin/trunk 2>/dev/null; then
+        mkdir -p "$HOME/.local/bin"
+        install -m 755 "${trunk_launcher}" "$HOME/.local/bin/trunk"
+        echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
+      fi
+      rm -f "${trunk_launcher}"
+
+  - key: trunk-check-pr
+    use: [trunk-install]
+    if: ${{ init.event-type == 'pull_request' }}
     env:
       BASE_SHA: ${{ init.base-sha }}
     run: |
@@ -131,20 +152,15 @@ tasks:
       # When main hasn't moved, merge-base equals BASE_SHA (identical behavior).
       # When main has moved, merge-base returns the actual fork point.
       MERGE_BASE="$(git merge-base HEAD "${BASE_SHA}")"
-      trunk_launcher="$(mktemp)"
-      if ! curl -fsSL https://trunk.io/releases/trunk -o "${trunk_launcher}" ||
-        ! echo "700f8bbedfd226595999ea2202b9a7af75ba8398dd711f5f159f5bbba6cbf322  ${trunk_launcher}" | sha256sum -c -; then
-        rm -f "${trunk_launcher}"
-        echo "error: trunk launcher download or checksum failed" >&2
-        exit 1
-      fi
-      if ! install -m 755 "${trunk_launcher}" /usr/local/bin/trunk 2>/dev/null; then
-        mkdir -p "$HOME/.local/bin"
-        install -m 755 "${trunk_launcher}" "$HOME/.local/bin/trunk"
-        echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
-      fi
-      rm -f "${trunk_launcher}"
       trunk check --upstream="${MERGE_BASE}" --ci < /dev/null
+
+  # Post-merge safety net (push to main, or manual `rwx run` dispatch): lint
+  # the whole tree, not just a PR diff, so drift that slipped past incremental
+  # PR runs turns main red.
+  - key: trunk-check-full
+    use: [trunk-install]
+    if: ${{ init.event-type == 'push' }}
+    run: trunk check --all --ci < /dev/null
 
   # Tach's external-dependency audit (the `unused_external_dependencies =
   # "error"` rule in tach.toml): fails if pyproject.toml declares a runtime
