@@ -21,6 +21,10 @@ trunk check --all                             # lint (run uv sync first: pyright
 CI runs pytest through Captain (`captain run <suite>`, suites in
 `.captain/config.yml`); locally keep using `uv run pytest -q`.
 
+Live-API tests (`-m network`) need the vault key: push the branch, then
+`rwx run .rwx/integration-tests.yml --wait` (see `.entire/agent-guide.md`,
+"RWX access").
+
 ## Architecture Overview
 
 `gtm_linear` is a typed SDK over Linear's GraphQL API: `client.py` owns the
