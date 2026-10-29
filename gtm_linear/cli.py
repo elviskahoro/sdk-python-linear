@@ -561,27 +561,23 @@ def _resolve_team_by_key_or_name(
     by_key = linear.get_team_by_key(value.upper())
     if by_key is not None:
         return by_key.id, by_key.key
-    data = linear.client.execute(
-        f"query {{ teams(first: {MAX_PAGE_SIZE}) {{ nodes {{ id key name }} }} }}",
+    # Ask Linear for the exact name instead of scanning a teams page: a
+    # workspace with more than MAX_PAGE_SIZE teams would leave the target
+    # team past the cutoff, and this lookup would wrongly claim it does
+    # not exist.
+    nodes = _raw_nodes(
+        linear,
+        "query CliResolveTeamName($filter: TeamFilter) "
+        "{ teams(filter: $filter, first: 1) { nodes { id key } } }",
+        {"filter": {"name": {"eqIgnoreCase": value}}},
+        "teams",
     )
-    teams_data = data.get("teams")
-    nodes = teams_data.get("nodes") if isinstance(teams_data, dict) else None
-    if isinstance(nodes, list):
-        for node in nodes:
-            if (
-                isinstance(node, dict)
-                and isinstance(node.get("id"), str)
-                and isinstance(node.get("key"), str)
-                and isinstance(node.get("name"), str)
-                and node["name"].casefold() == value.casefold()
-            ):
-                return node["id"], node["key"]
-    _fail(f"no Linear team with key or name {value!r}")
-
-
-_STATE_TYPES = frozenset(
-    {"triage", "backlog", "unstarted", "started", "completed", "canceled"},
-)
+    if not nodes:
+        _fail(f"no Linear team with key or name {value!r}")
+    key = nodes[0].get("key")
+    if not isinstance(key, str):
+        _fail("unexpected teams response from Linear")
+    return nodes[0]["id"], key
 
 
 def _search_state_filter(
@@ -591,12 +587,15 @@ def _search_state_filter(
     state: str,
 ) -> dict[str, Any]:
     """Filter by exact state name; fall back to a state type like ``started``."""
-    names = {
-        s.name for s in linear.iter_workflow_states(team_id, page_size=MAX_PAGE_SIZE)
-    }
-    if state in names:
+    states = list(linear.iter_workflow_states(team_id, page_size=MAX_PAGE_SIZE))
+    if state in {s.name for s in states}:
         return {"name": {"eq": state}}
-    if state.lower() in _STATE_TYPES:
+    # Gate the type fallback on the types the team's workflow actually uses
+    # rather than a client-side allowlist: Linear exposes state types as open
+    # strings (the SDL documents ``duplicate`` beyond the common six), so a
+    # fixed list would reject real types, and anything matching no state
+    # still has to fail before the search request.
+    if state.lower() in {s.type for s in states}:
         return {"type": {"eq": state.lower()}}
     error_msg = f"unknown workflow state {state!r} for team {team_key}"
     raise typer.BadParameter(error_msg, param_hint="--state")
@@ -2434,8 +2433,8 @@ def search(
     state: Annotated[
         str | None,
         typer.Option(
-            help="Only return issues in this workflow-state name, or state "
-            "type (triage, backlog, unstarted, started, completed, canceled) "
+            help="Only return issues in this workflow-state name, or a "
+            "state type the team's workflow uses, e.g. started "
             "(requires --team).",
         ),
     ] = None,

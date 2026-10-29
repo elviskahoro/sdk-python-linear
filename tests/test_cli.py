@@ -138,7 +138,7 @@ def _graphql_router(
             }
         elif _named(query, "CliIssueTeam"):
             data = {"issue": {"team": {"id": "team-1", "key": "ENG"}}}
-        elif _named(query, "GetTeamByKey"):
+        elif _named(query, "GetTeamByKey") or _named(query, "CliResolveTeamName"):
             data = {"teams": {"nodes": [team] if team else []}}
         elif _named(query, "GetIssue"):
             data = {
@@ -2170,6 +2170,9 @@ def test_search_team_resolves_by_name_when_key_misses() -> None:
             env=AUTH,
         )
     assert result.exit_code == 0  # noqa: S101
+    assert _sent_variables(route, "CliResolveTeamName") == {  # noqa: S101
+        "filter": {"name": {"eqIgnoreCase": "engineering"}},
+    }
     assert _sent_variables(route, "SearchIssues")["filter"] == {  # noqa: S101
         "team": {"key": {"eq": "ENG"}},
     }
@@ -2189,6 +2192,44 @@ def test_search_state_accepts_state_type() -> None:
     assert _sent_variables(route, "SearchIssues")["filter"]["state"] == {  # noqa: S101
         "type": {"eq": "started"},
     }
+
+
+def test_search_state_accepts_type_beyond_the_common_six() -> None:
+    duplicate = {
+        "id": "state-2",
+        "name": "Duplicate",
+        "type": "duplicate",
+        "color": "#fff",
+        "position": 2.0,
+    }
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            side_effect=_graphql_router(workflow_states=[_IN_PROGRESS, duplicate]),
+        )
+        result = runner.invoke(
+            app,
+            ["search", "term", "--team", "ENG", "--state", "duplicate"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    assert _sent_variables(route, "SearchIssues")["filter"]["state"] == {  # noqa: S101
+        "type": {"eq": "duplicate"},
+    }
+
+
+def test_search_state_type_unused_by_team_fails_before_searching() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            side_effect=_graphql_router(workflow_states=[_IN_PROGRESS]),
+        )
+        result = runner.invoke(
+            app,
+            ["search", "term", "--team", "ENG", "--state", "canceled"],
+            env=AUTH,
+        )
+    assert result.exit_code == 2  # noqa: S101
+    assert "unknown workflow state 'canceled' for team ENG" in result.output  # noqa: S101
+    assert "SearchIssues" not in _operation_names(route)  # noqa: S101
 
 
 def test_search_unknown_state_fails_before_searching() -> None:
