@@ -13,7 +13,7 @@ on:
         commit-sha: ${{ event.git.sha }}
         repository: https://github.com/elviskahoro/sdk-python-linear.git
         event-type: pull_request
-      if: ${{ event.github.pull_request.user.login == 'elviskahoro' }}
+      if: ${{ event.github.pull_request.pull_request.user.login == 'elviskahoro' }}
   cron:
     - key: weekly-integration-tests
       schedule: 17 7 * * 1
