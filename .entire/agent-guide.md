@@ -74,8 +74,10 @@ approvers is outward-facing: confirm with the user first.
 ### Running the live-API tests
 
 The `LINEAR_API_KEY` lives in the locked `sdk-python-linear-it` vault (a
-disposable-workspace key). Approvals are off and every same-repo ref resolves
-it unattended; PR runs only trigger for PRs authored by `elviskahoro`.
+disposable-workspace key). Approvals are off and a slash-free same-repo ref
+resolves it unattended — branch grants do not cross `/`, not even `**`, so
+slashed branch names (`w-*/...`) are refused; PR runs only trigger for PRs
+authored by `elviskahoro`.
 Dispatching the pipeline manually also works — the dispatch runs as the
 account user, who holds vault access — so your pushed commit runs with the key
 and no local secret is needed:

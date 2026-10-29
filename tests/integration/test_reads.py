@@ -172,6 +172,7 @@ def test_sync_filter_and_search_iterators(workflow: LinearWorkflow, team) -> Non
     assert len(ids) == 3
     assert len(ids) == len(set(ids))
     hits = [h.id for h in workflow.iter_search_issues("seed", page_size=2, limit=3)]
+    assert len(hits) <= 3
     assert len(hits) == len(set(hits))
 
 
