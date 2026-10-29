@@ -89,6 +89,16 @@ def test_sync_facade(workflow: LinearWorkflow, team) -> None:
     ids = [i.id for i in workflow.iter_team_issues(team.id, page_size=2, limit=5)]
     assert len(ids) == len(set(ids))
     assert workflow.get_viewer().id
+    # The sync wrappers each drive their own event loop, so exercise more than
+    # one per facade instance: a wrapper that closed the loop would break here.
+    states = workflow.list_workflow_states(team.id)
+    assert states
+    types = [s.type for s in states]
+    unique = next(t for t in types if types.count(t) == 1)
+    assert workflow.get_workflow_state_by_type(team.id, unique).type == unique
+    page = workflow.list_issues_page({"team": {"id": {"eq": team.id}}}, first=2)
+    assert len(page.nodes) <= 2
+    assert isinstance(workflow.search_issues("seed").nodes, list)
 
 
 async def test_pagination_spans_multiple_pages(queries: LinearQueries, team) -> None:
@@ -112,3 +122,33 @@ async def test_iter_search_issues_is_iterable(queries: LinearQueries) -> None:
 def test_sync_open_team_issues(workflow: LinearWorkflow, team) -> None:
     issues = workflow.list_open_team_issues(team.id, first=5)
     assert len(issues) <= 5
+
+
+# A well-formed UUID that no Linear entity owns: `get_team`/`get_user` only
+# return None for it if Linear's wording still matches `looks_like_not_found`,
+# which `exceptions.py` documents as assumed-but-never-captured for Team and
+# User. A rewording upstream raises here instead of silently turning the
+# documented `-> ... | None` contract into an exception.
+_ABSENT_ID = "00000000-0000-4000-8000-000000000000"
+
+
+async def test_unknown_team_id_is_none(queries: LinearQueries) -> None:
+    assert await queries.get_team(_ABSENT_ID) is None
+
+
+async def test_unknown_user_id_is_none(queries: LinearQueries) -> None:
+    assert await queries.get_user(_ABSENT_ID) is None
+
+
+async def test_iter_issues_follows_filter(queries: LinearQueries, team) -> None:
+    """The filter-taking iterator, as opposed to the team-id convenience wrapper."""
+    ids = [
+        i.id
+        async for i in queries.iter_issues(
+            {"team": {"id": {"eq": team.id}}},
+            page_size=1,
+            limit=3,
+        )
+    ]
+    assert len(ids) == 3
+    assert len(ids) == len(set(ids))

@@ -17,7 +17,7 @@ from gtm_linear._generated.CreateIssueRelation import (
 )
 from tests.integration.conftest import with_backoff
 
-pytestmark = pytest.mark.network
+pytestmark = [pytest.mark.network, pytest.mark.network_writes]
 
 
 async def test_issue_lifecycle(
