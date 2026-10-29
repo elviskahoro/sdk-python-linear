@@ -93,7 +93,7 @@ tasks:
   # pipelines use. It holds exactly one secret -- a key for a disposable
   # Linear workspace -- because PR runs can reach it, and a PR can edit this
   # file in the same commit to exfiltrate whatever the vault holds. Keeping
-  # `GITHUB_TOKEN`, `TRUNK_API_TOKEN` and `PYPI_TOKEN` in the main-only vault
+  # `GITHUB_TOKEN` and `PYPI_TOKEN` in the main-only vault
   # means approving a PR run here risks a throwaway workspace, not the
   # publishing credentials. Never add another secret to `sdk-python-linear-it`.
   #
