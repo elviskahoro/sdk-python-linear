@@ -13,6 +13,9 @@ on:
         commit-sha: ${{ event.git.sha }}
         repository: https://github.com/elviskahoro/sdk-python-linear.git
         event-type: pull_request
+        # TEMPORARY PROBE (#165 Part 1) -- remove with trigger-context-probe.
+        probe-branch: ${{ event.git.branch }}
+        probe-head-ref: ${{ event.github.pull_request.pull_request.head.ref }}
       if: ${{ event.github.pull_request.pull_request.user.login == 'elviskahoro' }}
   cron:
     - key: weekly-integration-tests
@@ -91,10 +94,10 @@ tasks:
       echo "pr.head.ref=[${RWX_PROBE_HEAD_REF}]"
       echo "pr.base.ref=[${RWX_PROBE_BASE_REF}]"
     env:
-      RWX_PROBE_BRANCH: ${{ event.git.branch }}
-      RWX_PROBE_SHA: ${{ event.git.sha }}
-      RWX_PROBE_HEAD_REF: ${{ event.github.pull_request.pull_request.head.ref }}
-      RWX_PROBE_BASE_REF: ${{ event.github.pull_request.pull_request.base.ref }}
+      RWX_PROBE_BRANCH: ${{ init.probe-branch }}
+      RWX_PROBE_SHA: ${{ init.commit-sha }}
+      RWX_PROBE_HEAD_REF: ${{ init.probe-head-ref }}
+      RWX_PROBE_BASE_REF: ${{ init.event-type }}
 
   - key: captain
     call: rwx/install-captain 1.2.0
