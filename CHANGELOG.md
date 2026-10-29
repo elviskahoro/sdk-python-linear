@@ -22,6 +22,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `integration-tests.yml` now also runs on pull requests, resolving
+  `LINEAR_API_KEY` from the locked `sdk-python-linear-it` vault behind a
+  required approval; mutating live tests carry the new `network_writes`
+  marker (#165).
 - Generated enums are now `(str, Enum)`: members compare equal to their string
   value, `json.dumps` serializes them, and `isinstance(x, str)` is true (#152).
 - `LinearModel` sets `validate_assignment=True`; assigning a wrong-typed value to
