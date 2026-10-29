@@ -152,3 +152,52 @@ async def test_iter_issues_follows_filter(queries: LinearQueries, team) -> None:
     ]
     assert len(ids) == 3
     assert len(ids) == len(set(ids))
+
+
+def test_sync_filter_and_search_iterators(workflow: LinearWorkflow, team) -> None:
+    """The sync `iter_*` wrappers the facade adds on top of the async ones.
+
+    `test_sync_facade` covers `iter_team_issues`; these two drive their own
+    event loop through `_collect`, so they are the pins for the materializing
+    path (every page fetched before the first yield).
+    """
+    ids = [
+        i.id
+        for i in workflow.iter_issues(
+            {"team": {"id": {"eq": team.id}}},
+            page_size=1,
+            limit=3,
+        )
+    ]
+    assert len(ids) == 3
+    assert len(ids) == len(set(ids))
+    hits = [h.id for h in workflow.iter_search_issues("seed", page_size=2, limit=3)]
+    assert len(hits) == len(set(hits))
+
+
+def test_sync_single_entity_lookups(workflow: LinearWorkflow, team) -> None:
+    """`get_issue`/`get_user`/`get_team`/`list_issues` through the sync facade."""
+    issues = workflow.list_issues(team.id, first=3)
+    assert issues
+    found = workflow.get_issue(issues[0].id)
+    assert found is not None
+    assert found.identifier == issues[0].identifier
+    assert workflow.get_issue(_ABSENT_ID) is None
+    assert workflow.get_team(team.id) is not None
+    viewer = workflow.get_viewer()
+    user = workflow.get_user(viewer.id)
+    assert user is not None
+    assert user.id == viewer.id
+
+
+def test_sync_workflow_states_page(workflow: LinearWorkflow, team) -> None:
+    page = workflow.list_workflow_states_page(team.id, first=1)
+    assert len(page.nodes) == 1
+    assert page.page_info.has_next_page
+    second = workflow.list_workflow_states_page(
+        team.id,
+        first=1,
+        after=page.page_info.end_cursor,
+    )
+    assert second.nodes
+    assert second.nodes[0].id != page.nodes[0].id

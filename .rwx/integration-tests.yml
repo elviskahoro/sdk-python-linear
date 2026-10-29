@@ -94,7 +94,8 @@ tasks:
   # Never add another secret to `sdk-python-linear-it`.
   #
   # Access model (`rwx vaults show sdk-python-linear-it`): locked, repository
-  # grants `elviskahoro/sdk-python-linear:**` and `:main`, approvals disabled.
+  # grants `elviskahoro/sdk-python-linear:**`, `:main` and `:refs/pull/**`
+  # (`**` subsumes the other two), approvals disabled.
   # Every same-repo ref resolves the key unattended. Approvals must stay off:
   # a ref matching no grant fails before `run:` when approvals are disabled,
   # which is why `**` is granted rather than relying on approval to pause.
