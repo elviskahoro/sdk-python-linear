@@ -4,8 +4,8 @@ from gtm_linear.models import LinearModel
 from .fragments import (
     IssueContextCommentFields,
     IssueContextCommentFieldsExternalUser,
-    IssueContextCommentFieldsUser,
     PageInfoFields,
+    UserFields,
 )
 
 
@@ -47,16 +47,20 @@ query ListIssueComments($id: String!, $first: Int!, $after: String, $includeArch
   }
 }
 
+fragment UserFields on User {
+  id
+  name
+  email
+  active
+}
+
 fragment IssueContextCommentFields on Comment {
   id
   body
   url
   createdAt
   user {
-    id
-    name
-    email
-    active
+    ...UserFields
   }
   externalUser {
     id

@@ -236,6 +236,32 @@ def _rebuild(
     return node
 
 
+def _dependency_order(
+    needed: set[str],
+    fragments: dict[str, gql_ast.FragmentDefinitionNode],
+) -> list[str]:
+    """Order fragments depth-first, each after the fragments it spreads.
+
+    Siblings are visited sorted so the output is deterministic.
+    """
+    ordered: list[str] = []
+    seen: set[str] = set()
+
+    def visit(name: str) -> None:
+        if name in seen:
+            return
+        seen.add(name)
+        children: set[str] = set()
+        _spread_names(fragments[name], children)
+        for child in sorted(children):
+            visit(child)
+        ordered.append(name)
+
+    for name in sorted(needed):
+        visit(name)
+    return ordered
+
+
 def _compose(path: Path, fragments: dict[str, gql_ast.FragmentDefinitionNode]) -> str:
     """Inline the fragments an operation references, transitively.
 
@@ -269,7 +295,7 @@ def _compose(path: Path, fragments: dict[str, gql_ast.FragmentDefinitionNode]) -
     document = gql_ast.DocumentNode(
         definitions=(
             *document.definitions,
-            *(fragments[name] for name in sorted(needed)),
+            *(fragments[name] for name in _dependency_order(needed, fragments)),
         ),
     )
     return print_ast(document)

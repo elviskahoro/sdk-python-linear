@@ -1,13 +1,13 @@
 test-suites:
   sdk-python-linear-pytest:
-    command: uv run pytest -q --report-log=tmp/sdk-python-linear-pytest.json
+    command: uv run pytest -q -o junit_family=xunit1 --junit-xml=tmp/junit-sdk-python-linear-pytest.xml --report-log=tmp/sdk-python-linear-pytest.json
     results:
       path: tmp/sdk-python-linear-pytest.json
     output:
       print-summary: true
     retries:
       attempts: 2
-      command: uv run pytest -q --report-log=tmp/sdk-python-linear-pytest.json {{ tests }}
+      command: uv run pytest -q -o junit_family=xunit1 --junit-xml=tmp/junit-sdk-python-linear-pytest-retry.xml --report-log=tmp/sdk-python-linear-pytest.json {{ tests }}
   sdk-python-linear-pytest-network:
     command: uv run pytest -q -m network --report-log=tmp/sdk-python-linear-pytest-network.json
     results:
