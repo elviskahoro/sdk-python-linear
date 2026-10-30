@@ -6,10 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Changed
-
-- Generated operation documents now list shared fragments in sorted order instead of dependency-first (strawberry#4744 fixed upstream); no runtime behavior change (#203).
-
 ### Removed
 
 - The `[strawberry]` extra and `gtm_linear._schema`, the generated Strawberry
@@ -19,8 +15,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - Dev-only: raised the `strawberry-graphql` codegen floor to 0.337.2 and dropped the
-  unused-`List`-import prune from the Pydantic plugin (strawberry#4738). The fragment
-  ordering in `codegen.py` stays: removing it reorders generated output (#203).
+  unused-`List`-import prune from the Pydantic plugin (strawberry#4738), and dropped the
+  dependency-first fragment ordering in `codegen.py` (strawberry#4744). Generated
+  operation documents now list shared fragments in sorted order; no runtime behavior
+  change (#203).
 - Request variables are built from the generated `*Variables` models and
   type-checked. Optional arguments a caller does not pass are now omitted from
   the request instead of being sent as `null`; an explicit `None` is still sent
