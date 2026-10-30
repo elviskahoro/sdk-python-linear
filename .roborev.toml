@@ -8,7 +8,7 @@ agent = "pi"
 model = "fireworks/accounts/fireworks/models/glm-5p3-flash"
 
 review_guidelines = """
-- Everything under gtm_linear/_generated/ plus gtm_linear/_schema.py is produced
+- Everything under gtm_linear/_generated/ is produced
   by scripts/codegen.py from the pinned SDL in schema/ and the operations in
   operations/. Generated code is lint-ignored by design (see .trunk/trunk.yaml);
   do not flag style or typing issues inside generated files, and do not suggest

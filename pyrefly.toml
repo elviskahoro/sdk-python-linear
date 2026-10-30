@@ -14,7 +14,6 @@ project-excludes = [
   "venv/**",
   # Machine-generated; regenerate with scripts/codegen.py rather than fixing here.
   "gtm_linear/_generated/**",
-  "gtm_linear/_schema.py",
 ]
 search-path = ["."]
 python-interpreter-path = ".venv/bin/python"

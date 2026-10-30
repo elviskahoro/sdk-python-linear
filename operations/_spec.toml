@@ -14,6 +14,9 @@
 # the most drift-proof option — new Linear fields appear automatically — but it makes
 # responses larger. An explicit list is still schema-checked: a typo or a field Linear
 # removes fails generation rather than surfacing at runtime.
+#
+# Fragments may spread other fragments; codegen orders them dependencies-first
+# (strawberry-graphql/strawberry#4744).
 
 [fragments.UserFields]
 on = "User"

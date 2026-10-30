@@ -89,12 +89,6 @@ visibility = [
 depends_on = ["gtm_linear.models"]
 
 [[modules]]
-path = "gtm_linear._schema"
-layer = "generated"
-visibility = []
-depends_on = []
-
-[[modules]]
 path = "gtm_linear.cli"
 layer = "entrypoints"
 visibility = []

@@ -259,7 +259,7 @@ tasks:
       uv run python scripts/codegen.py --check
 
   # Ports the source workflow's `lean-install` job: the wheel must build and
-  # import without the [strawberry] extra. `use:`s [uv-install] rather than
+  # import with only its runtime deps. `use:`s [uv-install] rather than
   # [deps] to mirror the source job, which never runs uv sync -- `uv build`
   # builds in an isolated hatchling env, and the import check installs only
   # dist/*.whl into a throwaway venv.

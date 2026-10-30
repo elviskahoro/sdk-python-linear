@@ -27,27 +27,23 @@ appear in a production schema. Each is worked around below and tagged BUG-n:
   BUG-5  Definitions are emitted in SDL order, so a default can precede its enum.
   BUG-6  Field arguments are dropped, leaving input types unreachable from the
          schema, which makes stage 4 fail on every mutation.
-  BUG-7  Fields are emitted as class attributes with their arguments dropped; the
-         Query/Mutation classes (and any nested object type whose fields declare
-         arguments, today only ``Issue``) are rebuilt as resolvers.
   BUG-8  Custom scalars are emitted as ``X = strawberry.scalar(NewType(...))``, the
          class form strawberry deprecates; rewritten to plain NewType aliases whose
          definitions are registered through ``StrawberryConfig.scalar_map``.
   BUG-9  Field-argument defaults are dropped: ``_prune`` re-emits arguments as
-         ``name: type`` and the resolver rebuild hardcodes ``= None`` for every
-         nullable argument. Both now thread the SDL-declared default through so
-         the mirror preserves Linear's argument defaults.
+         ``name: type``. It now threads the SDL-declared default through so the
+         operation models keep Linear's argument defaults.
 
 Upstream reports (strawberry-graphql/strawberry), so a Strawberry bump can check
 which workarounds are removable. Catalogue and repros: elviskahoro/sdk-python-linear#147.
 
   BUG-1 #4090, #4093 (PRs)   BUG-2 #4725 (fixed in 0.336)   BUG-3 #4543 (PR)
-  BUG-4 #4380 (PR)           BUG-5 #4734                    BUG-6/7 #4735
-  BUG-8 #4378, #4380         U1 #4744 (fragment order, see _compose)
-  U2 #4742 (_hoist_fragments)   U3 #4741 and U4 #4738 and U5 #4737 (pydantic_plugin.py)
+  BUG-4 #4378, #4380           BUG-5 #4734                    BUG-6 #4735
+  BUG-8 #4378, #4380         U1 #4744 (fixed in 0.337.2; see _compose)
+  U2 #4742 (_hoist_fragments)   U3 #4741 and U4 #4738 (fixed in 0.337.1) and U5 #4737 (pydantic_plugin.py)
   U6 #4740 (_collect)        U7 not filed (_run, single --app-dir)
   U8 #4736 (OPAQUE_INPUTS)   U9 #4739 (_canonicalize_enum_placement)
-  Docstrings are not copied into operation models: #4743.
+  Operation-model docstrings come from pydantic_plugin.py, not codegen: #4743.
 
 Run `uv run python scripts/codegen.py` to regenerate, or `--check` to verify the
 committed output is current (used by CI and tests/test_codegen_is_current.py).
@@ -62,7 +58,6 @@ import json
 import keyword
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -105,7 +100,6 @@ SCHEMA_FILE = REPO_ROOT / "schema" / "linear.graphql"
 OPERATIONS_DIR = REPO_ROOT / "operations"
 FRAGMENTS_FILE = OPERATIONS_DIR / "_fragments.graphql"
 GENERATED_DIR = REPO_ROOT / "gtm_linear" / "_generated"
-SCHEMA_MODULE = REPO_ROOT / "gtm_linear" / "_schema.py"
 
 BUILTIN_SCALARS = {"String", "Int", "Float", "Boolean", "ID"}
 
@@ -648,26 +642,9 @@ def _patch_schema_module(path: Path) -> None:
             )
             raise SystemExit(msg)
 
-    # BUG-7: schema-codegen emits every field as a class attribute and drops its
-    # arguments — root and nested alike. Rebuild each affected Strawberry type as
-    # resolvers so the shipped schema remains a faithful mirror of the pruned SDL.
-    # Root ``Query``/``Mutation`` are always rebuilt; nested object types are
-    # rebuilt only when one of their fields declares arguments (today only
-    # ``Issue``, whose ``attachments``/``comments``/``relations``/
-    # ``inverseRelations`` carry pagination/filter args). Resolver bodies are
-    # intentionally unimplemented: this module describes the schema for callers
-    # who provide their own resolvers.
-    source = _restore_field_arguments(source, path.parent / "pruned.graphql")
-
     source = GENERATED_HEADER + source
     ast.parse(source)  # never emit Python that does not parse
     path.write_text(source)
-
-
-def _python_name(name: str) -> str:
-    """Convert a GraphQL camelCase name to the generated Python spelling."""
-    converted = re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
-    return f"{converted}_" if keyword.iskeyword(converted) else converted
 
 
 def _arg_sdl(name: str, argument: GraphQLArgument) -> str:
@@ -686,182 +663,6 @@ def _arg_sdl(name: str, argument: GraphQLArgument) -> str:
         if default_ast is not None:  # defensive: signature allows None
             rendered += f" = {print_ast(default_ast)}"
     return rendered
-
-
-def _python_default(argument: GraphQLArgument) -> str | None:
-    """Render an argument's SDL-declared default as a Python literal, or None.
-
-    In graphql-core 3.3 an SDL-declared default lives on ``argument.default``
-    (a ``GraphQLDefaultInput``), while the legacy ``argument.default_value``
-    stays ``Undefined``; reading the latter would miss every SDL default. ``None``
-    means no default is declared, so the caller can fall back to its own
-    nullable/required handling.
-
-    Enum-member defaults render as ``<EnumClass>.<value>``: the generated enum
-    classes keep their GraphQL value spellings as attribute names, and a
-    Python-keyword value gets the ``_`` suffix BUG-3 applies to the definition
-    so the reference resolves to the renamed member.
-    """
-    if argument.default is None:
-        return None
-    node = get_default_value_ast(argument)
-    if isinstance(node, gql_ast.IntValueNode | gql_ast.FloatValueNode):
-        return node.value
-    if isinstance(node, gql_ast.StringValueNode):
-        return repr(node.value)
-    if isinstance(node, gql_ast.BooleanValueNode):
-        return "True" if node.value else "False"
-    if isinstance(node, gql_ast.NullValueNode):
-        return "None"
-    if isinstance(node, gql_ast.EnumValueNode):
-        named = _unwrap(argument.type)
-        if named is None:
-            msg = f"enum default {node.value!r} on non-enum type {argument.type!r}"
-            raise SystemExit(msg)
-        value = f"{node.value}_" if keyword.iskeyword(node.value) else node.value
-        return f"{named.name}.{value}"
-    msg = (
-        f"unsupported argument default value node {type(node).__name__}; "
-        "update _python_default"
-    )
-    raise SystemExit(msg)
-
-
-def _argument_default(argument: GraphQLArgument) -> str:
-    """Render the Python default fragment for a resolver argument.
-
-    A declared default wins (BUG-9): the mirror must preserve Linear's argument
-    defaults. A nullable argument with no declared default falls back to
-    ``= None``; a non-null argument with no default stays required (no fragment)
-    so the resolver keeps the same arity as the schema.
-    """
-    declared = _python_default(argument)
-    if declared is not None:
-        return f" = {declared}"
-    if isinstance(argument.type, GraphQLNonNull):
-        return ""
-    return " = None"
-
-
-def _python_type(type_: object, *, nullable: bool = True) -> str:
-    """Render a GraphQL type reference as a Python annotation."""
-    if isinstance(type_, GraphQLNonNull):
-        return _python_type(type_.of_type, nullable=False)
-    if isinstance(type_, GraphQLList):
-        rendered = f"list[{_python_type(type_.of_type)}]"
-    else:
-        name = getattr(type_, "name", "Any")
-        rendered = {
-            "Boolean": "bool",
-            "DateTime": "datetime",
-            "Float": "float",
-            "ID": "strawberry.ID",
-            "Int": "int",
-            "String": "str",
-        }.get(name, name)
-    return f"{rendered} | None" if nullable else rendered
-
-
-def _restore_field_arguments(source: str, sdl_path: Path) -> str:
-    """Restore field arguments Strawberry schema-codegen drops (BUG-7).
-
-    Field descriptions from the pruned SDL are re-emitted as ``description=``.
-
-    schema-codegen emits every field — root and nested alike — as a plain class
-    attribute, dropping its argument list. The pruned SDL carries the full
-    argument list for every field it keeps, so rebuild each affected Strawberry
-    type as resolvers that re-expose those arguments, keeping the shipped schema
-    a faithful mirror of the pruned SDL.
-
-    Root ``Query``/``Mutation`` are always rebuilt. Nested object types are
-    rebuilt only when at least one of their fields declares arguments (today
-    only ``Issue``; its ``attachments``/``comments``/``relations``/
-    ``inverseRelations`` carry pagination/filter args). Resolver bodies raise
-    ``NotImplementedError``: this module describes the schema for callers who
-    provide their own resolvers.
-    """
-    schema = build_schema(sdl_path.read_text())
-    tree = ast.parse(source)
-    replacements: list[tuple[int, int, str]] = []
-
-    for node in tree.body:
-        if not isinstance(node, ast.ClassDef):
-            continue
-        sdl_type = schema.get_type(node.name)
-        if not isinstance(sdl_type, GraphQLObjectType):
-            continue
-        # Root types are always rebuilt (existing behaviour). Nested object
-        # types are rebuilt only when a field declares arguments: a type with
-        # no argumented fields is unchanged, so the restoration stays minimal
-        # and never churns classes that have nothing to restore.
-        is_root = node.name in {"Query", "Mutation"}
-        if not (is_root or any(field.args for field in sdl_type.fields.values())):
-            continue
-
-        lines = ["@strawberry.type", f"class {node.name}:"]
-        for field_name, field in sdl_type.fields.items():
-            python_field = _python_name(field_name)
-            return_type = _python_type(field.type)
-            # repr() quotes any description safely (apostrophes, quotes, newlines).
-            described = (
-                f"description={field.description!r}" if field.description else ""
-            )
-            if not field.args:
-                if described:
-                    lines.append(
-                        f"    {python_field}: {return_type} = strawberry.field({described})",
-                    )
-                else:
-                    lines.append(f"    {python_field}: {return_type}")
-                continue
-
-            required = [
-                (name, argument)
-                for name, argument in field.args.items()
-                if isinstance(argument.type, GraphQLNonNull)
-            ]
-            optional = [
-                (name, argument)
-                for name, argument in field.args.items()
-                if not isinstance(argument.type, GraphQLNonNull)
-            ]
-            lines.extend(
-                [
-                    f"    @strawberry.field({described})"
-                    if described
-                    else "    @strawberry.field",
-                    f"    def {python_field}(self,",
-                ],
-            )
-            for argument_name, argument in [*required, *optional]:
-                default = _argument_default(argument)
-                lines.append(
-                    f"        {_python_name(argument_name)}: {_python_type(argument.type)}{default},",
-                )
-            lines.extend(
-                [
-                    f"    ) -> {return_type}:",
-                    "        raise NotImplementedError",
-                ],
-            )
-
-        start = node.lineno - 1
-        if start > 0 and source.splitlines()[start - 1].strip() == "@strawberry.type":
-            start -= 1
-        # `end_lineno` is Optional on the AST node, but a node parsed from real
-        # source always carries it; refuse to splice a class we cannot delimit.
-        end = node.end_lineno
-        if end is None:
-            msg = f"class {node.name} has no end_lineno; refusing to splice"
-            raise SystemExit(msg)
-        replacements.append((start, end, "\n".join(lines) + "\n"))
-
-    lines = source.splitlines(keepends=True)
-    for start, end, replacement in reversed(replacements):
-        lines[start:end] = [replacement]
-    result = "".join(lines)
-    ast.parse(result)
-    return result
 
 
 def _fragment_enums(
@@ -1123,8 +924,8 @@ def _embed_documents(
     return modules
 
 
-def generate(schema_out: Path, generated_out: Path) -> None:
-    """Run the full pipeline, writing the schema module and generated models."""
+def generate(generated_out: Path) -> None:
+    """Run the full pipeline, writing the generated models."""
     paths = _operation_paths()
     if not paths:
         msg = f"no operations found in {OPERATIONS_DIR}"
@@ -1157,8 +958,7 @@ def generate(schema_out: Path, generated_out: Path) -> None:
         # The schema module is generated into the temp dir and imported from there,
         # not from inside the package. Importing it as gtm_linear._schema would drag
         # in gtm_linear/__init__.py, which imports the very modules this run is about
-        # to produce — so a clean checkout could never bootstrap. It is copied into
-        # the package at the end, purely to be shipped with the [strawberry] extra.
+        # to produce — so a clean checkout could never bootstrap.
         tmp_schema = Path(tmp) / "_linear_schema.py"
         _run(
             [
@@ -1203,10 +1003,6 @@ def generate(schema_out: Path, generated_out: Path) -> None:
             extra_path=Path(tmp),
         )
 
-        # Ship the schema module with the package for the [strawberry] extra.
-        schema_out.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(tmp_schema, schema_out)
-
     # Drop modules from operations that no longer exist, so --check does not pass
     # on an orphan left over from a rename.
     expected = {Path(name).stem for name, _ in composed} | {"__init__", "fragments"}
@@ -1230,7 +1026,7 @@ def generate(schema_out: Path, generated_out: Path) -> None:
     )
     print(f"  generated {len(modules)} operation module(s): {', '.join(modules)}")
 
-    _ruff_format([schema_out, *sorted(generated_out.glob("*.py"))])
+    _ruff_format([*sorted(generated_out.glob("*.py"))])
 
 
 def main() -> None:
@@ -1243,22 +1039,15 @@ def main() -> None:
     args = parser.parse_args()
 
     if not args.check:
-        generate(SCHEMA_MODULE, GENERATED_DIR)
+        generate(GENERATED_DIR)
         print("done")
         return
 
     with tempfile.TemporaryDirectory() as tmp:
-        tmp_schema = Path(tmp) / "_schema.py"
         tmp_generated = Path(tmp) / "_generated"
-        generate(tmp_schema, tmp_generated)
+        generate(tmp_generated)
 
         stale: list[str] = []
-        if not SCHEMA_MODULE.exists() or not filecmp.cmp(
-            tmp_schema,
-            SCHEMA_MODULE,
-            shallow=False,
-        ):
-            stale.append(str(SCHEMA_MODULE.relative_to(REPO_ROOT)))
         expected = {p.name for p in tmp_generated.glob("*.py")}
         actual = {p.name for p in GENERATED_DIR.glob("*.py")}
         stale.extend(sorted(expected ^ actual))
