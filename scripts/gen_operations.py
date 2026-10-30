@@ -138,6 +138,10 @@ def _render_fragment(name: str, spec: dict[str, Any], schema: Any) -> str:  # no
         if field_name not in type_.fields:
             msg = f"fragment {name}: {type_name} has no field {field_name}"
             raise SystemExit(msg)
+        if isinstance(nested_fields, str):
+            # A string is a fragment name, spread rather than inlined.
+            lines.append(f"  {field_name} {{ ...{nested_fields} }}")
+            continue
         nested_type = _unwrap(type_.fields[field_name].type)
         resolved = _resolve_fields(
             nested_type,
