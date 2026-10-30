@@ -112,7 +112,6 @@ tasks:
   # 2.5+ minutes of repeated cursor-clear escapes, no progress).
   # Gated on event-type: push and cli runs take trunk-check-full instead.
   - key: trunk-install
-    use: [deps]
     run: |
       set -euo pipefail
       trunk_launcher="$(mktemp)"
@@ -129,8 +128,37 @@ tasks:
       fi
       rm -f "${trunk_launcher}"
 
+  # Tool cache. RWX caches a task by its command, env, `use` inputs and
+  # filtered files, and carries the task's filesystem (including
+  # ~/.cache/trunk) to downstream tasks. trunk-config filters the checkout
+  # down to the Trunk config, so trunk-tools' cache key is just the launcher
+  # bytes + .trunk/: every linter, runtime and plugin pin in trunk.yaml is
+  # downloaded once and reused until a pin (or other trunk.yaml edit) changes.
+  # The seed repo is a scratch git repo so `trunk install` needs nothing else
+  # from the commit; the check tasks then find the tools already installed.
+  - key: trunk-config
+    use: [code]
+    filter:
+      - .trunk/trunk.yaml
+      - .trunk/configs
+    run: |
+      set -euo pipefail
+      mkdir -p "$HOME/trunk-seed"
+      cp -r .trunk "$HOME/trunk-seed/.trunk"
+      rm -rf "$HOME/trunk-seed/.trunk/.gitignore"
+      cd "$HOME/trunk-seed"
+      git init -q
+      git -c user.name=rwx -c user.email=rwx@example.com commit -q --allow-empty -m seed
+
+  - key: trunk-tools
+    use: [trunk-install, trunk-config]
+    run: |
+      set -euo pipefail
+      cd "$HOME/trunk-seed"
+      trunk install --ci < /dev/null
+
   - key: trunk-check-pr
-    use: [trunk-install]
+    use: [trunk-tools, deps]
     if: ${{ init.event-type == 'pull_request' }}
     env:
       BASE_SHA: ${{ init.base-sha }}
@@ -158,7 +186,7 @@ tasks:
   # the whole tree, not just a PR diff, so drift that slipped past incremental
   # PR runs turns main red.
   - key: trunk-check-full
-    use: [trunk-install]
+    use: [trunk-tools, deps]
     if: ${{ init.event-type == 'push' }}
     run: trunk check --all --ci < /dev/null
 
