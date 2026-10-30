@@ -95,12 +95,22 @@ tasks:
   # token (the Analytics CLI accepts no scoped key), so it lives in its own
   # `sdk-python-linear-trunk` vault -- never in `sdk-python-linear`, which holds
   # GITHUB_TOKEN and PYPI_TOKEN. Access model: locked, grants
-  # `elviskahoro/sdk-python-linear:**` and `:main`, approvals disabled, same
-  # reasoning as `sdk-python-linear-it` (see integration-tests.yml). Never add
-  # another secret to it. cache: false + cache-key: excluded keep the token
-  # out of the content-cache fingerprint and make every run actually upload.
-  # RWX is not a CI provider Trunk auto-detects, so CUSTOM=true plus the
-  # job/branch/PR variables attribute the run.
+  # `elviskahoro/sdk-python-linear:**`, `*/*`, and `:main`, approvals disabled,
+  # same reasoning as `sdk-python-linear-it` (see integration-tests.yml).
+  # Branch patterns do not cross `/` (measured on #192/#193), so `*/*` is what
+  # lets slashed PR branches (`conductor/...`, `w-565/...`) resolve the token;
+  # with only `**` and `:main` every owner PR leg fast-fails before `run:`.
+  # Never add another secret to it. cache: false + cache-key: excluded keep the
+  # token out of the content-cache fingerprint and make every run actually
+  # upload. RWX is not a CI provider Trunk auto-detects, so CUSTOM=true plus
+  # the job/branch/PR variables attribute the run.
+  # The launcher download is pinned to the same fail-closed checksum as
+  # .rwx/lint.yml's trunk-install task (trunk.io/releases/trunk is latest-only
+  # -- no versioned URL exists); a mismatch means the launcher rolled upstream
+  # and must be re-pinned deliberately, never opportunistically. The CLI reads
+  # the token from its TRUNK_API_TOKEN env default instead of a --token flag so
+  # it never appears in the process list, and `< /dev/null` guards against the
+  # interactive-prompt hang .rwx/lint.yml documents for trunk in TTY-less CI.
   - key: trunk-upload
     use: [test]
     cache: false
@@ -117,12 +127,18 @@ tasks:
       REPO: https://github.com/elviskahoro/sdk-python-linear.git
     run: |
       set -euo pipefail
-      curl -fsSL --retry 3 -o /tmp/trunk https://trunk.io/releases/trunk
-      chmod +x /tmp/trunk
-      /tmp/trunk flakytests upload \
+      trunk_launcher="$(mktemp)"
+      if ! curl -fsSL https://trunk.io/releases/trunk -o "${trunk_launcher}" ||
+        ! echo "700f8bbedfd226595999ea2202b9a7af75ba8398dd711f5f159f5bbba6cbf322  ${trunk_launcher}" | sha256sum -c -; then
+        rm -f "${trunk_launcher}"
+        echo "error: trunk launcher download or checksum failed" >&2
+        exit 1
+      fi
+      chmod 0755 "${trunk_launcher}"
+      "${trunk_launcher}" flakytests upload \
         --junit-paths "tmp/junit-*.xml" \
-        --org-url-slug "${TRUNK_ORG_SLUG}" \
-        --token "${TRUNK_API_TOKEN}"
+        --org-url-slug "${TRUNK_ORG_SLUG}" < /dev/null
+      rm -f "${trunk_launcher}"
 
   # Pass/fail of the pipeline still follows the tests, then the --check gates.
   - key: verify
