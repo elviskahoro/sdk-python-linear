@@ -54,13 +54,6 @@ query ListIssues($filter: IssueFilter, $first: Int!, $after: String, $orderBy: P
   }
 }
 
-fragment UserFields on User {
-  id
-  name
-  email
-  active
-}
-
 fragment IssueFields on Issue {
   id
   identifier
@@ -87,4 +80,11 @@ fragment PageInfoFields on PageInfo {
   hasNextPage
   hasPreviousPage
   startCursor
+}
+
+fragment UserFields on User {
+  id
+  name
+  email
+  active
 }"""

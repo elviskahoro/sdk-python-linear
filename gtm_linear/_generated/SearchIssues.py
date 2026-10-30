@@ -39,13 +39,6 @@ query SearchIssues($term: String!, $first: Int!, $after: String, $filter: IssueF
   }
 }
 
-fragment UserFields on User {
-  id
-  name
-  email
-  active
-}
-
 fragment IssueSearchResultFields on IssueSearchResult {
   id
   identifier
@@ -72,4 +65,11 @@ fragment PageInfoFields on PageInfo {
   hasNextPage
   hasPreviousPage
   startCursor
+}
+
+fragment UserFields on User {
+  id
+  name
+  email
+  active
 }"""
