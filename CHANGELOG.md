@@ -19,10 +19,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Dev-only: raised the `strawberry-graphql` codegen floor to 0.337.2 and dropped the
   unused-`List`-import prune from the Pydantic plugin (strawberry#4738). The fragment
   ordering in `codegen.py` stays: removing it reorders generated output (#203).
-- Request variables are built from the generated `*Variables` models and
-  type-checked. Optional arguments a caller does not pass are now omitted from
-  the request instead of being sent as `null`; an explicit `None` is still sent
-  as `null` (#151).
 - `issue.assignee`, search-result assignees, and comment `user` are now the shared
   `User` (`UserFields`) class instead of per-fragment inline classes; fields are
   unchanged (#149).
@@ -39,32 +35,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `gen_operations.py`, and the weekly schema-drift test share one detector
   (`scripts/deprecations.py`), so they cannot disagree on what counts as
   deprecated (#153).
-
-### Added
-
-- Generation-time deprecation check: `gen_operations.py`, `codegen.py` and the
-  schema-drift test fail when an operation selects a deprecated field,
-  argument, enum value or input field. Known-kept members go in
-  `allow_deprecated` in `operations/_spec.toml` (#153).
-- `projects`, `project <id|slug|url|name>`, `project update` (preview unless
-  `--apply`; descriptions over 255 chars rejected up front), `project issues`,
-  and `search --project` (#127).
-- `issue update` accepts several identifiers and `--ids-file`, applying one
-  payload to each with per-item results; any failed item exits 1 (#136).
-- `--fields` on `search`, `issues`, and `issue` selects the `--json` keys, and
-  issue JSON now includes `project` (`{id, name}` or `null`) (#134).
-- `search --team` accepts a team key (any casing) or an exact team name
-  (case-insensitive; ambiguous names fail listing the candidates), and
-  `--state` accepts a workflow-state name or a state type the team's workflow
-  uses, e.g. `started`; unknown teams or states fail before any search (#135).
-
-### Changed
-
 - `integration-tests.yml` now also runs on pull requests authored by the
   repo owner, resolving `LINEAR_API_KEY` unattended from the locked
   `sdk-python-linear-it` vault (approvals disabled, `**`, `*/*` and `main`
-  grants; #186 briefly required a vault approval and #189 removed it);
-  mutating live tests carry the new `network_writes` marker (#165).
+  grants); mutating live tests carry the new `network_writes` marker (#165).
 - The `sdk-python-linear-it` vault's grants now cover slashed branch
   names: `*/*` was added and the never-matching `refs/pull/**` grant
   revoked (a PR run's branch context is the plain head-ref). Branch
@@ -74,7 +48,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Generated enums are now `(str, Enum)`: members compare equal to their string
   value, `json.dumps` serializes them, and `isinstance(x, str)` is true (#152).
 - `LinearModel` sets `validate_assignment=True`; assigning a wrong-typed value to
-  a model field now raises `ValidationError` (#152). Minor version bump to 0.5.0.
+  a model field now raises `ValidationError` (#152).
 - Generated models (`gtm_linear/_generated/*`) now render Linear's SDL type and
   field descriptions as docstrings, so `help()` and IDE hovers document every
   field on the shipped classes (#150).
@@ -102,6 +76,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   dispatch, both running the new full-repo `trunk-check-full` task — a
   post-merge safety net that turns main red on drift that slipped past the
   diff-scoped PR gate (#179).
+
+### Added
+
+- `projects`, `project <id|slug|url|name>`, `project update` (preview unless
+  `--apply`; descriptions over 255 chars rejected up front), `project issues`,
+  and `search --project` (#127).
+- `issue update` accepts several identifiers and `--ids-file`, applying one
+  payload to each with per-item results; any failed item exits 1 (#136).
+- `--fields` on `search`, `issues`, and `issue` selects the `--json` keys, and
+  issue JSON now includes `project` (`{id, name}` or `null`) (#134).
+- `search --team` accepts a team key (any casing) or an exact team name
+  (case-insensitive; ambiguous names fail listing the candidates), and
+  `--state` accepts a workflow-state name or a state type the team's workflow
+  uses, e.g. `started`; unknown teams or states fail before any search (#135).
 
 ### Fixed
 
