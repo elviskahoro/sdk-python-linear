@@ -111,16 +111,15 @@ BUILTIN_SCALARS = {"String", "Int", "Float", "Boolean", "ID"}
 
 # Input types emitted as opaque scalars instead of being expanded.
 #
-# Linear's filter inputs are enormous and deeply self-referential — `IssueFilter`
-# alone pulls in ~150 types and nests far enough that building the Strawberry schema
-# overflows the default recursion limit. Expanding them would make gtm_linear/_schema.py
-# both huge and un-importable without raising sys.setrecursionlimit, which is not an
-# acceptable thing to ask of anyone using the [strawberry] extra.
+# Linear's filter inputs are enormous and self-referential (`and: [IssueFilter!]`).
+# `strawberry codegen` recurses forever on any self-referential input
+# (strawberry-graphql/strawberry#4736, seen on 0.328.2 and 0.336.2); raising the
+# recursion limit does not help. Expanding them is therefore not possible today.
+# A fix is up as strawberry-graphql/strawberry#4758; revisit in #200 once it ships.
 #
 # Correctness is unaffected: stage 1 still validates every operation, filter variable
 # included, against the *full* schema. Only the generated Python view is coarsened —
 # callers pass filters as plain dicts, which Linear validates server-side.
-# U8: self-referential inputs recurse forever in `strawberry codegen` (strawberry#4736).
 OPAQUE_INPUTS = {
     "IssueFilter",
     "TeamFilter",
