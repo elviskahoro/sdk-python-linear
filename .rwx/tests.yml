@@ -6,6 +6,8 @@ on:
         branch: ${{ event.git.branch }}
         repository: https://github.com/elviskahoro/sdk-python-linear.git
         event-type: push
+        pr-author: ""
+        pr-number: ""
       if: ${{ event.git.branch == 'main' }}
     pull_request:
       # The source GHA workflow (deleted in the flip) declared
@@ -14,8 +16,11 @@ on:
       # source gated on main.
       init:
         commit-sha: ${{ event.git.sha }}
+        branch: ${{ event.git.branch }}
         repository: https://github.com/elviskahoro/sdk-python-linear.git
         event-type: pull_request
+        pr-author: ${{ event.github.pull_request.pull_request.user.login }}
+        pr-number: ${{ event.github.pull_request.pull_request.number }}
   cron:
     - key: weekly-schema-drift
       # Source workflow: `schedule: cron: 17 6 * * 1` -- weekly Monday 06:17
@@ -30,6 +35,8 @@ on:
         branch: ${{ event.git.branch }}
         repository: https://github.com/elviskahoro/sdk-python-linear.git
         event-type: schedule
+        pr-author: ""
+        pr-number: ""
   cli:
     # Manual `rwx run` dispatch for validation -- the source workflow has no
     # workflow_dispatch. Mirrors the push trigger's init so a dispatch
@@ -39,6 +46,8 @@ on:
       branch: ${{ event.git.branch }}
       repository: https://github.com/elviskahoro/sdk-python-linear.git
       event-type: push
+      pr-author: ""
+      pr-number: ""
 
 base:
   image: ubuntu:24.04
@@ -131,14 +140,118 @@ tasks:
   - key: captain
     call: rwx/install-captain 1.2.0
 
-  # Ports the source workflow's `test` job: Tests / Operations are current /
-  # Generated code is current, same steps, same order.
-  - key: test
+  # Ports the source workflow's `test` job (Tests / Operations are current /
+  # Generated code is current), split in three so failing and flaky runs still
+  # reach Trunk: `pytest` records pytest's exit code instead of failing,
+  # `trunk-upload` uploads the JUnit files, and `test` re-fails on the saved
+  # code, then runs the two --check scripts in the original order.
+  - key: pytest
     use: [deps, captain]
     env:
       REQUIRE_JQ: "1"
     run: |
+      mkdir -p tmp
+      set +e
       captain run sdk-python-linear-pytest
+      echo "$?" > tmp/pytest-exit-code
+
+  # Uploads to Trunk Flaky Tests. TRUNK_API_TOKEN is the org-wide Trunk API
+  # token (the Analytics CLI accepts no scoped key), so it lives in its own
+  # `sdk-python-linear-trunk` vault -- never in `sdk-python-linear`, which holds
+  # GITHUB_TOKEN and PYPI_TOKEN. Access model: locked, grants
+  # `elviskahoro/sdk-python-linear:**`, `*/*`, and `:main`, approvals disabled,
+  # same reasoning as `sdk-python-linear-it` (see integration-tests.yml).
+  # Branch patterns do not cross `/` (measured on #192/#193), so `*/*` is what
+  # lets slashed PR branches (`conductor/...`, `w-565/...`) resolve the token;
+  # with only `**` and `:main` every owner PR leg fast-fails before `run:`.
+  # Never add another secret to it. The `if:` is the only author gate (vault
+  # grants match repo + ref, never author) and is evaluated before `env:`
+  # resolves the secret, so skipped PRs (forks, other authors) never touch the
+  # vault; an unresolvable secret would otherwise fail the task before `run:`.
+  # cache: false + cache-key: excluded keep the token out of the content-cache
+  # fingerprint and make every run actually upload. RWX is not a CI provider
+  # Trunk auto-detects, so CUSTOM=true plus the job/branch/PR variables
+  # attribute the run. Captain's retry command writes a separate -retry.xml
+  # (see .captain/config.yml); the glob uploads both. The launcher download is
+  # pinned to the same fail-closed checksum as .rwx/lint.yml's trunk-install
+  # task (trunk.io/releases/trunk is latest-only -- no versioned URL exists),
+  # the CLI reads the token from its TRUNK_API_TOKEN env default instead of a
+  # --token flag so it never appears in the process list, and `< /dev/null`
+  # guards against the interactive-prompt hang .rwx/lint.yml documents for
+  # trunk in TTY-less CI.
+  - key: trunk-upload
+    use: [pytest]
+    if: ${{ init.event-type != 'pull_request' || init.pr-author == 'elviskahoro' }}
+    cache: false
+    env:
+      TRUNK_API_TOKEN:
+        value: ${{ vaults.sdk-python-linear-trunk.secrets.TRUNK_API_TOKEN }}
+        cache-key: excluded
+      TRUNK_ORG_SLUG: sanhedrin
+      TRUNK_TEST_COLLECTION_ID: HJL9OODn
+      CUSTOM: "true"
+      JOB_URL: https://cloud.rwx.com/mint/elviskahoro/runs/${{ run.id }}
+      BRANCH: ${{ init.branch }}
+      PR_NUMBER: ${{ init.pr-number }}
+      COMMIT_BRANCH: ${{ init.branch }}
+      COMMIT_SHA: ${{ init.commit-sha }}
+      REPO: ${{ init.repository }}
+    run: |
+      set -euo pipefail
+      trunk_launcher="$(mktemp)"
+      if ! curl -fsSL https://trunk.io/releases/trunk -o "${trunk_launcher}" ||
+        ! echo "700f8bbedfd226595999ea2202b9a7af75ba8398dd711f5f159f5bbba6cbf322  ${trunk_launcher}" | sha256sum -c -; then
+        rm -f "${trunk_launcher}"
+        echo "error: trunk launcher download or checksum failed" >&2
+        exit 1
+      fi
+      chmod 0755 "${trunk_launcher}"
+      # The workspace has no .git (git/clone leaves none), so the repo
+      # identity is passed explicitly (--use-uncloned-repo). Three layers keep
+      # a run that uploaded nothing from going green: the CLI's own nonzero
+      # exit (pipefail carries it through tee) for errored uploads, the grep
+      # for its error banner in case a class of error still exits 0 under its
+      # quarantining exit code, and --allow-empty-test-results=false for a
+      # glob that matches no JUnit files. --pr-number is only valid when
+      # non-empty (push legs set it to "").
+      upload_log="$(mktemp)"
+      pr_args=()
+      if [ -n "${PR_NUMBER}" ]; then
+        pr_args=(--pr-number "${PR_NUMBER}")
+      fi
+      "${trunk_launcher}" flakytests upload \
+        --junit-paths "tmp/junit-*.xml" \
+        --allow-empty-test-results=false \
+        --org-url-slug "${TRUNK_ORG_SLUG}" \
+        --use-uncloned-repo \
+        --repo-url "${REPO}" \
+        --repo-head-sha "${COMMIT_SHA}" \
+        --repo-head-branch "${BRANCH}" \
+        --repo-head-author-name rwx \
+        --repo-head-commit-epoch "$(date +%s)" \
+        "${pr_args[@]}" < /dev/null 2>&1 | tee "${upload_log}"
+      if grep -q "Error Encountered" "${upload_log}"; then
+        echo "error: trunk upload reported an error" >&2
+        exit 1
+      fi
+      rm -f "${trunk_launcher}" "${upload_log}"
+
+  # `after` is an expression, not a list: a list-form `after:` only runs the
+  # task when every listed task *succeeds*, and a skipped task is not a
+  # succeeded one (https://www.rwx.com/docs/after), so `after: [trunk-upload]`
+  # would skip `test` on every non-owner PR leg -- a green required status
+  # with no pytest run. `succeeded || skipped` keeps the upload ordered on
+  # legs that run it and still gates every PR leg on the suite; a failed
+  # upload (e.g. unresolvable vault) skips `test` and reddens the run there.
+  - key: test
+    use: [pytest]
+    after: ${{ trunk-upload.succeeded || trunk-upload.skipped }}
+    run: |
+      code="$(cat tmp/pytest-exit-code)"
+      if [ "${code}" != "0" ]; then
+        echo "pytest failed (exit ${code})" >&2
+        exit "${code}"
+      fi
       # Fails if operations/*.graphql drifted from operations/_spec.toml.
       uv run python scripts/gen_operations.py --check
       # Fails if a generated model was hand-edited or the schema pin moved

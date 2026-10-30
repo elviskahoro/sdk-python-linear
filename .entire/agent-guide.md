@@ -71,6 +71,29 @@ Pass it for a single command rather than exporting it, and confirm the org:
 Do not print token values or read vault secrets. Changing vault grants or
 approvers is outward-facing: confirm with the user first.
 
+## Creating a vault and checking it works
+
+A vault made with `rwx vaults create` is not usable until three things hold;
+miss one and runs fail with "The vault is locked":
+
+1. Repository grants `REPO:**`, `REPO:*/*` and `REPO:main` (patterns do not
+   cross `/`). Compare against a working vault with `rwx vaults show <name>
+   --json` and `rwx vaults access list --vault <name>`.
+2. "Allow public repositories" on. It is UI-only and invisible to the CLI.
+3. For `rwx run` dispatches, the account user in the access list:
+   `rwx vaults access allow --vault <name> --email <user>` (confirm first;
+   it is a grant change).
+
+Setting a placeholder secret (`rwx vaults secrets set --vault <name> KEY=...`)
+lets the pipeline resolve while the owner supplies the real value. A green run
+with a placeholder or a masked-exit-code tool proves nothing: read the task
+logs (`rwx logs <run-id> --task <task> --output "$(mktemp -d)"`) and confirm
+the step did its job.
+
+Never run a tool's `--help` in an environment that holds real credentials
+without `env -u`: clap prints the current value of `[env: NAME=...]` defaults
+(Trunk's `--token` printed `TRUNK_API_TOKEN`).
+
 ### Running the live-API tests
 
 The `LINEAR_API_KEY` lives in the locked `sdk-python-linear-it` vault (a
