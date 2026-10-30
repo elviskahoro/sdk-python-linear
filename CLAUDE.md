@@ -46,6 +46,14 @@ typed read/write paths, `pagination.py` drives cursor connections, and
   the plugin's exported ones); re-copy their base sections on plugin upgrades.
 - Tests intentionally exercise `_private` internals and use `assert` — scoped
   per-file ignores in `ruff.toml` cover this; do not add per-line noqas for it.
+- RWX CI changes: a green run is not proof a step worked. Read the task's
+  logs (`rwx logs`) for steps that talk to third parties; the Trunk CLI
+  prints `Error Encountered` and still exits 0. The workspace has no `.git`,
+  so `trunk flakytests upload` needs `--use-uncloned-repo` plus the
+  `--repo-*` overrides. A new vault must have "Allow public repositories" on
+  (UI-only) and, for `rwx run` dispatches, an `rwx vaults access allow
+  --email` entry for the account user. See `.entire/agent-guide.md`,
+  "Creating a vault".
 
 
 

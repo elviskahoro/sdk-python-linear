@@ -193,6 +193,7 @@ tasks:
       BRANCH: ${{ init.branch }}
       PR_NUMBER: ${{ init.pr-number }}
       COMMIT_BRANCH: ${{ init.branch }}
+      COMMIT_SHA: ${{ init.commit-sha }}
       REPO: ${{ init.repository }}
     run: |
       set -euo pipefail
@@ -204,10 +205,26 @@ tasks:
         exit 1
       fi
       chmod 0755 "${trunk_launcher}"
+      # The workspace has no .git (git/clone leaves none), so the CLI would
+      # fail with "Could not find a git repository" -- and exit 0 anyway, since
+      # its quarantining exit code swallows its own errors. Supply the repo
+      # identity explicitly, and fail on its error banner so a run that
+      # uploaded nothing cannot go green.
+      upload_log="$(mktemp)"
       "${trunk_launcher}" flakytests upload \
         --junit-paths "tmp/junit-*.xml" \
-        --org-url-slug "${TRUNK_ORG_SLUG}" < /dev/null
-      rm -f "${trunk_launcher}"
+        --org-url-slug "${TRUNK_ORG_SLUG}" \
+        --use-uncloned-repo \
+        --repo-url "${REPO}" \
+        --repo-head-sha "${COMMIT_SHA}" \
+        --repo-head-branch "${BRANCH}" \
+        --repo-head-author-name rwx \
+        --repo-head-commit-epoch "$(date +%s)" < /dev/null 2>&1 | tee "${upload_log}"
+      if grep -q "Error Encountered" "${upload_log}"; then
+        echo "error: trunk upload reported an error (exit code was masked)" >&2
+        exit 1
+      fi
+      rm -f "${trunk_launcher}" "${upload_log}"
 
   # `after` is an expression, not a list: a list-form `after:` only runs the
   # task when every listed task *succeeds*, and a skipped task is not a
