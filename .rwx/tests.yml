@@ -159,18 +159,26 @@ tasks:
   # token (the Analytics CLI accepts no scoped key), so it lives in its own
   # `sdk-python-linear-trunk` vault -- never in `sdk-python-linear`, which holds
   # GITHUB_TOKEN and PYPI_TOKEN. Access model: locked, grants
-  # `elviskahoro/sdk-python-linear:**`, `:*/*` and `:main` (branch patterns do
-  # not cross `/`, so `*/*` matches `w-565/...` branches), approvals disabled, same
-  # reasoning as `sdk-python-linear-it` (see integration-tests.yml). Never add
-  # another secret to it. The `if:` is the only author gate (vault grants match
-  # repo + ref, never author) and is evaluated before `env:` resolves the
-  # secret, so skipped PRs (forks, other authors) never touch the vault; an
-  # unresolvable secret would otherwise fail the task before `run:`.
+  # `elviskahoro/sdk-python-linear:**`, `*/*`, and `:main`, approvals disabled,
+  # same reasoning as `sdk-python-linear-it` (see integration-tests.yml).
+  # Branch patterns do not cross `/` (measured on #192/#193), so `*/*` is what
+  # lets slashed PR branches (`conductor/...`, `w-565/...`) resolve the token;
+  # with only `**` and `:main` every owner PR leg fast-fails before `run:`.
+  # Never add another secret to it. The `if:` is the only author gate (vault
+  # grants match repo + ref, never author) and is evaluated before `env:`
+  # resolves the secret, so skipped PRs (forks, other authors) never touch the
+  # vault; an unresolvable secret would otherwise fail the task before `run:`.
   # cache: false + cache-key: excluded keep the token out of the content-cache
   # fingerprint and make every run actually upload. RWX is not a CI provider
   # Trunk auto-detects, so CUSTOM=true plus the job/branch/PR variables
   # attribute the run. Captain's retry command writes a separate -retry.xml
-  # (see .captain/config.yml); the glob uploads both.
+  # (see .captain/config.yml); the glob uploads both. The launcher download is
+  # pinned to the same fail-closed checksum as .rwx/lint.yml's trunk-install
+  # task (trunk.io/releases/trunk is latest-only -- no versioned URL exists),
+  # the CLI reads the token from its TRUNK_API_TOKEN env default instead of a
+  # --token flag so it never appears in the process list, and `< /dev/null`
+  # guards against the interactive-prompt hang .rwx/lint.yml documents for
+  # trunk in TTY-less CI.
   - key: trunk-upload
     use: [pytest]
     if: ${{ init.event-type != 'pull_request' || init.pr-author == 'elviskahoro' }}
@@ -188,16 +196,29 @@ tasks:
       REPO: ${{ init.repository }}
     run: |
       set -euo pipefail
-      curl -fsSL --retry 3 -o /tmp/trunk https://trunk.io/releases/trunk
-      chmod +x /tmp/trunk
-      /tmp/trunk flakytests upload \
+      trunk_launcher="$(mktemp)"
+      if ! curl -fsSL https://trunk.io/releases/trunk -o "${trunk_launcher}" ||
+        ! echo "700f8bbedfd226595999ea2202b9a7af75ba8398dd711f5f159f5bbba6cbf322  ${trunk_launcher}" | sha256sum -c -; then
+        rm -f "${trunk_launcher}"
+        echo "error: trunk launcher download or checksum failed" >&2
+        exit 1
+      fi
+      chmod 0755 "${trunk_launcher}"
+      "${trunk_launcher}" flakytests upload \
         --junit-paths "tmp/junit-*.xml" \
-        --org-url-slug "${TRUNK_ORG_SLUG}" \
-        --token "${TRUNK_API_TOKEN}"
+        --org-url-slug "${TRUNK_ORG_SLUG}" < /dev/null
+      rm -f "${trunk_launcher}"
 
+  # `after` is an expression, not a list: a list-form `after:` only runs the
+  # task when every listed task *succeeds*, and a skipped task is not a
+  # succeeded one (https://www.rwx.com/docs/after), so `after: [trunk-upload]`
+  # would skip `test` on every non-owner PR leg -- a green required status
+  # with no pytest run. `succeeded || skipped` keeps the upload ordered on
+  # legs that run it and still gates every PR leg on the suite; a failed
+  # upload (e.g. unresolvable vault) skips `test` and reddens the run there.
   - key: test
     use: [pytest]
-    after: [trunk-upload]
+    after: ${{ trunk-upload.succeeded || trunk-upload.skipped }}
     run: |
       code="$(cat tmp/pytest-exit-code)"
       if [ "${code}" != "0" ]; then
