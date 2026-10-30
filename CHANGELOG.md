@@ -24,9 +24,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `integration-tests.yml` now also runs on pull requests authored by the
   repo owner, resolving `LINEAR_API_KEY` unattended from the locked
-  `sdk-python-linear-it` vault (approvals disabled, `**` grant; #186
-  briefly required a vault approval and #189 removed it); mutating live
-  tests carry the new `network_writes` marker (#165).
+  `sdk-python-linear-it` vault (approvals disabled, `**`, `*/*` and `main`
+  grants; #186 briefly required a vault approval and #189 removed it);
+  mutating live tests carry the new `network_writes` marker (#165).
+- The `sdk-python-linear-it` vault's grants now cover slashed branch
+  names: `*/*` was added and the never-matching `refs/pull/**` grant
+  revoked (a PR run's branch context is the plain head-ref). Branch
+  patterns do not cross `/`, so one-segment prefixes like `w-565/...`
+  resolve the key unattended; deeper names (`a/b/c`) match no grant
+  (#165).
 - Generated enums are now `(str, Enum)`: members compare equal to their string
   value, `json.dumps` serializes them, and `isinstance(x, str)` is true (#152).
 - `LinearModel` sets `validate_assignment=True`; assigning a wrong-typed value to
