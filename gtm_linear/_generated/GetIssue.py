@@ -19,13 +19,6 @@ query GetIssue($id: String!) {
   }
 }
 
-fragment UserFields on User {
-  id
-  name
-  email
-  active
-}
-
 fragment IssueFields on Issue {
   id
   identifier
@@ -45,4 +38,11 @@ fragment IssueFields on Issue {
     id
     name
   }
+}
+
+fragment UserFields on User {
+  id
+  name
+  email
+  active
 }"""

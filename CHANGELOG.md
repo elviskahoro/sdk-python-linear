@@ -17,8 +17,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - Dev-only: raised the `strawberry-graphql` codegen floor to 0.337.2 and dropped the
-  unused-`List`-import prune from the Pydantic plugin (strawberry#4738). The fragment
-  ordering in `codegen.py` stays: removing it reorders generated output (#203).
+  unused-`List`-import prune from the Pydantic plugin (strawberry#4738), and dropped the
+  dependency-first fragment ordering in `codegen.py` (strawberry#4744). Generated
+  operation documents now list shared fragments in sorted order; no runtime behavior
+  change (#203).
 - `issue.assignee`, search-result assignees, and comment `user` are now the shared
   `User` (`UserFields`) class instead of per-fragment inline classes; fields are
   unchanged (#149).

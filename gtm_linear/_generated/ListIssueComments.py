@@ -47,13 +47,6 @@ query ListIssueComments($id: String!, $first: Int!, $after: String, $includeArch
   }
 }
 
-fragment UserFields on User {
-  id
-  name
-  email
-  active
-}
-
 fragment IssueContextCommentFields on Comment {
   id
   body
@@ -75,4 +68,11 @@ fragment PageInfoFields on PageInfo {
   hasNextPage
   hasPreviousPage
   startCursor
+}
+
+fragment UserFields on User {
+  id
+  name
+  email
+  active
 }"""
