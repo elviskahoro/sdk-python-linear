@@ -188,6 +188,7 @@ tasks:
         value: ${{ vaults.sdk-python-linear-trunk.secrets.TRUNK_API_TOKEN }}
         cache-key: excluded
       TRUNK_ORG_SLUG: sanhedrin
+      TRUNK_TEST_COLLECTION_ID: HJL9OODn
       CUSTOM: "true"
       JOB_URL: https://cloud.rwx.com/mint/elviskahoro/runs/${{ run.id }}
       BRANCH: ${{ init.branch }}
