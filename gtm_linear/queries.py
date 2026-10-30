@@ -14,18 +14,22 @@ from typing import TYPE_CHECKING, Any
 from ._generated.GetIssue import (
     DOCUMENT as GET_ISSUE,
     GetIssueResult,
+    GetIssueVariables,
 )
 from ._generated.GetTeam import (
     DOCUMENT as GET_TEAM,
     GetTeamResult,
+    GetTeamVariables,
 )
 from ._generated.GetTeamByKey import (
     DOCUMENT as GET_TEAM_BY_KEY,
     GetTeamByKeyResult,
+    GetTeamByKeyVariables,
 )
 from ._generated.GetUser import (
     DOCUMENT as GET_USER,
     GetUserResult,
+    GetUserVariables,
 )
 from ._generated.GetViewer import (
     DOCUMENT as GET_VIEWER,
@@ -35,37 +39,44 @@ from ._generated.ListIssueAttachments import (
     DOCUMENT as LIST_ISSUE_ATTACHMENTS,
     ListIssueAttachmentsResult,
     ListIssueAttachmentsResultIssueAttachments,
+    ListIssueAttachmentsVariables,
 )
 from ._generated.ListIssueComments import (
     DOCUMENT as LIST_ISSUE_COMMENTS,
     ListIssueCommentsResult,
     ListIssueCommentsResultIssueComments,
+    ListIssueCommentsVariables,
 )
 from ._generated.ListIssueInverseRelations import (
     DOCUMENT as LIST_ISSUE_INVERSE_RELATIONS,
     ListIssueInverseRelationsResult,
     ListIssueInverseRelationsResultIssueInverseRelations,
+    ListIssueInverseRelationsVariables,
 )
 from ._generated.ListIssueRelations import (
     DOCUMENT as LIST_ISSUE_RELATIONS,
     ListIssueRelationsResult,
     ListIssueRelationsResultIssueRelations,
+    ListIssueRelationsVariables,
 )
 from ._generated.ListIssues import (
     DOCUMENT as LIST_ISSUES,
     ListIssuesResult,
     ListIssuesResultIssues,
+    ListIssuesVariables,
     PaginationOrderBy,
 )
 from ._generated.ListWorkflowStates import (
     DOCUMENT as LIST_WORKFLOW_STATES,
     ListWorkflowStatesResult,
     ListWorkflowStatesResultWorkflowStates,
+    ListWorkflowStatesVariables,
 )
 from ._generated.SearchIssues import (
     DOCUMENT as SEARCH_ISSUES,
     SearchIssuesResult,
     SearchIssuesResultSearchIssues,
+    SearchIssuesVariables,
 )
 from ._generated.fragments import (
     IssueContextAttachmentFields,
@@ -79,6 +90,7 @@ from .exceptions import (
     LinearWorkflowStateLookupError,
     looks_like_not_found,
 )
+from .models import dump_variables
 from .pagination import paginate, validate_pagination_options
 
 
@@ -127,7 +139,10 @@ class LinearQueries:
             The issue, or None if it does not exist.
         """
         try:
-            data = await self._client.execute_async(GET_ISSUE, {"id": issue_id})
+            data = await self._client.execute_async(
+                GET_ISSUE,
+                dump_variables(GetIssueVariables(id=issue_id)),
+            )
         except LinearGraphQLError as exc:
             # Linear reports unknown identifiers as a top-level GraphQL
             # ``errors`` array rather than a null ``issue``, and
@@ -170,12 +185,14 @@ class LinearQueries:
         try:
             data = await self._client.execute_async(
                 LIST_ISSUE_COMMENTS,
-                {
-                    "id": issue_id,
-                    "first": first,
-                    "after": after,
-                    "includeArchived": include_archived,
-                },
+                dump_variables(
+                    ListIssueCommentsVariables(
+                        id=issue_id,
+                        first=first,
+                        after=after,
+                        include_archived=include_archived,
+                    ),
+                ),
             )
         except LinearGraphQLError as exc:
             # Linear returns unknown issue identifiers as a top-level
@@ -229,12 +246,14 @@ class LinearQueries:
         try:
             data = await self._client.execute_async(
                 LIST_ISSUE_ATTACHMENTS,
-                {
-                    "id": issue_id,
-                    "first": first,
-                    "after": after,
-                    "includeArchived": include_archived,
-                },
+                dump_variables(
+                    ListIssueAttachmentsVariables(
+                        id=issue_id,
+                        first=first,
+                        after=after,
+                        include_archived=include_archived,
+                    ),
+                ),
             )
         except LinearGraphQLError as exc:
             # Linear returns unknown issue identifiers as a top-level
@@ -290,12 +309,14 @@ class LinearQueries:
         try:
             data = await self._client.execute_async(
                 LIST_ISSUE_RELATIONS,
-                {
-                    "id": issue_id,
-                    "first": first,
-                    "after": after,
-                    "includeArchived": include_archived,
-                },
+                dump_variables(
+                    ListIssueRelationsVariables(
+                        id=issue_id,
+                        first=first,
+                        after=after,
+                        include_archived=include_archived,
+                    ),
+                ),
             )
         except LinearGraphQLError as exc:
             # Linear returns unknown issue identifiers as a top-level
@@ -349,12 +370,14 @@ class LinearQueries:
         try:
             data = await self._client.execute_async(
                 LIST_ISSUE_INVERSE_RELATIONS,
-                {
-                    "id": issue_id,
-                    "first": first,
-                    "after": after,
-                    "includeArchived": include_archived,
-                },
+                dump_variables(
+                    ListIssueInverseRelationsVariables(
+                        id=issue_id,
+                        first=first,
+                        after=after,
+                        include_archived=include_archived,
+                    ),
+                ),
             )
         except LinearGraphQLError as exc:
             # Linear returns unknown issue identifiers as a top-level
@@ -442,19 +465,22 @@ class LinearQueries:
         Returns:
             The page: ``.nodes`` and ``.page_info``.
         """
-        variables: dict[str, Any] = {
-            "filter": filter,
-            "first": first,
-            "after": after,
-            "includeArchived": include_archived,
-        }
+        variables = ListIssuesVariables(
+            filter=filter,
+            first=first,
+            after=after,
+            include_archived=include_archived,
+        )
         # Linear currently returns an internal error when an optional enum is
-        # explicitly sent as null. Omitting the variable has the intended
-        # server-side default behavior.
+        # explicitly sent as null. Leaving it unset omits the variable, which
+        # has the intended server-side default behavior.
         if order_by is not None:
-            variables["orderBy"] = order_by.value
+            variables.order_by = order_by
 
-        data = await self._client.execute_async(LIST_ISSUES, variables)
+        data = await self._client.execute_async(
+            LIST_ISSUES,
+            dump_variables(variables),
+        )
         return ListIssuesResult.model_validate(data).issues
 
     async def list_workflow_states_page(
@@ -478,16 +504,19 @@ class LinearQueries:
         Returns:
             The page: ``.nodes`` and ``.page_info``.
         """
-        variables: dict[str, Any] = {
-            "filter": {"team": {"id": {"eq": team_id}}},
-            "first": first,
-            "after": after,
-            "includeArchived": include_archived,
-        }
+        variables = ListWorkflowStatesVariables(
+            filter={"team": {"id": {"eq": team_id}}},
+            first=first,
+            after=after,
+            include_archived=include_archived,
+        )
         if order_by is not None:
-            variables["orderBy"] = order_by.value
+            variables.order_by = order_by
 
-        data = await self._client.execute_async(LIST_WORKFLOW_STATES, variables)
+        data = await self._client.execute_async(
+            LIST_WORKFLOW_STATES,
+            dump_variables(variables),
+        )
         return ListWorkflowStatesResult.model_validate(data).workflow_states
 
     async def list_workflow_states(
@@ -591,7 +620,10 @@ class LinearQueries:
             The team, or None if it does not exist.
         """
         try:
-            data = await self._client.execute_async(GET_TEAM, {"id": team_id})
+            data = await self._client.execute_async(
+                GET_TEAM,
+                dump_variables(GetTeamVariables(id=team_id)),
+            )
         except LinearGraphQLError as exc:
             if any(looks_like_not_found(e, "team") for e in exc.errors):
                 return None
@@ -609,7 +641,10 @@ class LinearQueries:
         Returns:
             The team, or None if no team has that key.
         """
-        data = await self._client.execute_async(GET_TEAM_BY_KEY, {"key": key})
+        data = await self._client.execute_async(
+            GET_TEAM_BY_KEY,
+            dump_variables(GetTeamByKeyVariables(key=key)),
+        )
         nodes = GetTeamByKeyResult.model_validate(data).teams.nodes
         return nodes[0] if nodes else None
 
@@ -640,7 +675,14 @@ class LinearQueries:
         """
         data = await self._client.execute_async(
             SEARCH_ISSUES,
-            {"term": term, "first": first, "after": after, "filter": filter},
+            dump_variables(
+                SearchIssuesVariables(
+                    term=term,
+                    first=first,
+                    after=after,
+                    filter=filter,
+                ),
+            ),
         )
         return SearchIssuesResult.model_validate(data).search_issues
 
@@ -654,7 +696,10 @@ class LinearQueries:
             The user, or None if they do not exist.
         """
         try:
-            data = await self._client.execute_async(GET_USER, {"id": user_id})
+            data = await self._client.execute_async(
+                GET_USER,
+                dump_variables(GetUserVariables(id=user_id)),
+            )
         except LinearGraphQLError as exc:
             if any(looks_like_not_found(e, "user") for e in exc.errors):
                 return None

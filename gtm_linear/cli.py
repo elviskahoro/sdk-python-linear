@@ -55,20 +55,70 @@ from typing import TYPE_CHECKING, Annotated, Any, NoReturn, Protocol, TypeVar
 
 import httpx2 as httpx
 import typer
-from pydantic import SecretStr, ValidationError
+from pydantic import BaseModel, SecretStr, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typer.core import TyperGroup, _click
 
 from . import __version__
+from ._generated.CliGetProject import (
+    DOCUMENT as CLI_GET_PROJECT,
+    CliGetProjectResult,
+    CliGetProjectVariables,
+)
+from ._generated.CliIssueTeam import (
+    DOCUMENT as CLI_ISSUE_TEAM,
+    CliIssueTeamResult,
+    CliIssueTeamVariables,
+)
+from ._generated.CliListProjects import (
+    DOCUMENT as CLI_LIST_PROJECTS,
+    CliListProjectsResult,
+    CliListProjectsVariables,
+)
+from ._generated.CliProjectStatuses import (
+    DOCUMENT as CLI_PROJECT_STATUSES,
+    CliProjectStatusesResult,
+)
+from ._generated.CliResolveLabel import (
+    DOCUMENT as CLI_RESOLVE_LABEL,
+    CliResolveLabelResult,
+    CliResolveLabelVariables,
+)
+from ._generated.CliResolveProject import (
+    DOCUMENT as CLI_RESOLVE_PROJECT,
+    CliResolveProjectResult,
+    CliResolveProjectVariables,
+)
+from ._generated.CliResolveTeamName import (
+    DOCUMENT as CLI_RESOLVE_TEAM_NAME,
+    CliResolveTeamNameResult,
+    CliResolveTeamNameVariables,
+)
+from ._generated.CliResolveUser import (
+    DOCUMENT as CLI_RESOLVE_USER,
+    CliResolveUserResult,
+    CliResolveUserVariables,
+)
+from ._generated.CliTeams import (
+    DOCUMENT as CLI_TEAMS,
+    CliTeamsResult,
+    CliTeamsVariables,
+)
+from ._generated.CliUpdateProject import (
+    DOCUMENT as CLI_UPDATE_PROJECT,
+    CliUpdateProjectResult,
+    CliUpdateProjectVariables,
+    ProjectUpdateInput,
+)
 from ._generated.CreateIssue import IssueCreateInput
 from ._generated.ListIssues import PaginationOrderBy
 from ._generated.UpdateIssue import IssueUpdateInput
-from ._generated.fragments import PageInfoFields
 from .exceptions import (
     LinearAPIError,
     LinearPaginationError,
     looks_like_not_found,
 )
+from .models import dump_variables
 from .pagination import paginate
 from .settings import LinearSettings
 from .workflow import LinearWorkflow
@@ -84,6 +134,7 @@ if TYPE_CHECKING:
         IssueContextCommentFields,
         IssueFields,
         IssueSearchResultFields,
+        PageInfoFields,
     )
 
     # The list and search read paths return different generated projections,
@@ -565,12 +616,11 @@ def _resolve_team_by_key_or_name(
     # workspace with more than MAX_PAGE_SIZE teams would leave the target
     # team past the cutoff, and this lookup would wrongly claim it does
     # not exist.
-    nodes = _raw_nodes(
+    nodes = _lookup_nodes(
         linear,
-        "query CliResolveTeamName($filter: TeamFilter) "
-        f"{{ teams(filter: $filter, first: {_CANDIDATE_LIMIT}) "
-        "{ nodes { id key name } } }",
-        {"filter": {"name": {"eqIgnoreCase": value}}},
+        CLI_RESOLVE_TEAM_NAME,
+        CliResolveTeamNameVariables(filter={"name": {"eqIgnoreCase": value}}),
+        CliResolveTeamNameResult,
         "teams",
     )
     if not nodes:
@@ -1017,34 +1067,19 @@ def teams(
     as_json: JsonOpt = False,
 ) -> None:
     """List teams (key, name, id)."""
-    # No typed wrapper for the teams connection exists yet, so this command
-    # uses the documented raw-GraphQL escape hatch on the workflow's client.
     with _workflow() as linear:
         data = linear.client.execute(
-            f"query {{ teams(first: {MAX_PAGE_SIZE}) "
-            f"{{ nodes {{ id key name }} pageInfo {{ hasNextPage }} }} }}",
+            CLI_TEAMS,
+            dump_variables(CliTeamsVariables(first=MAX_PAGE_SIZE)),
         )
-    # Raw-GraphQL responses are unvalidated dicts; guard the shape so a weird
-    # response (missing/null teams, node without string id/key/name) fails
-    # cleanly instead of raising a KeyError/AttributeError/TypeError — the
-    # sanitizer chokes on non-string fields. The first guard also narrows
-    # teams_data to a dict for every use below.
-    teams_data = data.get("teams")
-    if not isinstance(teams_data, dict):
+    try:
+        teams_data = CliTeamsResult.model_validate(data).teams
+    except ValidationError:
         _fail("unexpected teams response from Linear")
-    nodes = teams_data.get("nodes")
-
-    def _well_formed(team: object) -> bool:
-        return isinstance(team, dict) and all(
-            isinstance(team.get(field), str) for field in ("id", "key", "name")
-        )
-
-    if not isinstance(nodes, list) or not all(_well_formed(team) for team in nodes):
-        _fail("unexpected teams response from Linear")
-    page_info = teams_data.get("pageInfo")
+    nodes = [team.model_dump(mode="json", by_alias=True) for team in teams_data.nodes]
     # Like issues/search, key the truncation note on pageInfo rather than
     # guessing from a full page (exactly 100 teams would otherwise cry wolf).
-    if isinstance(page_info, dict) and page_info.get("hasNextPage") is True:
+    if teams_data.page_info.has_next_page:
         _note_more_results("teams", MAX_PAGE_SIZE)
     if as_json:
         typer.echo(json.dumps(nodes, indent=2))
@@ -1164,38 +1199,36 @@ def _candidates(items: Sequence[str]) -> str:
     return ", ".join(_cell(item) for item in items) or "none"
 
 
-def _raw_nodes(
+def _lookup_nodes(
     linear: LinearWorkflow,
-    query: str,
-    variables: dict[str, Any],
+    document: str,
+    variables: BaseModel,
+    result_type: type[BaseModel],
     field: str,
 ) -> list[dict[str, Any]]:
-    """Run a raw lookup and guard the unvalidated response shape."""
-    data = linear.client.execute(query, variables)
-    connection = data.get(field)
-    nodes = connection.get("nodes") if isinstance(connection, dict) else None
-    if not isinstance(nodes, list) or not all(
-        isinstance(n, dict) and isinstance(n.get("id"), str) for n in nodes
-    ):
-        _fail(f"unexpected {field} response from Linear")
-    return nodes
-
-
-def _raw_connection_page(data: dict[str, Any], field: str) -> _RawConnectionPage:
-    """Guard one raw connection page and adapt it for the paginator."""
-    connection = data.get(field)
-    nodes = connection.get("nodes") if isinstance(connection, dict) else None
-    if not isinstance(nodes, list) or not all(
-        isinstance(n, dict) and isinstance(n.get("id"), str) for n in nodes
-    ):
-        _fail(f"unexpected {field} response from Linear")
+    """Run a generated lookup and return its ``nodes`` as plain dicts."""
+    data = linear.client.execute(document, dump_variables(variables))
     try:
-        page_info = PageInfoFields.model_validate(
-            connection.get("pageInfo") if isinstance(connection, dict) else None,
-        )
+        connection = getattr(result_type.model_validate(data), field)
     except ValidationError:
         _fail(f"unexpected {field} response from Linear")
-    return _RawConnectionPage(nodes, page_info)
+    return [node.model_dump(mode="json", by_alias=True) for node in connection.nodes]
+
+
+def _raw_connection_page(
+    data: dict[str, Any],
+    result_type: type[BaseModel],
+    field: str,
+) -> _RawConnectionPage:
+    """Validate one generated connection page and adapt it for the paginator."""
+    try:
+        connection = getattr(result_type.model_validate(data), field)
+    except ValidationError:
+        _fail(f"unexpected {field} response from Linear")
+    return _RawConnectionPage(
+        [node.model_dump(mode="json", by_alias=True) for node in connection.nodes],
+        connection.page_info,
+    )
 
 
 def _resolve_user(linear: LinearWorkflow, value: str, option: str) -> str:
@@ -1204,20 +1237,19 @@ def _resolve_user(linear: LinearWorkflow, value: str, option: str) -> str:
         return value
     if value.casefold() == "me":
         return linear.get_viewer().id
-    nodes = _raw_nodes(
+    nodes = _lookup_nodes(
         linear,
-        "query CliResolveUser($filter: UserFilter) "
-        f"{{ users(filter: $filter, first: {_CANDIDATE_LIMIT}) "
-        "{ nodes { id name displayName email } } }",
-        {
-            "filter": {
+        CLI_RESOLVE_USER,
+        CliResolveUserVariables(
+            filter={
                 "or": [
                     {"name": {"eqIgnoreCase": value}},
                     {"displayName": {"eqIgnoreCase": value}},
                     {"email": {"eqIgnoreCase": value}},
                 ],
             },
-        },
+        ),
+        CliResolveUserResult,
         "users",
     )
     if not nodes:
@@ -1262,12 +1294,11 @@ def _resolve_project(linear: LinearWorkflow, value: str, option: str) -> str:
     """Resolve a project name (case-insensitive) or UUID to an id."""
     if _UUID_RE.fullmatch(value):
         return value
-    nodes = _raw_nodes(
+    nodes = _lookup_nodes(
         linear,
-        "query CliResolveProject($filter: ProjectFilter) "
-        f"{{ projects(filter: $filter, first: {_CANDIDATE_LIMIT}) "
-        "{ nodes { id name } } }",
-        {"filter": {"name": {"eqIgnoreCase": value}}},
+        CLI_RESOLVE_PROJECT,
+        CliResolveProjectVariables(filter={"name": {"eqIgnoreCase": value}}),
+        CliResolveProjectResult,
         "projects",
     )
     if not nodes:
@@ -1292,23 +1323,21 @@ def _team_label_pages(linear: LinearWorkflow, team_id: str) -> list[dict[str, An
 
     async def fetch_page(cursor: str | None) -> _RawConnectionPage:
         data = await linear.client.execute_async(
-            "query CliResolveLabel($filter: IssueLabelFilter, $after: String, "
-            "$first: Int!) "
-            "{ issueLabels(filter: $filter, after: $after, first: $first) "
-            "{ nodes { id name } pageInfo "
-            "{ hasNextPage endCursor hasPreviousPage startCursor } } }",
-            {
-                "filter": {
-                    "or": [
-                        {"team": {"id": {"eq": team_id}}},
-                        {"team": {"null": True}},
-                    ],
-                },
-                "after": cursor,
-                "first": MAX_PAGE_SIZE,
-            },
+            CLI_RESOLVE_LABEL,
+            dump_variables(
+                CliResolveLabelVariables(
+                    filter={
+                        "or": [
+                            {"team": {"id": {"eq": team_id}}},
+                            {"team": {"null": True}},
+                        ],
+                    },
+                    after=cursor,
+                    first=MAX_PAGE_SIZE,
+                ),
+            ),
         )
-        return _raw_connection_page(data, "issueLabels")
+        return _raw_connection_page(data, CliResolveLabelResult, "issue_labels")
 
     labels, complete, pagination_error = _collect_paginated_sync(linear, fetch_page)
     if pagination_error is not None or not complete:
@@ -1369,18 +1398,14 @@ def _resolve_labels(
 def _issue_team(linear: LinearWorkflow, issue_id: str) -> tuple[str, str]:
     """Return (team id, team key) for an issue via a raw lookup."""
     data = linear.client.execute(
-        "query CliIssueTeam($id: String!) { issue(id: $id) { team { id key } } }",
-        {"id": issue_id},
+        CLI_ISSUE_TEAM,
+        dump_variables(CliIssueTeamVariables(id=issue_id)),
     )
-    issue = data.get("issue")
-    team = issue.get("team") if isinstance(issue, dict) else None
-    if (
-        not isinstance(team, dict)
-        or not isinstance(team.get("id"), str)
-        or not isinstance(team.get("key"), str)
-    ):
+    try:
+        team = CliIssueTeamResult.model_validate(data).issue.team
+    except ValidationError:
         _fail("unexpected issue response from Linear")
-    return team["id"], team["key"]
+    return team.id, team.key
 
 
 def _friendly_or_id(
@@ -2528,7 +2553,6 @@ def search(
 
 # Linear rejects project descriptions longer than this (issues have no limit).
 PROJECT_DESCRIPTION_MAX = 255
-_PROJECT_FIELDS = "id name url slugId description targetDate status { id name type }"
 _SLUG_RE = re.compile(r"(?:^|-)([0-9a-f]{12})$", re.IGNORECASE)
 
 
@@ -2583,20 +2607,20 @@ def _lookup_project(linear: LinearWorkflow, ref: str, option: str) -> dict[str, 
         key = _resolve_project(linear, ref, option)
     try:
         data = linear.client.execute(
-            f"query CliGetProject($id: String!) "
-            f"{{ project(id: $id) {{ {_PROJECT_FIELDS} }} }}",
-            {"id": key},
+            CLI_GET_PROJECT,
+            dump_variables(CliGetProjectVariables(id=key)),
         )
     except LinearAPIError as exc:
         if any(looks_like_not_found(error, "project") for error in exc.errors):
             _fail(f"no project found matching {ref!r}")
         raise
-    project = data.get("project")
-    if project is None:
+    if data.get("project") is None:
         _fail(f"no project found matching {ref!r}")
-    if not isinstance(project, dict) or not isinstance(project.get("id"), str):
+    try:
+        project = CliGetProjectResult.model_validate(data).project
+    except ValidationError:
         _fail(f"unexpected project response from Linear for {_cell(ref)!r}")
-    return project
+    return project.model_dump(mode="json", by_alias=True)
 
 
 def _validate_project_description(value: str) -> None:
@@ -2664,13 +2688,12 @@ def projects(
 
         async def fetch_page(cursor: str | None) -> _RawConnectionPage:
             data = await linear.client.execute_async(
-                "query CliListProjects($after: String, $first: Int!) "
-                "{ projects(after: $after, first: $first) "
-                f"{{ nodes {{ {_PROJECT_FIELDS} }} pageInfo "
-                "{ hasNextPage endCursor hasPreviousPage startCursor } } }",
-                {"after": cursor, "first": page_size},
+                CLI_LIST_PROJECTS,
+                dump_variables(
+                    CliListProjectsVariables(after=cursor, first=page_size),
+                ),
             )
-            return _raw_connection_page(data, "projects")
+            return _raw_connection_page(data, CliListProjectsResult, "projects")
 
         found, complete, pagination_error = _collect_paginated_sync(
             linear,
@@ -2775,14 +2798,12 @@ def project_issues(
 
 
 def _resolve_project_status(linear: LinearWorkflow, value: str) -> str:
-    data = linear.client.execute(
-        "query CliProjectStatuses { projectStatuses { nodes { id name type } } }",
-        {},
-    )
-    connection = data.get("projectStatuses")
-    items = connection.get("nodes") if isinstance(connection, dict) else None
-    if not isinstance(items, list):
+    data = linear.client.execute(CLI_PROJECT_STATUSES, {})
+    try:
+        connection = CliProjectStatusesResult.model_validate(data).project_statuses
+    except ValidationError:
         _fail("unexpected projectStatuses response from Linear")
+    items = [node.model_dump(mode="json", by_alias=True) for node in connection.nodes]
     wanted = value.casefold()
     matches = [s for s in items if str(s.get("name", "")).casefold() == wanted] or [
         s for s in items if str(s.get("type", "")).casefold() == wanted
@@ -2860,20 +2881,19 @@ def project_update(
             return
         try:
             data = linear.client.execute(
-                "mutation CliUpdateProject($id: String!, $input: ProjectUpdateInput!) "
-                "{ projectUpdate(id: $id, input: $input) { success project "
-                f"{{ {_PROJECT_FIELDS} }} }} }}",
-                {"id": project["id"], "input": payload},
+                CLI_UPDATE_PROJECT,
+                dump_variables(
+                    CliUpdateProjectVariables(
+                        id=project["id"],
+                        input=ProjectUpdateInput.model_validate(payload),
+                    ),
+                ),
             )
-            result = data.get("projectUpdate")
-            updated = result.get("project") if isinstance(result, dict) else None
-            if (
-                not isinstance(result, dict)
-                or not isinstance(updated, dict)
-                or not result.get("success")
-            ):
+            result = CliUpdateProjectResult.model_validate(data).project_update
+            if not result.success or result.project is None:
                 message = "Linear did not return the updated project"
                 raise ValueError(message)  # noqa: TRY301
+            updated = result.project.model_dump(mode="json", by_alias=True)
         except (
             LinearAPIError,
             httpx.InvalidURL,

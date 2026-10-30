@@ -1,0 +1,5 @@
+query CliIssueTeam($id: String!) {
+  issue(id: $id) {
+    ...IssueTeamFields
+  }
+}

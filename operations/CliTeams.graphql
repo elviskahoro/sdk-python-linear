@@ -1,0 +1,10 @@
+query CliTeams($first: Int!) {
+  teams(first: $first) {
+    nodes {
+      ...TeamFields
+    }
+    pageInfo {
+      ...PageInfoFields
+    }
+  }
+}

@@ -1,0 +1,7 @@
+query CliResolveProject($filter: ProjectFilter) {
+  projects(filter: $filter, first: 10) {
+    nodes {
+      ...ProjectRefFields
+    }
+  }
+}

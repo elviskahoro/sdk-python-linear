@@ -23,8 +23,8 @@ class SearchIssuesResult(LinearModel):
 class SearchIssuesVariables(LinearModel):
     term: str
     first: int
-    after: Optional[str]
-    filter: Optional[dict[str, Any]]
+    after: Optional[str] = None
+    filter: Optional[dict[str, Any]] = None
 
 
 DOCUMENT = """\

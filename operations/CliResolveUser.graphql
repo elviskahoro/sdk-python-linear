@@ -1,0 +1,7 @@
+query CliResolveUser($filter: UserFilter) {
+  users(filter: $filter, first: 10) {
+    nodes {
+      ...UserLookupFields
+    }
+  }
+}

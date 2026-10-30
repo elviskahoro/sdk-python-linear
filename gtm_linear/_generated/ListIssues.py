@@ -29,11 +29,11 @@ class ListIssuesResult(LinearModel):
 
 
 class ListIssuesVariables(LinearModel):
-    filter: Optional[dict[str, Any]]
+    filter: Optional[dict[str, Any]] = None
     first: int
-    after: Optional[str]
-    orderBy: Optional[PaginationOrderBy]
-    includeArchived: bool
+    after: Optional[str] = None
+    order_by: Optional[PaginationOrderBy] = None
+    include_archived: bool
 
 
 DOCUMENT = """\

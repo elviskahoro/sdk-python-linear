@@ -14,38 +14,45 @@ accepts rather than a hand-picked subset. Variables are serialized with
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from ._generated.CreateAttachment import (
     DOCUMENT as CREATE_ATTACHMENT,
     AttachmentCreateInput,
     CreateAttachmentResult,
+    CreateAttachmentVariables,
 )
 from ._generated.CreateComment import (
     DOCUMENT as CREATE_COMMENT,
     CommentCreateInput,
     CreateCommentResult,
+    CreateCommentVariables,
 )
 from ._generated.CreateIssue import (
     DOCUMENT as CREATE_ISSUE,
     CreateIssueResult,
+    CreateIssueVariables,
     IssueCreateInput,
 )
 from ._generated.CreateIssueRelation import (
     DOCUMENT as CREATE_ISSUE_RELATION,
     CreateIssueRelationResult,
+    CreateIssueRelationVariables,
     IssueRelationCreateInput,
     IssueRelationType,
 )
 from ._generated.DeleteIssue import (
     DOCUMENT as DELETE_ISSUE,
     DeleteIssueResult,
+    DeleteIssueVariables,
 )
 from ._generated.UpdateIssue import (
     DOCUMENT as UPDATE_ISSUE,
     IssueUpdateInput,
     UpdateIssueResult,
+    UpdateIssueVariables,
 )
+from .models import dump_variables
 
 if TYPE_CHECKING:
     from ._generated.fragments import (
@@ -55,11 +62,6 @@ if TYPE_CHECKING:
         IssueRelationFields,
     )
     from .client import LinearClient
-
-
-def _variables(model: Any) -> dict[str, Any]:  # noqa: ANN401
-    """Serialize an input model the way Linear expects it."""
-    return model.model_dump(mode="json", by_alias=True, exclude_unset=True)
 
 
 class LinearMutations:
@@ -88,7 +90,7 @@ class LinearMutations:
         """
         data = await self._client.execute_async(
             CREATE_ISSUE,
-            {"input": _variables(input_)},
+            dump_variables(CreateIssueVariables(input=input_)),
         )
         issue = CreateIssueResult.model_validate(data).issue_create.issue
         if issue is None:
@@ -119,7 +121,7 @@ class LinearMutations:
         """
         data = await self._client.execute_async(
             UPDATE_ISSUE,
-            {"id": issue_id, "input": _variables(update)},
+            dump_variables(UpdateIssueVariables(id=issue_id, input=update)),
         )
         issue = UpdateIssueResult.model_validate(data).issue_update.issue
         if issue is None:
@@ -138,7 +140,10 @@ class LinearMutations:
         Returns:
             True if Linear reported success.
         """
-        data = await self._client.execute_async(DELETE_ISSUE, {"id": issue_id})
+        data = await self._client.execute_async(
+            DELETE_ISSUE,
+            dump_variables(DeleteIssueVariables(id=issue_id)),
+        )
         return DeleteIssueResult.model_validate(data).issue_delete.success
 
     async def create_comment(self, issue_id: str, body: str) -> CommentFields:
@@ -159,7 +164,7 @@ class LinearMutations:
         comment_input = CommentCreateInput(issue_id=issue_id, body=body)
         data = await self._client.execute_async(
             CREATE_COMMENT,
-            {"input": _variables(comment_input)},
+            dump_variables(CreateCommentVariables(input=comment_input)),
         )
         return CreateCommentResult.model_validate(data).comment_create.comment
 
@@ -181,7 +186,7 @@ class LinearMutations:
         """
         data = await self._client.execute_async(
             CREATE_ATTACHMENT,
-            {"input": _variables(input_)},
+            dump_variables(CreateAttachmentVariables(input=input_)),
         )
         return CreateAttachmentResult.model_validate(data).attachment_create.attachment
 
@@ -200,7 +205,7 @@ class LinearMutations:
         """
         data = await self._client.execute_async(
             CREATE_ISSUE_RELATION,
-            {"input": _variables(input_)},
+            dump_variables(CreateIssueRelationVariables(input=input_)),
         )
         return CreateIssueRelationResult.model_validate(
             data,
