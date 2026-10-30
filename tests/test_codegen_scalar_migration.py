@@ -22,7 +22,6 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from scripts import codegen  # noqa: E402
 
-
 # Byte-for-byte what `strawberry schema-codegen` emits for `scalar IssueFilter`
 # before ruff formats it: one line, identity serialize/parse_value lambdas.
 RAW_EMISSION = """\
