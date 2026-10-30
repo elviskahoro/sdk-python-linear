@@ -11,7 +11,10 @@ from __future__ import annotations
 import pytest
 
 from gtm_linear import LinearClient, LinearQueries
-from gtm_linear.exceptions import LinearGraphQLError
+from gtm_linear.exceptions import (
+    LinearGraphQLError,
+    LinearWorkflowStateLookupError,
+)
 
 pytestmark = pytest.mark.network
 
@@ -34,3 +37,15 @@ async def test_invalid_input_maps_to_graphql_error(api_key: str) -> None:
         with pytest.raises(LinearGraphQLError) as info:
             await c.execute("query { viewer { notAField } }")
     assert info.value.codes
+
+
+async def test_absent_workflow_state_type_raises_lookup_error(
+    queries: LinearQueries,
+    team,
+) -> None:
+    """`LinearWorkflowStateLookupError` is the typed no-match path, live."""
+    with pytest.raises(LinearWorkflowStateLookupError) as info:
+        await queries.get_workflow_state_by_type(team.id, "zzz-not-a-state-type")
+    assert info.value.team_id == team.id
+    assert info.value.state_type == "zzz-not-a-state-type"
+    assert info.value.multiple is False
