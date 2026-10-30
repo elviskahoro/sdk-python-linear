@@ -1,0 +1,7 @@
+query CliResolveTeamName($filter: TeamFilter) {
+  teams(filter: $filter, first: 10) {
+    nodes {
+      ...TeamFields
+    }
+  }
+}

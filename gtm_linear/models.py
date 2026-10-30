@@ -4,6 +4,8 @@ This is the only hand-written model in the SDK. Everything else under
 ``gtm_linear/_generated/`` is produced from Linear's schema by scripts/codegen.py.
 """
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
@@ -27,3 +29,12 @@ class LinearModel(BaseModel):
         populate_by_name=True,
         validate_assignment=True,
     )
+
+
+def dump_variables(model: BaseModel) -> dict[str, Any]:
+    """Serialize a variables or input model the way Linear expects it.
+
+    ``exclude_unset`` separates "omit" from "send null": a field never passed is
+    left out, while one explicitly set to None goes out as ``null``.
+    """
+    return model.model_dump(mode="json", by_alias=True, exclude_unset=True)

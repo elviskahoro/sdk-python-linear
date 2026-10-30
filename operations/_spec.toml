@@ -81,6 +81,34 @@ state = ["id", "name", "type"]
 assignee = "UserFields"
 project = ["id", "name"]
 
+[fragments.ProjectFields]
+on = "Project"
+fields = ["id", "name", "url", "slugId", "description", "targetDate"]
+[fragments.ProjectFields.expand]
+status = ["id", "name", "type"]
+
+[fragments.ProjectRefFields]
+on = "Project"
+fields = ["id", "name"]
+
+[fragments.ProjectStatusFields]
+on = "ProjectStatus"
+fields = ["id", "name", "type"]
+
+[fragments.UserLookupFields]
+on = "User"
+fields = ["id", "name", "displayName", "email"]
+
+[fragments.IssueLabelRefFields]
+on = "IssueLabel"
+fields = ["id", "name"]
+
+[fragments.IssueTeamFields]
+on = "Issue"
+fields = ["id"]
+[fragments.IssueTeamFields.expand]
+team = ["id", "key"]
+
 
 [operations.GetIssue]
 kind = "query"
@@ -217,3 +245,77 @@ arguments = { id = "$id" }
 field = "inverseRelations"
 fragment = "IssueContextRelationFields"
 arguments = { first = "$first", after = "$after", includeArchived = "$includeArchived" }
+
+# --- CLI lookups (gtm_linear/cli.py) ---
+
+[operations.CliTeams]
+kind = "query"
+root = "teams"
+fragment = "TeamFields"
+variables = { first = "Int!" }
+arguments = { first = "$first" }
+
+[operations.CliResolveTeamName]
+kind = "query"
+root = "teams"
+fragment = "TeamFields"
+variables = { filter = "TeamFilter" }
+arguments = { filter = "$filter", first = "10" }
+paginated = false
+
+[operations.CliResolveUser]
+kind = "query"
+root = "users"
+fragment = "UserLookupFields"
+variables = { filter = "UserFilter" }
+arguments = { filter = "$filter", first = "10" }
+paginated = false
+
+[operations.CliResolveProject]
+kind = "query"
+root = "projects"
+fragment = "ProjectRefFields"
+variables = { filter = "ProjectFilter" }
+arguments = { filter = "$filter", first = "10" }
+paginated = false
+
+[operations.CliResolveLabel]
+kind = "query"
+root = "issueLabels"
+fragment = "IssueLabelRefFields"
+variables = { filter = "IssueLabelFilter", after = "String", first = "Int!" }
+arguments = { filter = "$filter", after = "$after", first = "$first" }
+
+[operations.CliIssueTeam]
+kind = "query"
+root = "issue"
+fragment = "IssueTeamFields"
+variables = { id = "String!" }
+arguments = { id = "$id" }
+
+[operations.CliGetProject]
+kind = "query"
+root = "project"
+fragment = "ProjectFields"
+variables = { id = "String!" }
+arguments = { id = "$id" }
+
+[operations.CliListProjects]
+kind = "query"
+root = "projects"
+fragment = "ProjectFields"
+variables = { after = "String", first = "Int!" }
+arguments = { after = "$after", first = "$first" }
+
+[operations.CliProjectStatuses]
+kind = "query"
+root = "projectStatuses"
+fragment = "ProjectStatusFields"
+paginated = false
+
+[operations.CliUpdateProject]
+kind = "mutation"
+root = "projectUpdate"
+fragment = "ProjectFields"
+variables = { id = "String!", input = "ProjectUpdateInput!" }
+arguments = { id = "$id", input = "$input" }

@@ -153,6 +153,9 @@ class PydanticPlugin(PythonPlugin):
             "dict[str, Any]",
             imports=[("typing", "Any")],
         ),
+        "UserFilter": PythonType("dict[str, Any]", imports=[("typing", "Any")]),
+        "ProjectFilter": PythonType("dict[str, Any]", imports=[("typing", "Any")]),
+        "IssueLabelFilter": PythonType("dict[str, Any]", imports=[("typing", "Any")]),
     }
 
     def _print_scalar_type(self, type_: GraphQLScalar) -> str:
@@ -228,6 +231,7 @@ class PydanticPlugin(PythonPlugin):
         return [CodegenFile(self.outfile_name, code.strip())]
 
     _gql_type: str | None = None
+    _is_variables: bool = False
     _nested: dict[str, str] = {}  # noqa: RUF012 - rebound per generate_code call
 
     @staticmethod
@@ -293,6 +297,8 @@ class PydanticPlugin(PythonPlugin):
 
     def _print_field(self, field: GraphQLField) -> str:
         line = super()._print_field(field)
+        if self._is_variables:
+            return self._variables_field(field, line)
         if self._gql_type is None:
             return line
         _, field_docs = _descriptions()
@@ -318,8 +324,20 @@ class PydanticPlugin(PythonPlugin):
         finally:
             self._gql_type = None
 
+    @staticmethod
+    def _variables_field(field: GraphQLField, line: str) -> str:
+        """Print a variable as a snake_case field; nullable ones default to None.
+
+        ``LinearModel``'s alias generator maps the name back to camelCase on the
+        wire, and the default lets callers omit an optional variable entirely.
+        """
+        name = re.sub(r"(?<!^)(?=[A-Z])", "_", field.name).lower()
+        line = line.replace(f"{field.name}:", f"{name}:", 1)
+        return f"{line} = None" if isinstance(field.type, GraphQLOptional) else line
+
     def _print_object_body(self, type_: GraphQLObjectType) -> str:
         type_docs, _ = _descriptions()
+        self._is_variables = type_.name.endswith("Variables")
         fields = "\n".join(
             self._print_field(field)
             for field in type_.fields

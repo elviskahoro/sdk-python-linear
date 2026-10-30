@@ -24,8 +24,8 @@ class ListIssueAttachmentsResult(LinearModel):
 class ListIssueAttachmentsVariables(LinearModel):
     id: str
     first: int
-    after: Optional[str]
-    includeArchived: bool
+    after: Optional[str] = None
+    include_archived: bool
 
 
 DOCUMENT = """\

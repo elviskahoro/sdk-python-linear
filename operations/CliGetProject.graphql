@@ -1,0 +1,5 @@
+query CliGetProject($id: String!) {
+  project(id: $id) {
+    ...ProjectFields
+  }
+}

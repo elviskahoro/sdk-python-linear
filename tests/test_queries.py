@@ -776,3 +776,18 @@ async def test_get_issue_assignee_is_shared_user_class() -> None:
 
     assert issue is not None
     assert isinstance(issue.assignee, gtm_linear.User)
+
+
+def test_variables_models_use_snake_case_and_omit_unset() -> None:
+    from gtm_linear._generated.ListIssues import ListIssuesVariables
+    from gtm_linear.models import dump_variables
+
+    omitted = ListIssuesVariables(first=5, include_archived=False)
+    assert dump_variables(omitted) == {"first": 5, "includeArchived": False}
+
+    explicit = ListIssuesVariables(first=5, after=None, include_archived=False)
+    assert dump_variables(explicit) == {
+        "first": 5,
+        "after": None,
+        "includeArchived": False,
+    }

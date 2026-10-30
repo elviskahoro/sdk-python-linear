@@ -9,7 +9,13 @@ from typing import NewType
 
 IssueFilter = NewType("IssueFilter", object)
 
+IssueLabelFilter = NewType("IssueLabelFilter", object)
+
+ProjectFilter = NewType("ProjectFilter", object)
+
 TeamFilter = NewType("TeamFilter", object)
+
+UserFilter = NewType("UserFilter", object)
 
 WorkflowStateFilter = NewType("WorkflowStateFilter", object)
 
@@ -29,6 +35,31 @@ class CyclePeriod(Enum):
     after = "after"
     before = "before"
     during = "during"
+
+
+@strawberry.enum
+class DateResolutionType(Enum):
+    halfYear = "halfYear"
+    month = "month"
+    quarter = "quarter"
+    year = "year"
+
+
+@strawberry.enum
+class Day(Enum):
+    Friday = "Friday"
+    Monday = "Monday"
+    Saturday = "Saturday"
+    Sunday = "Sunday"
+    Thursday = "Thursday"
+    Tuesday = "Tuesday"
+    Wednesday = "Wednesday"
+
+
+@strawberry.enum
+class FrequencyResolutionType(Enum):
+    daily = "daily"
+    weekly = "weekly"
 
 
 @strawberry.enum
@@ -55,6 +86,16 @@ class PaginationOrderBy(Enum):
 class PaginationSortOrder(Enum):
     Ascending = "Ascending"
     Descending = "Descending"
+
+
+@strawberry.enum
+class ProjectStatusType(Enum):
+    backlog = "backlog"
+    canceled = "canceled"
+    completed = "completed"
+    paused = "paused"
+    planned = "planned"
+    started = "started"
 
 
 @strawberry.enum
@@ -1707,42 +1748,6 @@ class IssueLabelCollectionFilter:
     )
     some: strawberry.Maybe[IssueLabelFilter | None] = strawberry.field(
         description="Filters that needs to be matched by some issue labels."
-    )
-    team: strawberry.Maybe[NullableTeamFilter | None] = strawberry.field(
-        description="Filters that the issue labels team must satisfy."
-    )
-    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
-        description="Comparator for the updated at date."
-    )
-
-
-@strawberry.input(description="Issue label filtering options.")
-class IssueLabelFilter:
-    and_: strawberry.Maybe[list[IssueLabelFilter] | None] = strawberry.field(
-        description="Compound filters, all of which need to be matched by the label.",
-        name="and",
-    )
-    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
-        description="Comparator for the created at date."
-    )
-    creator: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
-        description="Filters that the issue labels creator must satisfy."
-    )
-    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
-        description="Comparator for the identifier."
-    )
-    is_group: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
-        description="Comparator for whether the label is a group label."
-    )
-    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
-        description="Comparator for the name."
-    )
-    or_: strawberry.Maybe[list[IssueLabelFilter] | None] = strawberry.field(
-        description="Compound filters, one of which need to be matched by the label.",
-        name="or",
-    )
-    parent: strawberry.Maybe[IssueLabelFilter | None] = strawberry.field(
-        description="Filters that the issue label's parent label must satisfy."
     )
     team: strawberry.Maybe[NullableTeamFilter | None] = strawberry.field(
         description="Filters that the issue labels team must satisfy."
@@ -3486,152 +3491,25 @@ class ProjectCollectionFilter:
     )
 
 
-@strawberry.input(description="Project filtering options.")
-class ProjectFilter:
-    accessible_teams: strawberry.Maybe[TeamCollectionFilter | None] = strawberry.field(
-        description="Filters that the project's team must satisfy."
+@strawberry.input(description="Project creation date sorting options.")
+class ProjectCreatedAtSort:
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
     )
-    activity_type: strawberry.Maybe[StringComparator | None] = strawberry.field(
-        description="[ALPHA] Comparator for the project activity type: buzzin, active, some, none"
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
     )
-    and_: strawberry.Maybe[list[ProjectFilter] | None] = strawberry.field(
-        description="Compound filters, all of which need to be matched by the project.",
-        name="and",
+
+
+@strawberry.input(description="Project health sorting options.")
+class ProjectHealthSort:
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
     )
-    canceled_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
-        description="Comparator for the project cancelation date."
-    )
-    completed_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
-        description="Comparator for the project completion date."
-    )
-    completed_project_milestones: strawberry.Maybe[
-        ProjectMilestoneCollectionFilter | None
-    ] = strawberry.field(
-        description="Filters that the project's completed milestones must satisfy."
-    )
-    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
-        description="Comparator for the created at date."
-    )
-    creator: strawberry.Maybe[UserFilter | None] = strawberry.field(
-        description="Filters that the projects creator must satisfy."
-    )
-    customer_count: strawberry.Maybe[NumberComparator | None] = strawberry.field(
-        description="Count of customers"
-    )
-    customer_important_count: strawberry.Maybe[NumberComparator | None] = (
-        strawberry.field(description="Count of important customers")
-    )
-    has_blocked_by_relations: strawberry.Maybe[RelationExistsComparator | None] = (
-        strawberry.field(
-            description="Comparator for filtering projects which are blocked."
-        )
-    )
-    has_blocking_relations: strawberry.Maybe[RelationExistsComparator | None] = (
-        strawberry.field(
-            description="Comparator for filtering projects which are blocking."
-        )
-    )
-    has_depended_on_by_relations: strawberry.Maybe[RelationExistsComparator | None] = (
-        strawberry.field(
-            description="[Deprecated] Comparator for filtering projects which this is depended on by."
-        )
-    )
-    has_depends_on_relations: strawberry.Maybe[RelationExistsComparator | None] = (
-        strawberry.field(
-            description="[Deprecated]Comparator for filtering projects which this depends on."
-        )
-    )
-    has_related_relations: strawberry.Maybe[RelationExistsComparator | None] = (
-        strawberry.field(
-            description="Comparator for filtering projects with relations."
-        )
-    )
-    has_violated_relations: strawberry.Maybe[RelationExistsComparator | None] = (
-        strawberry.field(
-            description="Comparator for filtering projects with violated dependencies."
-        )
-    )
-    health: strawberry.Maybe[StringComparator | None] = strawberry.field(
-        description="Comparator for the project health: onTrack, atRisk, offTrack"
-    )
-    health_with_age: strawberry.Maybe[StringComparator | None] = strawberry.field(
-        description="Comparator for the project health (with age): onTrack, atRisk, offTrack, outdated, noUpdate"
-    )
-    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
-        description="Comparator for the identifier."
-    )
-    initiatives: strawberry.Maybe[InitiativeCollectionFilter | None] = strawberry.field(
-        description="Filters that the projects initiatives must satisfy."
-    )
-    issues: strawberry.Maybe[IssueCollectionFilter | None] = strawberry.field(
-        description="Filters that the projects issues must satisfy."
-    )
-    labels: strawberry.Maybe[ProjectLabelCollectionFilter | None] = strawberry.field(
-        description="Filters that project labels must satisfy."
-    )
-    last_applied_template: strawberry.Maybe[NullableTemplateFilter | None] = (
-        strawberry.field(
-            description="Filters that the last applied template must satisfy."
-        )
-    )
-    lead: strawberry.Maybe[NullableUserFilter | None] = strawberry.field(
-        description="Filters that the projects lead must satisfy."
-    )
-    members: strawberry.Maybe[UserCollectionFilter | None] = strawberry.field(
-        description="Filters that the projects members must satisfy."
-    )
-    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
-        description="Comparator for the project name."
-    )
-    needs: strawberry.Maybe[CustomerNeedCollectionFilter | None] = strawberry.field(
-        description="Filters that the project's customer needs must satisfy."
-    )
-    next_project_milestone: strawberry.Maybe[ProjectMilestoneFilter | None] = (
-        strawberry.field(
-            description="Filters that the project's next milestone must satisfy."
-        )
-    )
-    or_: strawberry.Maybe[list[ProjectFilter] | None] = strawberry.field(
-        description="Compound filters, one of which need to be matched by the project.",
-        name="or",
-    )
-    priority: strawberry.Maybe[NullableNumberComparator | None] = strawberry.field(
-        description="Comparator for the project priority."
-    )
-    project_milestones: strawberry.Maybe[ProjectMilestoneCollectionFilter | None] = (
-        strawberry.field(
-            description="Filters that the project's milestones must satisfy."
-        )
-    )
-    project_updates: strawberry.Maybe[ProjectUpdatesCollectionFilter | None] = (
-        strawberry.field(description="Comparator for the project updates.")
-    )
-    roadmaps: strawberry.Maybe[RoadmapCollectionFilter | None] = strawberry.field(
-        description="Filters that the projects roadmaps must satisfy."
-    )
-    searchable_content: strawberry.Maybe[ContentComparator | None] = strawberry.field(
-        description="[Internal] Comparator for the project's content."
-    )
-    slug_id: strawberry.Maybe[StringComparator | None] = strawberry.field(
-        description="Comparator for the project slug ID."
-    )
-    start_date: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
-        description="Comparator for the project start date."
-    )
-    started_at: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
-        description='Comparator for the project started date (when it was moved to an "In Progress" status).'
-    )
-    state: strawberry.Maybe[StringComparator | None] = strawberry.field(
-        description="[DEPRECATED] Comparator for the project state."
-    )
-    status: strawberry.Maybe[ProjectStatusFilter | None] = strawberry.field(
-        description="Filters that the project status must satisfy."
-    )
-    target_date: strawberry.Maybe[NullableDateComparator | None] = strawberry.field(
-        description="Comparator for the project target date."
-    )
-    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
-        description="Comparator for the updated at date."
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
     )
 
 
@@ -3715,6 +3593,28 @@ class ProjectLabelFilter:
     )
 
 
+@strawberry.input(description="Project lead sorting options.")
+class ProjectLeadSort:
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
+
+
+@strawberry.input(description="Project manual order sorting options.")
+class ProjectManualSort:
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
+
+
 @strawberry.input(description="Milestone collection filtering options.")
 class ProjectMilestoneCollectionFilter:
     and_: strawberry.Maybe[list[ProjectMilestoneCollectionFilter] | None] = (
@@ -3788,6 +3688,32 @@ class ProjectMilestoneFilter:
     )
 
 
+@strawberry.input(description="Project name sorting options.")
+class ProjectNameSort:
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
+
+
+@strawberry.input(description="Project priority sorting options.")
+class ProjectPrioritySort:
+    no_priority_first: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Whether to consider no priority as the highest or lowest priority",
+        default=False,
+    )
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
+
+
 @strawberry.input(description="Issue project sorting options.")
 class ProjectSort:
     nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
@@ -3796,6 +3722,40 @@ class ProjectSort:
     )
     order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
         description="The order for the individual sort"
+    )
+
+
+@strawberry.input(description="Project sorting options.")
+class ProjectSortInput:
+    created_at: strawberry.Maybe[ProjectCreatedAtSort | None] = strawberry.field(
+        description="Sort by project creation date"
+    )
+    health: strawberry.Maybe[ProjectHealthSort | None] = strawberry.field(
+        description="Sort by project health status."
+    )
+    lead: strawberry.Maybe[ProjectLeadSort | None] = strawberry.field(
+        description="Sort by project lead name."
+    )
+    manual: strawberry.Maybe[ProjectManualSort | None] = strawberry.field(
+        description="Sort by manual order"
+    )
+    name: strawberry.Maybe[ProjectNameSort | None] = strawberry.field(
+        description="Sort by project name"
+    )
+    priority: strawberry.Maybe[ProjectPrioritySort | None] = strawberry.field(
+        description="Sort by project priority"
+    )
+    start_date: strawberry.Maybe[StartDateSort | None] = strawberry.field(
+        description="Sort by project start date"
+    )
+    status: strawberry.Maybe[ProjectStatusSort | None] = strawberry.field(
+        description="Sort by project status"
+    )
+    target_date: strawberry.Maybe[TargetDateSort | None] = strawberry.field(
+        description="Sort by project target date"
+    )
+    updated_at: strawberry.Maybe[ProjectUpdatedAtSort | None] = strawberry.field(
+        description="Sort by project update date"
     )
 
 
@@ -3832,6 +3792,138 @@ class ProjectStatusFilter:
     )
     updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
         description="Comparator for the updated at date."
+    )
+
+
+@strawberry.input(description="Project status sorting options.")
+class ProjectStatusSort:
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
+
+
+@strawberry.input(
+    description="Input for updating an existing project. All fields are optional; only provided fields will be updated. Setting a field to null (where supported) will clear the value."
+)
+class ProjectUpdateInput:
+    canceled_at: strawberry.Maybe[datetime | None] = strawberry.field(
+        description="The time at which the project was canceled."
+    )
+    color: strawberry.Maybe[str | None] = strawberry.field(
+        description="The color of the project."
+    )
+    completed_at: strawberry.Maybe[datetime | None] = strawberry.field(
+        description="The time at which the project was completed."
+    )
+    content: strawberry.Maybe[str | None] = strawberry.field(
+        description="The project content as markdown."
+    )
+    converted_from_issue_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The ID of the issue from which that project is created."
+    )
+    description: strawberry.Maybe[str | None] = strawberry.field(
+        description="The description for the project."
+    )
+    frequency_resolution: strawberry.Maybe[FrequencyResolutionType | None] = (
+        strawberry.field(
+            description="The resolution type for the update reminder frequency (e.g., weekly, biweekly)."
+        )
+    )
+    icon: strawberry.Maybe[str | None] = strawberry.field(
+        description="The icon of the project."
+    )
+    label_ids: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="The identifiers of the project labels associated with this project."
+    )
+    last_applied_template_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The ID of the last template applied to the project."
+    )
+    lead_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The identifier of the project lead."
+    )
+    lead_team_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="[Internal] The identifier of the team that leads the project."
+    )
+    member_ids: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="The identifiers of the members of this project."
+    )
+    name: strawberry.Maybe[str | None] = strawberry.field(
+        description="The name of the project."
+    )
+    priority: strawberry.Maybe[int | None] = strawberry.field(
+        description="The priority of the project. 0 = No priority, 1 = Urgent, 2 = High, 3 = Medium, 4 = Low."
+    )
+    priority_sort_order: strawberry.Maybe[float | None] = strawberry.field(
+        description="The sort order for the project within shared views, when ordered by priority."
+    )
+    project_update_reminders_paused_until_at: strawberry.Maybe[datetime | None] = (
+        strawberry.field(
+            description="The time until which project update reminders are paused. Set to null to resume reminders."
+        )
+    )
+    slack_issue_comments: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Whether to send new issue comment notifications to Slack."
+    )
+    slack_issue_statuses: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Whether to send issue status update notifications to Slack."
+    )
+    slack_new_issue: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Whether to send new issue notifications to Slack."
+    )
+    sort_order: strawberry.Maybe[float | None] = strawberry.field(
+        description="The sort order for the project in shared views."
+    )
+    start_date: strawberry.Maybe[TimelessDate | None] = strawberry.field(
+        description="The planned start date of the project."
+    )
+    start_date_resolution: strawberry.Maybe[DateResolutionType | None] = (
+        strawberry.field(description="The resolution of the project's start date.")
+    )
+    status_id: strawberry.Maybe[str | None] = strawberry.field(
+        description="The ID of the project status."
+    )
+    target_date: strawberry.Maybe[TimelessDate | None] = strawberry.field(
+        description="The planned target date of the project."
+    )
+    target_date_resolution: strawberry.Maybe[DateResolutionType | None] = (
+        strawberry.field(
+            description="The resolution of the project's estimated completion date."
+        )
+    )
+    team_ids: strawberry.Maybe[list[str] | None] = strawberry.field(
+        description="The identifiers of the teams this project is associated with."
+    )
+    trashed: strawberry.Maybe[bool | None] = strawberry.field(
+        description="Whether the project has been trashed. Set to true to trash, or null to restore."
+    )
+    update_reminder_frequency: strawberry.Maybe[float | None] = strawberry.field(
+        description="The frequency at which to prompt for project updates. When not set, reminders are inherited from workspace settings."
+    )
+    update_reminder_frequency_in_weeks: strawberry.Maybe[float | None] = (
+        strawberry.field(
+            description="The n-weekly frequency at which to prompt for project updates. When not set, reminders are inherited from workspace settings."
+        )
+    )
+    update_reminders_day: strawberry.Maybe[Day | None] = strawberry.field(
+        description="The day of the week on which to prompt for project updates."
+    )
+    update_reminders_hour: strawberry.Maybe[int | None] = strawberry.field(
+        description="The hour of the day (0-23) at which to prompt for project updates."
+    )
+
+
+@strawberry.input(description="Project update date sorting options.")
+class ProjectUpdatedAtSort:
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
     )
 
 
@@ -4400,6 +4492,17 @@ class SourceTypeComparator:
     )
 
 
+@strawberry.input(description="Project start date sorting options.")
+class StartDateSort:
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
+    )
+
+
 @strawberry.input(description="Comparator for strings.")
 class StringArrayComparator:
     every: strawberry.Maybe[StringItemComparator | None] = strawberry.field(
@@ -4533,6 +4636,17 @@ class SubTypeComparator:
     )
     null: strawberry.Maybe[bool | None] = strawberry.field(
         description="Null constraint. Matches any non-null values if the given value is false, otherwise it matches null values."
+    )
+
+
+@strawberry.input(description="Project target date sorting options.")
+class TargetDateSort:
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
+    )
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
     )
 
 
@@ -4695,57 +4809,35 @@ class UserCollectionFilter:
     )
 
 
-@strawberry.input(description="User filtering options.")
-class UserFilter:
-    active: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
-        description="Comparator for the user's activity status."
+@strawberry.input(description="User display name sorting options.")
+class UserDisplayNameSort:
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
     )
-    admin: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
-        description="Comparator for the user's admin status."
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
     )
-    and_: strawberry.Maybe[list[UserFilter] | None] = strawberry.field(
-        description="Compound filters, all of which need to be matched by the user.",
-        name="and",
+
+
+@strawberry.input(description="User name sorting options.")
+class UserNameSort:
+    nulls: strawberry.Maybe[PaginationNulls | None] = strawberry.field(
+        description="Whether nulls should be sorted first or last",
+        default=PaginationNulls.last,
     )
-    app: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
-        description="Comparator for the user's app status."
+    order: strawberry.Maybe[PaginationSortOrder | None] = strawberry.field(
+        description="The order for the individual sort"
     )
-    assigned_issues: strawberry.Maybe[IssueCollectionFilter | None] = strawberry.field(
-        description="Filters that the users assigned issues must satisfy."
+
+
+@strawberry.input(description="User sorting options.")
+class UserSortInput:
+    display_name: strawberry.Maybe[UserDisplayNameSort | None] = strawberry.field(
+        description="Sort by user display name"
     )
-    created_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
-        description="Comparator for the created at date."
-    )
-    display_name: strawberry.Maybe[StringComparator | None] = strawberry.field(
-        description="Comparator for the user's display name."
-    )
-    email: strawberry.Maybe[StringComparator | None] = strawberry.field(
-        description="Comparator for the user's email."
-    )
-    id: strawberry.Maybe[IDComparator | None] = strawberry.field(
-        description="Comparator for the identifier."
-    )
-    invited: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
-        description="Comparator for the user's invited status."
-    )
-    is_invited: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
-        description="Comparator for the user's invited status."
-    )
-    is_me: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
-        description="Filter based on the currently authenticated user. Set to true to filter for the authenticated user, false for any other user."
-    )
-    name: strawberry.Maybe[StringComparator | None] = strawberry.field(
-        description="Comparator for the user's name."
-    )
-    or_: strawberry.Maybe[list[UserFilter] | None] = strawberry.field(
-        description="Compound filters, one of which need to be matched by the user.",
-        name="or",
-    )
-    owner: strawberry.Maybe[BooleanComparator | None] = strawberry.field(
-        description="Comparator for the user's owner status."
-    )
-    updated_at: strawberry.Maybe[DateComparator | None] = strawberry.field(
-        description="Comparator for the updated at date."
+    name: strawberry.Maybe[UserNameSort | None] = strawberry.field(
+        description="Sort by user name"
     )
 
 
@@ -4941,6 +5033,9 @@ class Issue:
     state: WorkflowState = strawberry.field(
         description="The workflow state (issue status) that the issue is currently in. Workflow states represent the issue's progress through the team's workflow, such as Triage, Todo, In Progress, Done, or Canceled."
     )
+    team: Team = strawberry.field(
+        description="The team that the issue belongs to. Every issue must belong to exactly one team, which determines the available workflow states, labels, and other team-specific configuration."
+    )
     title: str = strawberry.field(
         description="The issue's title. This is the primary human-readable summary of the work item."
     )
@@ -4957,6 +5052,20 @@ class IssueArchivePayload:
 @strawberry.type
 class IssueConnection:
     nodes: list[Issue]
+    page_info: PageInfo
+
+
+@strawberry.type
+class IssueLabel:
+    id: strawberry.ID = strawberry.field(
+        description="The unique identifier of the entity."
+    )
+    name: str = strawberry.field(description="The label's name.")
+
+
+@strawberry.type
+class IssueLabelConnection:
+    nodes: list[IssueLabel]
     page_info: PageInfo
 
 
@@ -5095,6 +5204,14 @@ class Mutation:
     ) -> IssuePayload:
         raise NotImplementedError
 
+    @strawberry.field(description="Updates a project.")
+    def project_update(
+        self,
+        id: str,
+        input: ProjectUpdateInput,
+    ) -> ProjectPayload:
+        raise NotImplementedError
+
 
 @strawberry.type
 class PageInfo:
@@ -5114,10 +5231,55 @@ class PageInfo:
 
 @strawberry.type
 class Project:
+    description: str = strawberry.field(
+        description="The short description of the project."
+    )
     id: strawberry.ID = strawberry.field(
         description="The unique identifier of the entity."
     )
     name: str = strawberry.field(description="The name of the project.")
+    slug_id: str = strawberry.field(
+        description="The project's unique URL slug, used to construct human-readable URLs."
+    )
+    status: ProjectStatus = strawberry.field(
+        description="The current project status. Defines the project's position in its lifecycle (e.g., backlog, planned, started, paused, completed, canceled)."
+    )
+    target_date: TimelessDate | None = strawberry.field(
+        description="The estimated completion date of the project. Null if no target date is set."
+    )
+    url: str = strawberry.field(description="Project URL.")
+
+
+@strawberry.type
+class ProjectConnection:
+    nodes: list[Project]
+    page_info: PageInfo
+
+
+@strawberry.type
+class ProjectPayload:
+    project: Project | None = strawberry.field(
+        description="The project that was created or updated."
+    )
+    success: bool = strawberry.field(
+        description="Whether the operation was successful."
+    )
+
+
+@strawberry.type
+class ProjectStatus:
+    id: strawberry.ID = strawberry.field(
+        description="The unique identifier of the entity."
+    )
+    name: str = strawberry.field(description="The name of the status.")
+    type: ProjectStatusType = strawberry.field(
+        description="The category type of the project status (e.g., backlog, planned, started, paused, completed, canceled). Determines the status's behavior and position in the project lifecycle."
+    )
+
+
+@strawberry.type
+class ProjectStatusConnection:
+    nodes: list[ProjectStatus]
 
 
 @strawberry.type
@@ -5129,6 +5291,21 @@ class Query:
         self,
         id: str,
     ) -> Issue:
+        raise NotImplementedError
+
+    @strawberry.field(
+        description="All issue labels. Returns a paginated list of labels visible to the authenticated user, including both workspace-level and team-scoped labels."
+    )
+    def issue_labels(
+        self,
+        after: str | None = None,
+        before: str | None = None,
+        filter: IssueLabelFilter | None = None,
+        first: int | None = None,
+        include_archived: bool | None = None,
+        last: int | None = None,
+        order_by: PaginationOrderBy | None = None,
+    ) -> IssueLabelConnection:
         raise NotImplementedError
 
     @strawberry.field(
@@ -5145,6 +5322,43 @@ class Query:
         order_by: PaginationOrderBy | None = None,
         sort: list[IssueSortInput] | None = None,
     ) -> IssueConnection:
+        raise NotImplementedError
+
+    @strawberry.field(
+        description="Returns a single project by its identifier or URL slug."
+    )
+    def project(
+        self,
+        id: str,
+    ) -> Project:
+        raise NotImplementedError
+
+    @strawberry.field(description="Returns all project statuses in the workspace.")
+    def project_statuses(
+        self,
+        after: str | None = None,
+        before: str | None = None,
+        first: int | None = None,
+        include_archived: bool | None = None,
+        last: int | None = None,
+        order_by: PaginationOrderBy | None = None,
+    ) -> ProjectStatusConnection:
+        raise NotImplementedError
+
+    @strawberry.field(
+        description="Returns all projects in the workspace, with optional filtering and sorting."
+    )
+    def projects(
+        self,
+        after: str | None = None,
+        before: str | None = None,
+        filter: ProjectFilter | None = None,
+        first: int | None = None,
+        include_archived: bool | None = None,
+        last: int | None = None,
+        order_by: PaginationOrderBy | None = None,
+        sort: list[ProjectSortInput] | None = None,
+    ) -> ProjectConnection:
         raise NotImplementedError
 
     @strawberry.field(
@@ -5194,6 +5408,23 @@ class Query:
     ) -> User:
         raise NotImplementedError
 
+    @strawberry.field(
+        description="All users in the workspace. Supports filtering, sorting, and pagination."
+    )
+    def users(
+        self,
+        after: str | None = None,
+        before: str | None = None,
+        filter: UserFilter | None = None,
+        first: int | None = None,
+        include_archived: bool | None = None,
+        include_disabled: bool | None = None,
+        last: int | None = None,
+        order_by: PaginationOrderBy | None = None,
+        sort: list[UserSortInput] | None = None,
+    ) -> UserConnection:
+        raise NotImplementedError
+
     viewer: User = strawberry.field(
         description="The currently authenticated user making the API request."
     )
@@ -5228,6 +5459,7 @@ class Team:
 @strawberry.type
 class TeamConnection:
     nodes: list[Team]
+    page_info: PageInfo
 
 
 @strawberry.type
@@ -5235,11 +5467,19 @@ class User:
     active: bool = strawberry.field(
         description="Whether the user account is active or disabled (suspended)."
     )
+    display_name: str = strawberry.field(
+        description="The user's display (nick) name. Must be unique within the workspace."
+    )
     email: str = strawberry.field(description="The user's email address.")
     id: strawberry.ID = strawberry.field(
         description="The unique identifier of the entity."
     )
     name: str = strawberry.field(description="The user's full name.")
+
+
+@strawberry.type
+class UserConnection:
+    nodes: list[User]
 
 
 @strawberry.type
@@ -5285,11 +5525,17 @@ schema = strawberry.Schema(
             IssueFilter: strawberry.scalar(
                 name="IssueFilter", serialize=lambda v: v, parse_value=lambda v: v
             ),
+            IssueLabelFilter: strawberry.scalar(
+                name="IssueLabelFilter", serialize=lambda v: v, parse_value=lambda v: v
+            ),
             JSONObject: strawberry.scalar(
                 name="JSONObject",
                 description="The `JSONObject` scalar type represents arbitrary values as *embedded* JSON",
                 serialize=lambda v: v,
                 parse_value=lambda v: v,
+            ),
+            ProjectFilter: strawberry.scalar(
+                name="ProjectFilter", serialize=lambda v: v, parse_value=lambda v: v
             ),
             TeamFilter: strawberry.scalar(
                 name="TeamFilter", serialize=lambda v: v, parse_value=lambda v: v
@@ -5305,6 +5551,9 @@ schema = strawberry.Schema(
                 description="Represents a date in ISO 8601 format or a duration. Accepts shortcuts like `2021` to represent midnight Fri Jan 01 2021. Also accepts ISO 8601 durations strings (e.g '-P2W1D'), which are not converted to dates.",
                 serialize=lambda v: v,
                 parse_value=lambda v: v,
+            ),
+            UserFilter: strawberry.scalar(
+                name="UserFilter", serialize=lambda v: v, parse_value=lambda v: v
             ),
             WorkflowStateFilter: strawberry.scalar(
                 name="WorkflowStateFilter",
@@ -5340,13 +5589,16 @@ schema = strawberry.Schema(
         CyclePeriodComparator,
         CycleSort,
         DateComparator,
+        DateResolutionType,
         DateTimeOrDuration,
+        Day,
         DelegateSort,
         DocumentFilter,
         DueDateSort,
         Duration,
         EstimateComparator,
         EstimateSort,
+        FrequencyResolutionType,
         IDComparator,
         InitiativeCollectionFilter,
         InitiativeFilter,
@@ -5396,13 +5648,24 @@ schema = strawberry.Schema(
         PaginationSortOrder,
         PrioritySort,
         ProjectCollectionFilter,
+        ProjectCreatedAtSort,
         ProjectFilter,
+        ProjectHealthSort,
         ProjectLabelCollectionFilter,
         ProjectLabelFilter,
+        ProjectLeadSort,
+        ProjectManualSort,
         ProjectMilestoneCollectionFilter,
         ProjectMilestoneFilter,
+        ProjectNameSort,
+        ProjectPrioritySort,
         ProjectSort,
+        ProjectSortInput,
         ProjectStatusFilter,
+        ProjectStatusSort,
+        ProjectStatusType,
+        ProjectUpdateInput,
+        ProjectUpdatedAtSort,
         ProjectUpdatesCollectionFilter,
         ProjectUpdatesFilter,
         ReactionCollectionFilter,
@@ -5428,10 +5691,12 @@ schema = strawberry.Schema(
         SlaStatusSort,
         SourceMetadataComparator,
         SourceTypeComparator,
+        StartDateSort,
         StringArrayComparator,
         StringComparator,
         StringItemComparator,
         SubTypeComparator,
+        TargetDateSort,
         TeamCollectionFilter,
         TeamFilter,
         TeamSort,
@@ -5443,7 +5708,10 @@ schema = strawberry.Schema(
         TitleSort,
         UpdatedAtSort,
         UserCollectionFilter,
+        UserDisplayNameSort,
         UserFilter,
+        UserNameSort,
+        UserSortInput,
         WorkflowStateFilter,
         WorkflowStateSort,
     ],

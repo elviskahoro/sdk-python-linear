@@ -1,0 +1,8 @@
+mutation CliUpdateProject($id: String!, $input: ProjectUpdateInput!) {
+  projectUpdate(id: $id, input: $input) {
+    success
+    project {
+      ...ProjectFields
+    }
+  }
+}

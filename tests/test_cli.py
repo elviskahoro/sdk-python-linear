@@ -119,7 +119,11 @@ def _graphql_router(
         if _named(query, "GetViewer"):
             data: dict[str, Any] = {"viewer": user_payload()}
         elif _named(query, "CliResolveUser"):
-            data = {"users": {"nodes": users or []}}
+            data = {
+                "users": {
+                    "nodes": [{"displayName": "alice", **u} for u in users or []],
+                },
+            }
         elif _named(query, "CliResolveProject"):
             data = {"projects": {"nodes": projects or []}}
         elif _named(query, "CliResolveLabel"):
@@ -137,7 +141,7 @@ def _graphql_router(
                 },
             }
         elif _named(query, "CliIssueTeam"):
-            data = {"issue": {"team": {"id": "team-1", "key": "ENG"}}}
+            data = {"issue": {"id": "iss-1", "team": {"id": "team-1", "key": "ENG"}}}
         elif _named(query, "GetTeamByKey") or _named(query, "CliResolveTeamName"):
             data = {"teams": {"nodes": [team] if team else []}}
         elif _named(query, "GetIssue"):
@@ -191,8 +195,8 @@ def _graphql_router(
                     "pageInfo": page_info_payload(has_next=more),
                 },
             }
-        elif query.startswith("query { teams"):
-            # The raw escape-hatch document the `teams` command executes.
+        elif _named(query, "CliTeams"):
+            # The generated document the `teams` command executes.
             data = {
                 "teams": {
                     "nodes": [team] if team else [],
@@ -283,7 +287,12 @@ def test_teams_pads_the_key_column_by_display_width() -> None:
     ]
 
     def respond(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"data": {"teams": {"nodes": nodes}}})
+        return httpx.Response(
+            200,
+            json={
+                "data": {"teams": {"nodes": nodes, "pageInfo": page_info_payload()}},
+            },
+        )
 
     with respx.mock:
         respx.post(API_URL).mock(side_effect=respond)
@@ -1378,7 +1387,9 @@ def test_issue_update_multi_state_resolution_failure_is_item_error() -> None:
         if _named(query, "GetIssue") and variables["id"] == "ENG-2":
             data = {"issue": {**issue_payload("iss-2"), "identifier": "ENG-2"}}
         elif _named(query, "CliIssueTeam") and variables["id"] == "iss-2":
-            data = {"issue": {"team": {"id": "team-2", "key": "OTHER"}}}
+            data = {
+                "issue": {"id": "iss-2", "team": {"id": "team-2", "key": "OTHER"}},
+            }
         elif (
             _named(query, "ListWorkflowStates")
             and variables["filter"]["team"]["id"]["eq"] == "team-2"
@@ -1459,7 +1470,16 @@ def test_issue_update_dedupes_case_variant_identifiers() -> None:
         route = respx.post(API_URL).mock(side_effect=_graphql_router())
         result = runner.invoke(
             app,
-            ["issue", "update", "ENG-1", "eng-1", "--priority", "3", "--apply", "--json"],
+            [
+                "issue",
+                "update",
+                "ENG-1",
+                "eng-1",
+                "--priority",
+                "3",
+                "--apply",
+                "--json",
+            ],
             env=AUTH,
         )
     assert result.exit_code == 0  # noqa: S101

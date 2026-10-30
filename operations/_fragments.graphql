@@ -139,3 +139,48 @@ fragment IssueSearchResultFields on IssueSearchResult {
     name
   }
 }
+
+fragment ProjectFields on Project {
+  id
+  name
+  url
+  slugId
+  description
+  targetDate
+  status {
+    id
+    name
+    type
+  }
+}
+
+fragment ProjectRefFields on Project {
+  id
+  name
+}
+
+fragment ProjectStatusFields on ProjectStatus {
+  id
+  name
+  type
+}
+
+fragment UserLookupFields on User {
+  id
+  name
+  displayName
+  email
+}
+
+fragment IssueLabelRefFields on IssueLabel {
+  id
+  name
+}
+
+fragment IssueTeamFields on Issue {
+  id
+  team {
+    id
+    key
+  }
+}

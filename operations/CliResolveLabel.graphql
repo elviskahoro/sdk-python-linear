@@ -1,0 +1,10 @@
+query CliResolveLabel($filter: IssueLabelFilter, $after: String, $first: Int!) {
+  issueLabels(filter: $filter, after: $after, first: $first) {
+    nodes {
+      ...IssueLabelRefFields
+    }
+    pageInfo {
+      ...PageInfoFields
+    }
+  }
+}

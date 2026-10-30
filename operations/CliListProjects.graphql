@@ -1,0 +1,10 @@
+query CliListProjects($after: String, $first: Int!) {
+  projects(after: $after, first: $first) {
+    nodes {
+      ...ProjectFields
+    }
+    pageInfo {
+      ...PageInfoFields
+    }
+  }
+}
