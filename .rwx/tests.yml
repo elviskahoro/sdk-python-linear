@@ -159,7 +159,8 @@ tasks:
   # token (the Analytics CLI accepts no scoped key), so it lives in its own
   # `sdk-python-linear-trunk` vault -- never in `sdk-python-linear`, which holds
   # GITHUB_TOKEN and PYPI_TOKEN. Access model: locked, grants
-  # `elviskahoro/sdk-python-linear:**` and `:main`, approvals disabled, same
+  # `elviskahoro/sdk-python-linear:**`, `:*/*` and `:main` (branch patterns do
+  # not cross `/`, so `*/*` matches `w-565/...` branches), approvals disabled, same
   # reasoning as `sdk-python-linear-it` (see integration-tests.yml). Never add
   # another secret to it. The `if:` is the only author gate (vault grants match
   # repo + ref, never author) and is evaluated before `env:` resolves the
@@ -240,8 +241,8 @@ tasks:
   # access to stay green: the schema test fetches Linear's public SDK schema
   # from raw.githubusercontent.com; the live-API wording check self-skips
   # without LINEAR_API_KEY (the vault key lives in `sdk-python-linear-it` and is
-  # injected only by the integration-tests.yml pipeline, whose PR runs pause
-  # for a vault approval); and
+  # injected only by the integration-tests.yml pipeline, whose PR trigger is
+  # author-gated); and
   # tests/integration's bad-key check runs keyless against api.linear.app,
   # since an invalid key must still surface AUTHENTICATION_ERROR. That last
   # call does make PR-run greenness depend on api.linear.app being reachable

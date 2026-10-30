@@ -439,20 +439,24 @@ merge:
   # - Netlify deploy previews and header/redirect/pages checks: only post on
   #   docs-changing PRs (path-dependent), like gtm-sdk's path-filtered
   #   "Docs checks" workflow.
-  # - "RWX: integration-tests.yml (pull request)": posts on every PR, but only
-  #   as a pending status -- it sits until a human grants or denies the
-  #   approvals-gated `sdk-python-linear-it` vault the live-API run resolves
-  #   its key from (see .rwx/integration-tests.yml), and reports a real
-  #   pass/fail only after that approval resolves. Requiring it would hold
-  #   every queue entry at Queued until a human approves the vault -- a human
-  #   gate on every merge -- so it stays excluded even once approvals are
-  #   routine.
+  # - "RWX: integration-tests.yml (pull request)": gated by its trigger's
+  #   `if:` to PRs authored by the repo owner, so it never posts a usable
+  #   verdict on bot/collaborator PRs -- on entire[bot]/pullfrog PRs it
+  #   never posts a status at all. (Pre-#191 it errored out immediately
+  #   with "This run failed to start" -- the expression path was broken
+  #   for every PR, not just non-owner ones; #191 fixed it.) Owner PR
+  #   runs resolve the `sdk-python-linear-it` key unattended (approvals
+  #   disabled, `**`/`*/*` grants; see .rwx/integration-tests.yml), so requiring
+  #   it would stall every non-owner queue entry. History: #186 briefly
+  #   gated the vault behind approvals, leaving this status pending until
+  #   a human approved -- #189 removed that.
   #
   # Do NOT add path-filtered or workflow_run workflows here -- they do not
-  # report on every PR and would deadlock the queue -- and the same for
-  # approvals-gated statuses like the pending integration-tests PR run above:
-  # posting on every PR is not enough when the verdict only resolves behind a
-  # human vault approval.
+  # report on every PR and would deadlock the queue -- nor author-gated
+  # statuses like the integration-tests PR leg above, which posts no usable
+  # verdict on other authors' PRs. Approvals-gated statuses are out for the
+  # same reason: posting on every PR is not enough when the verdict only
+  # resolves behind a human vault approval.
   #
   # Residual risk for "pullfrog-approval": every landing so far merged
   # directly against the PR head, where pullfrog always posts. The check
