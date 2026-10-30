@@ -31,7 +31,7 @@ Live-API tests (`-m network`) need the vault key: push the branch, then
 HTTP transport and the error contract, `queries.py`/`mutations.py` expose the
 typed read/write paths, `pagination.py` drives cursor connections, and
 `workflow.py` is the CLI-friendly facade. Everything under
-`gtm_linear/_generated/` plus `gtm_linear/_schema.py` is produced by
+`gtm_linear/_generated/` is produced by
 `scripts/codegen.py` from the pinned SDL in `schema/` and the operations in
 `operations/` — never edit generated files by hand; regenerate instead.
 

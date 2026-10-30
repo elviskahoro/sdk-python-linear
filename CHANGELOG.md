@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Removed
+
+- The `[strawberry]` extra and `gtm_linear._schema`, the generated Strawberry
+  mirror of Linear's types. Nothing in the SDK imported it. `strawberry-graphql`
+  remains a dev-only codegen dependency (#155).
+
 ### Changed
 
 - `issue.assignee`, search-result assignees, and comment `user` are now the shared

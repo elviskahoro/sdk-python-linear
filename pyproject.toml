@@ -1,6 +1,6 @@
 [project]
 name = "gtm-linear"
-version = "0.5.0"
+version = "0.6.0"
 description = "GTM workflow adapter for Linear."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -29,18 +29,6 @@ dependencies = [
   "pydantic-settings>=2.14.2",
   "typer>=0.27",
 ]
-
-[project.optional-dependencies]
-# Ships gtm_linear._schema, the generated Strawberry mirror of Linear's types, for
-# callers re-exposing Linear data through their own GraphQL server. Floor is 0.336.2:
-# regeneration is byte-identical there, and CI's lock pins exactly the floor (the
-# exclude-newer cooldown re-lock moved it back from 0.337.2). It also imports
-# under 0.316 + graphql-core 3.2, but 0.316's metadata wrongly permits graphql-core
-# 3.3 (which breaks it at import), so the floor keeps the extra on a pair that
-# cannot resolve into that trap. strawberry.codegen is explicitly experimental and
-# version-sensitive — a reason not to put it in `dependencies`, where every consumer
-# would inherit the pin.
-strawberry = ["strawberry-graphql>=0.336.2"]
 
 [project.scripts]
 # Console script for gtm_linear/cli.py. The name matches the package, so
@@ -79,9 +67,6 @@ dev = [
   # .trunk/trunk.yaml enables, so the gate and the audit agree on tach.toml
   # semantics.
   "tach==0.35.1",
-  # Depend on our own extra so it is exercised by the default test run instead of
-  # silently rotting. A separate CI job installs without it.
-  "gtm-linear[strawberry]",
 ]
 
 [tool.pytest.ini_options]

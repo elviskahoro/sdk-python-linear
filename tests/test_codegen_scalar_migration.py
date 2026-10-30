@@ -3,7 +3,7 @@
 ``strawberry schema-codegen`` declares custom scalars as
 ``X = strawberry.scalar(NewType("X", object), ...)`` — the class form strawberry
 deprecates in favour of ``StrawberryConfig.scalar_map`` and will remove. codegen.py
-rewrites that emission before it is committed to ``gtm_linear/_schema.py``. These
+rewrites that emission before it is used as the schema-codegen output module. These
 tests pin the rewrite and the patch stage that wires it into the generated
 ``Schema`` call, so a future strawberry release that changes the emission fails
 loudly here instead of silently regenerating the deprecated form.
@@ -16,20 +16,11 @@ import sys
 from pathlib import Path
 
 import pytest
-from graphql import GraphQLScalarType
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from scripts import codegen  # noqa: E402
-
-
-def test_restored_root_arguments_use_datetime_python_type() -> None:
-    """DateTime is emitted as ``datetime`` by Strawberry, including root args."""
-    scalar = GraphQLScalarType("DateTime")
-
-    assert codegen._python_type(scalar) == "datetime | None"  # noqa: S101, SLF001
-    assert codegen._python_type(scalar, nullable=False) == "datetime"  # noqa: S101, SLF001
 
 
 # Byte-for-byte what `strawberry schema-codegen` emits for `scalar IssueFilter`

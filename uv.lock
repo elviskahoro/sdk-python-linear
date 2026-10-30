@@ -123,7 +123,7 @@ wheels = [
 
 [[package]]
 name = "gtm-linear"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "httpx2" },
@@ -132,15 +132,9 @@ dependencies = [
     { name = "typer" },
 ]
 
-[package.optional-dependencies]
-strawberry = [
-    { name = "strawberry-graphql" },
-]
-
 [package.dev-dependencies]
 dev = [
     { name = "graphql-core" },
-    { name = "gtm-linear", extra = ["strawberry"] },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-reportlog" },
@@ -155,15 +149,12 @@ requires-dist = [
     { name = "httpx2", specifier = ">=2.0.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pydantic-settings", specifier = ">=2.14.2" },
-    { name = "strawberry-graphql", marker = "extra == 'strawberry'", specifier = ">=0.336.2" },
     { name = "typer", specifier = ">=0.27" },
 ]
-provides-extras = ["strawberry"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "graphql-core", specifier = ">=3.3,<3.4" },
-    { name = "gtm-linear", extras = ["strawberry"] },
     { name = "pytest", specifier = ">=8.0" },
     { name = "pytest-asyncio", specifier = ">=0.23" },
     { name = "pytest-reportlog", specifier = ">=0.4" },

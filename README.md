@@ -1,8 +1,8 @@
 # gtm-linear
 
-Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, typed wrapper around `httpx2` (Pydantic-maintained fork) with optional sync support, Strawberry-typed models, explicit error semantics, and a bundled CLI.
+Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, typed wrapper around `httpx2` (Pydantic-maintained fork) with optional sync support, generated Pydantic models, explicit error semantics, and a bundled CLI.
 
-> **Status:** Alpha (`0.5.0`, see `pyproject.toml` and `CHANGELOG.md`). API surface is small but incomplete — fall back to raw `LinearClient.execute_async` for anything not yet wrapped.
+> **Status:** Alpha (`0.6.0`, see `pyproject.toml` and `CHANGELOG.md`). API surface is small but incomplete — fall back to raw `LinearClient.execute_async` for anything not yet wrapped.
 
 ---
 
@@ -31,7 +31,7 @@ uv sync
 
 Installing the package also installs the `gtm-linear` console command — see [CLI](#cli).
 
-Requires Python `>=3.11`. Runtime deps: `httpx2>=2.0.0`, `pydantic>=2.0`, `pydantic-settings>=2.14.2`, `typer>=0.27` (imported only by the CLI module — `import gtm_linear` never touches it). Typer is unconditional rather than a `[cli]` extra so `uvx gtm-linear` and `uv tool install gtm-linear` need no extra syntax — a deliberate install-footprint trade-off for library-only consumers. The optional `[strawberry]` extra (ships the generated schema mirror) adds `strawberry-graphql>=0.336.2`, which pulls `graphql-core>=3.3,<3.4`.
+Requires Python `>=3.11`. Runtime deps: `httpx2>=2.0.0`, `pydantic>=2.0`, `pydantic-settings>=2.14.2`, `typer>=0.27` (imported only by the CLI module — `import gtm_linear` never touches it). Typer is unconditional rather than a `[cli]` extra so `uvx gtm-linear` and `uv tool install gtm-linear` need no extra syntax — a deliberate install-footprint trade-off for library-only consumers. `strawberry-graphql` is a dev-only codegen dependency, not shipped.
 
 ---
 
@@ -111,7 +111,7 @@ The low-level query and mutation methods are async-only: await each operation, o
 use `async for` with an `iter_*` method. For synchronous scripts, use the
 `LinearWorkflow` facade shown below.
 
-Pydantic models validate Linear response payloads and mutation inputs internally. Strawberry's Pydantic integration exposes those validated models as the public GraphQL types and inputs.
+Pydantic models validate Linear response payloads and mutation inputs internally; those same generated models are the public types and inputs.
 
 ```python
 import asyncio
@@ -208,9 +208,9 @@ Importable from `gtm_linear`:
 | `WorkflowStateConnection` | model | Paginated workflow states |
 | `PageInfo` | model | `hasNextPage`, `hasPreviousPage`, `startCursor`, `endCursor` |
 
-The public Strawberry types are backed by Pydantic models, so malformed API payloads and invalid mutation inputs fail validation before they are exposed to callers or sent to Linear.
+The public types are generated Pydantic models, so malformed API payloads and invalid mutation inputs fail validation before they are exposed to callers or sent to Linear.
 
-`IssueCreateInput` and `IssueUpdateInput` are Strawberry input types backed by Pydantic models. Construct positionally or with kwargs; some static type checkers may flag the call signature — the `scripts/smoke.py` file demonstrates the working ignore pattern. Optional fields set to `None` are omitted from mutation variables.
+`IssueCreateInput` and `IssueUpdateInput` are generated Pydantic input models. Construct positionally or with kwargs; some static type checkers may flag the call signature — the `scripts/smoke.py` file demonstrates the working ignore pattern. Optional fields set to `None` are omitted from mutation variables.
 
 ---
 
@@ -561,7 +561,6 @@ sdk-python-linear/
 ├── gtm_linear/
 │   ├── __init__.py           # public re-exports
 │   ├── _generated/           # codegen output: Pydantic models + GraphQL documents
-│   ├── _schema.py            # generated Strawberry mirror ([strawberry] extra)
 │   ├── cli.py                # CLI behind the gtm-linear command
 │   ├── client.py             # LinearClient (httpx transport)
 │   ├── exceptions.py         # LinearAPIError and friends
@@ -601,7 +600,7 @@ trunk check --all             # lint + type check (local; run uv sync first)
 trunk fmt                     # autoformat
 ```
 
-CI runs on RWX: `.rwx/tests.yml` runs `pytest`, the two `--check` scripts, a lean-install task (the wheel must import without the `[strawberry]` extra), a schema-drift task (`pytest -m network`) on every run, and `.rwx/integration-tests.yml` runs the live suite (`tests/integration`: reads, error contract, write lifecycle against a per-run scaffolded `sdk-it` team, and CLI `--json`/`--apply` checks, plus the not-found wording check) using `LINEAR_API_KEY` from the dedicated `sdk-python-linear-it` RWX vault. That vault holds only a key for a disposable Linear workspace, grants `**`, `*/*` and `main`, and has approvals disabled (branch patterns do not cross `/`, so `*/*` is what matches `w-565/...`-style branches; names with two or more `/` do not): every run resolves the key unattended, and the workflow's `pull_request` `if:` restricts PR runs to PRs authored by `elviskahoro`. The main-only `sdk-python-linear` vault keeps `GITHUB_TOKEN` and `PYPI_TOKEN`, which PR runs never reach — do not add secrets to `sdk-python-linear-it`. The `trunk-upload` task in `.rwx/tests.yml` also uploads the offline suite's JUnit results to Trunk Flaky Tests (Captain keeps handling retries and its own dashboard) on main, scheduled, and manual runs and on PRs authored by `elviskahoro`, even when tests fail, using `TRUNK_API_TOKEN` from the dedicated `sdk-python-linear-trunk` vault (same `**`/`*/*`/`main` grants — branch patterns do not cross `/`, so `*/*` is what matches slashed PR branches — no approvals; never add other secrets to it). `.rwx/lint.yml` runs `trunk check` and `tach check-external` as the lint gate on every PR (a required status in `.trunk/trunk.yaml`); `tach check-external` has no `if:` gate and runs on every leg, so an external-dependency failure can turn main red on a push too. Pushes to main (and manual `rwx run` dispatches) additionally run a full-tree `trunk check` as a post-merge safety net. `.rwx/dagger-ref-drift.yml` remains a weekly fallback that verifies the publisher tag/SHA pair and reports stale releases. `.rwx/publish.yml` builds with Dagger and publishes to PyPI on `v*` tags using a project-scoped `PYPI_TOKEN` from the `sdk-python-linear` RWX vault (`rwx vaults secrets set --vault sdk-python-linear PYPI_TOKEN=<token>`; RWX cannot use PyPI trusted publishing). GitHub Actions remains only for the Pullfrog agent harness (`pullfrog.yml`) — see `.rwx/.migration-inventory.md` for the port inventory and flip status. Renovate updates the paired SemVer tag and immutable SHA in `.rwx/publish.yml`; its custom regex manager is intentionally the only enabled Renovate manager because Dependabot handles the remaining GitHub Actions.
+CI runs on RWX: `.rwx/tests.yml` runs `pytest`, the two `--check` scripts, a lean-install task (the wheel must build and import with only its runtime deps), a schema-drift task (`pytest -m network`) on every run, and `.rwx/integration-tests.yml` runs the live suite (`tests/integration`: reads, error contract, write lifecycle against a per-run scaffolded `sdk-it` team, and CLI `--json`/`--apply` checks, plus the not-found wording check) using `LINEAR_API_KEY` from the dedicated `sdk-python-linear-it` RWX vault. That vault holds only a key for a disposable Linear workspace, grants `**`, `*/*` and `main`, and has approvals disabled (branch patterns do not cross `/`, so `*/*` is what matches `w-565/...`-style branches; names with two or more `/` do not): every run resolves the key unattended, and the workflow's `pull_request` `if:` restricts PR runs to PRs authored by `elviskahoro`. The main-only `sdk-python-linear` vault keeps `GITHUB_TOKEN` and `PYPI_TOKEN`, which PR runs never reach — do not add secrets to `sdk-python-linear-it`. The `trunk-upload` task in `.rwx/tests.yml` also uploads the offline suite's JUnit results to Trunk Flaky Tests (Captain keeps handling retries and its own dashboard) on main, scheduled, and manual runs and on PRs authored by `elviskahoro`, even when tests fail, using `TRUNK_API_TOKEN` from the dedicated `sdk-python-linear-trunk` vault (same `**`/`*/*`/`main` grants — branch patterns do not cross `/`, so `*/*` is what matches slashed PR branches — no approvals; never add other secrets to it). `.rwx/lint.yml` runs `trunk check` and `tach check-external` as the lint gate on every PR (a required status in `.trunk/trunk.yaml`); `tach check-external` has no `if:` gate and runs on every leg, so an external-dependency failure can turn main red on a push too. Pushes to main (and manual `rwx run` dispatches) additionally run a full-tree `trunk check` as a post-merge safety net. `.rwx/dagger-ref-drift.yml` remains a weekly fallback that verifies the publisher tag/SHA pair and reports stale releases. `.rwx/publish.yml` builds with Dagger and publishes to PyPI on `v*` tags using a project-scoped `PYPI_TOKEN` from the `sdk-python-linear` RWX vault (`rwx vaults secrets set --vault sdk-python-linear PYPI_TOKEN=<token>`; RWX cannot use PyPI trusted publishing). GitHub Actions remains only for the Pullfrog agent harness (`pullfrog.yml`) — see `.rwx/.migration-inventory.md` for the port inventory and flip status. Renovate updates the paired SemVer tag and immutable SHA in `.rwx/publish.yml`; its custom regex manager is intentionally the only enabled Renovate manager because Dependabot handles the remaining GitHub Actions.
 
 Tests use `respx` to mock `httpx2` — no network access required. `pytest-asyncio` is in `auto` mode, so async test functions don't need decoration.
 
@@ -617,7 +616,7 @@ Deselecting `network_writes` does not make the run read-only — the team fixtur
 ### Conventions
 
 - All public methods are documented with Google-style docstrings.
-- Never hand-edit `gtm_linear/_generated/` or `gtm_linear/_schema.py`; regenerate with `scripts/codegen.py` (`--check` fails CI on drift). Both are lint-ignored in `.trunk/trunk.yaml`, so fixes belong in the generator.
+- Never hand-edit `gtm_linear/_generated/`; regenerate with `scripts/codegen.py` (`--check` fails CI on drift). It is lint-ignored in `.trunk/trunk.yaml`, so fixes belong in the generator.
 - Transport and API failures raise the typed hierarchy in `gtm_linear/exceptions.py`.
 - Input types are constructed positionally in tests and the smoke script; some checkers flag this (see `# pyright: ignore[reportCallIssue]` in `scripts/smoke.py`).
 - Tests intentionally use `assert` and `_private` internals; scoped per-file ignores in `ruff.toml` cover this, so don't add per-line `noqa`s.
