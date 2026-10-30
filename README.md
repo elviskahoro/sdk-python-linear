@@ -1,6 +1,6 @@
 # gtm-linear
 
-Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, typed wrapper around `httpx2` (Pydantic-maintained fork) with optional sync support, Strawberry-typed models, explicit error semantics, and a bundled CLI.
+Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, typed wrapper around `httpx2` (Pydantic-maintained fork) with optional sync support, generated Pydantic models, explicit error semantics, and a bundled CLI.
 
 > **Status:** Alpha (`0.6.0`, see `pyproject.toml` and `CHANGELOG.md`). API surface is small but incomplete — fall back to raw `LinearClient.execute_async` for anything not yet wrapped.
 
@@ -111,7 +111,7 @@ The low-level query and mutation methods are async-only: await each operation, o
 use `async for` with an `iter_*` method. For synchronous scripts, use the
 `LinearWorkflow` facade shown below.
 
-Pydantic models validate Linear response payloads and mutation inputs internally. Strawberry's Pydantic integration exposes those validated models as the public GraphQL types and inputs.
+Pydantic models validate Linear response payloads and mutation inputs internally; those same generated models are the public types and inputs.
 
 ```python
 import asyncio
@@ -208,9 +208,9 @@ Importable from `gtm_linear`:
 | `WorkflowStateConnection` | model | Paginated workflow states |
 | `PageInfo` | model | `hasNextPage`, `hasPreviousPage`, `startCursor`, `endCursor` |
 
-The public Strawberry types are backed by Pydantic models, so malformed API payloads and invalid mutation inputs fail validation before they are exposed to callers or sent to Linear.
+The public types are generated Pydantic models, so malformed API payloads and invalid mutation inputs fail validation before they are exposed to callers or sent to Linear.
 
-`IssueCreateInput` and `IssueUpdateInput` are Strawberry input types backed by Pydantic models. Construct positionally or with kwargs; some static type checkers may flag the call signature — the `scripts/smoke.py` file demonstrates the working ignore pattern. Optional fields set to `None` are omitted from mutation variables.
+`IssueCreateInput` and `IssueUpdateInput` are generated Pydantic input models. Construct positionally or with kwargs; some static type checkers may flag the call signature — the `scripts/smoke.py` file demonstrates the working ignore pattern. Optional fields set to `None` are omitted from mutation variables.
 
 ---
 
