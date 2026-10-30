@@ -128,14 +128,22 @@ tasks:
       fi
       rm -f "${trunk_launcher}"
 
-  # Tool cache. RWX caches a task by its command, env, `use` inputs and
-  # filtered files, and carries the task's filesystem (including
-  # ~/.cache/trunk) to downstream tasks. trunk-config filters the checkout
-  # down to the Trunk config, so trunk-tools' cache key is just the launcher
-  # bytes + .trunk/: every linter, runtime and plugin pin in trunk.yaml is
-  # downloaded once and reused until a pin (or other trunk.yaml edit) changes.
-  # The seed repo is a scratch git repo so `trunk install` needs nothing else
-  # from the commit; the check tasks then find the tools already installed.
+  # Tool cache. RWX caches a task by its command, env, the filesystem its
+  # `use` dependencies produce and its own filtered files, and carries the
+  # task's filesystem (including ~/.cache/trunk) to downstream tasks. A
+  # `filter` scopes only the task that defines it: downstream `use:`rs do
+  # NOT inherit it and cache-key on every workspace file
+  # (rwx.com/docs/filtering-files, "Sharing filters across tasks") -- so
+  # trunk-config and trunk-tools each declare the same .trunk/ filter, and
+  # both are load-bearing. trunk-config's keys its own cache on .trunk/
+  # alone, freezing the $HOME/trunk-seed bytes it writes for downstream keys
+  # (outside-workspace files are always keyed, never filtered);
+  # trunk-tools' scopes its key to .trunk/ plus the pinned launcher binary
+  # trunk-install writes. Every linter, runtime and plugin pin in trunk.yaml
+  # is downloaded once and reused until a pin (or other trunk.yaml edit)
+  # changes; keep the two filter lists in lockstep. The seed repo is a
+  # scratch git repo so `trunk install` needs nothing else from the commit;
+  # the check tasks then find the tools already installed.
   - key: trunk-config
     use: [code]
     filter:
@@ -148,10 +156,24 @@ tasks:
       rm -rf "$HOME/trunk-seed/.trunk/.gitignore"
       cd "$HOME/trunk-seed"
       git init -q
+      # The seed commit's bytes feed trunk-tools' cache key: $HOME is
+      # outside the workspace, so it is always keyed, never filtered. Pin
+      # the dates so a cold-cache re-execution here writes identical bytes
+      # instead of busting the downstream hit with wall-clock timestamps.
+      export GIT_AUTHOR_DATE="2000-01-01T00:00:00+00:00"
+      export GIT_COMMITTER_DATE="2000-01-01T00:00:00+00:00"
       git -c user.name=rwx -c user.email=rwx@example.com commit -q --allow-empty -m seed
 
   - key: trunk-tools
     use: [trunk-install, trunk-config]
+    # Same filter as trunk-config's, and load-bearing for the same reason:
+    # filters apply only to the task defining them, so without this one
+    # trunk-tools would key on the whole clone and cache-miss on every
+    # commit. It needs nothing else from the workspace -- the seed repo and
+    # the trunk binary both live outside it.
+    filter:
+      - .trunk/trunk.yaml
+      - .trunk/configs
     run: |
       set -euo pipefail
       cd "$HOME/trunk-seed"
