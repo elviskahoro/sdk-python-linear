@@ -1,2 +1,3 @@
 # Formatting and linting fixes to skip in git blame
 cbed7a5868591f44b380d3e0fa71073a9062e74a # Fix trunk check security and formatting issues
+e69de05cf8cb62821a7e0ab5ff5d7fd07582c3a5 # Clear ruff warnings so lint output is clean

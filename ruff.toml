@@ -8,6 +8,10 @@
 #
 # Keep the base sections in sync with the plugin when it upgrades; the
 # per-file-ignores are repo-specific.
+#
+# Intentional drift: `ANN101` is dropped from `ignore` (ruff removed the rule,
+# so ignoring it only warns). The plugin still lists it at the ref above; don't
+# restore it when re-syncing.
 [format]
 quote-style = "double"
 
@@ -69,7 +73,6 @@ select = [
   "UP",
 ]
 ignore = [
-  "ANN101",
   "B008",
   "C901",
   "D100",
