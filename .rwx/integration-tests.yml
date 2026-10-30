@@ -97,7 +97,8 @@ tasks:
   # grants `elviskahoro/sdk-python-linear:**`, `:*/*` and `:main`, approvals
   # disabled. Branch patterns do not cross `/` (not even `**`): `*/*` is what
   # matches one-segment-prefixed branches like `w-565/...`.
-  # Every same-repo ref resolves the key unattended. Approvals must stay off:
+  # A same-repo ref matching a grant resolves the key unattended (names with
+  # two or more `/` do not). Approvals must stay off:
   # a ref matching no grant fails before `run:` when approvals are disabled,
   # which is why `**` is granted rather than relying on approval to pause.
   # The only author gate is the `pull_request` trigger's `if:` above; a branch
