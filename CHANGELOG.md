@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `issue.assignee`, search-result assignees, and comment `user` are now the shared
+  `User` (`UserFields`) class instead of per-fragment inline classes; fields are
+  unchanged (#149).
+
 ### Added
 
 - `projects`, `project <id|slug|url|name>`, `project update` (preview unless

@@ -3,10 +3,10 @@ from typing import Any, Optional
 from gtm_linear.models import LinearModel
 from .fragments import (
     IssueSearchResultFields,
-    IssueSearchResultFieldsAssignee,
     IssueSearchResultFieldsProject,
     IssueSearchResultFieldsState,
     PageInfoFields,
+    UserFields,
 )
 
 
@@ -39,6 +39,13 @@ query SearchIssues($term: String!, $first: Int!, $after: String, $filter: IssueF
   }
 }
 
+fragment UserFields on User {
+  id
+  name
+  email
+  active
+}
+
 fragment IssueSearchResultFields on IssueSearchResult {
   id
   identifier
@@ -52,10 +59,7 @@ fragment IssueSearchResultFields on IssueSearchResult {
     type
   }
   assignee {
-    id
-    name
-    email
-    active
+    ...UserFields
   }
   project {
     id

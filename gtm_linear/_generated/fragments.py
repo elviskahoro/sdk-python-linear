@@ -36,19 +36,8 @@ class CommentFields(LinearModel):
     """The time at which the entity was created."""
 
 
-class IssueFieldsState(LinearModel):
-    """A state in a team's workflow, representing an issue status such as Triage, Backlog, Todo, In Progress, In Review, Done, or Canceled. Each team has its own set of workflow states that define the progression of issues through the team's process. Workflow states have a type that categorizes them (triage, backlog, unstarted, started, completed, canceled), a position that determines their display order, and a color for visual identification. States can be inherited from parent teams to sub-teams."""
-
-    id: str
-    """The unique identifier of the entity."""
-    name: str
-    """The state's human-readable name (e.g., 'In Progress', 'Done', 'Backlog')."""
-    type: str
-    """The type of the state. One of \"triage\", \"backlog\", \"unstarted\", \"started\", \"completed\", \"canceled\", \"duplicate\"."""
-
-
-class IssueFieldsAssignee(LinearModel):
-    """A user that belongs to a workspace. Users can have different roles (admin, member, guest, or app) that determine their level of access. Users can be members of multiple teams, and can be active or deactivated. Guest users have limited access scoped to specific teams they are invited to."""
+class UserFields(LinearModel):
+    """GraphQL type: User."""
 
     id: str
     """The unique identifier of the entity."""
@@ -58,6 +47,17 @@ class IssueFieldsAssignee(LinearModel):
     """The user's email address."""
     active: bool
     """Whether the user account is active or disabled (suspended)."""
+
+
+class IssueFieldsState(LinearModel):
+    """A state in a team's workflow, representing an issue status such as Triage, Backlog, Todo, In Progress, In Review, Done, or Canceled. Each team has its own set of workflow states that define the progression of issues through the team's process. Workflow states have a type that categorizes them (triage, backlog, unstarted, started, completed, canceled), a position that determines their display order, and a color for visual identification. States can be inherited from parent teams to sub-teams."""
+
+    id: str
+    """The unique identifier of the entity."""
+    name: str
+    """The state's human-readable name (e.g., 'In Progress', 'Done', 'Backlog')."""
+    type: str
+    """The type of the state. One of \"triage\", \"backlog\", \"unstarted\", \"started\", \"completed\", \"canceled\", \"duplicate\"."""
 
 
 class IssueFieldsProject(LinearModel):
@@ -86,7 +86,7 @@ class IssueFields(LinearModel):
     """The priority of the issue. 0 = No priority, 1 = Urgent, 2 = High, 3 = Medium, 4 = Low."""
     state: IssueFieldsState
     """The workflow state (issue status) that the issue is currently in. Workflow states represent the issue's progress through the team's workflow, such as Triage, Todo, In Progress, Done, or Canceled."""
-    assignee: Optional[IssueFieldsAssignee]
+    assignee: Optional[UserFields]
     """The user to whom the issue is assigned. Null if the issue is unassigned."""
     project: Optional[IssueFieldsProject]
     """The project that the issue is associated with. Null if the issue is not part of any project."""
@@ -138,19 +138,6 @@ class TeamFields(LinearModel):
     """The team's unique key, used as a prefix in issue identifiers (e.g., 'ENG' in 'ENG-123') and in URLs."""
 
 
-class UserFields(LinearModel):
-    """GraphQL type: User."""
-
-    id: str
-    """The unique identifier of the entity."""
-    name: str
-    """The user's full name."""
-    email: str
-    """The user's email address."""
-    active: bool
-    """Whether the user account is active or disabled (suspended)."""
-
-
 class IssueContextAttachmentFields(LinearModel):
     """GraphQL type: Attachment."""
 
@@ -183,19 +170,6 @@ class PageInfoFields(LinearModel):
     """Cursor representing the first result in the paginated results."""
 
 
-class IssueContextCommentFieldsUser(LinearModel):
-    """A user that belongs to a workspace. Users can have different roles (admin, member, guest, or app) that determine their level of access. Users can be members of multiple teams, and can be active or deactivated. Guest users have limited access scoped to specific teams they are invited to."""
-
-    id: str
-    """The unique identifier of the entity."""
-    name: str
-    """The user's full name."""
-    email: str
-    """The user's email address."""
-    active: bool
-    """Whether the user account is active or disabled (suspended)."""
-
-
 class IssueContextCommentFieldsExternalUser(LinearModel):
     """An external user who interacts with Linear through an integrated external service (such as Slack, Jira, GitHub, GitLab, Salesforce, or Microsoft Teams) but does not have a Linear account. External users can create issues, post comments, and add reactions from their respective platforms. They are identified by service-specific user IDs and may optionally have an email address. External users are scoped to a single workspace."""
 
@@ -220,7 +194,7 @@ class IssueContextCommentFields(LinearModel):
     """Comment's URL."""
     created_at: datetime
     """The time at which the entity was created."""
-    user: Optional[IssueContextCommentFieldsUser]
+    user: Optional[UserFields]
     """The user who wrote the comment. Null for comments created by integrations or bots without a user association."""
     external_user: Optional[IssueContextCommentFieldsExternalUser]
     """The external user who wrote the comment, when the comment was created through an integration such as Slack or Intercom. Null for comments created by workspace users."""
@@ -293,19 +267,6 @@ class IssueSearchResultFieldsState(LinearModel):
     """The type of the state. One of \"triage\", \"backlog\", \"unstarted\", \"started\", \"completed\", \"canceled\", \"duplicate\"."""
 
 
-class IssueSearchResultFieldsAssignee(LinearModel):
-    """A user that belongs to a workspace. Users can have different roles (admin, member, guest, or app) that determine their level of access. Users can be members of multiple teams, and can be active or deactivated. Guest users have limited access scoped to specific teams they are invited to."""
-
-    id: str
-    """The unique identifier of the entity."""
-    name: str
-    """The user's full name."""
-    email: str
-    """The user's email address."""
-    active: bool
-    """Whether the user account is active or disabled (suspended)."""
-
-
 class IssueSearchResultFieldsProject(LinearModel):
     """A project is a collection of issues working toward a shared goal. Projects have start and target dates, milestones, status tracking, and progress metrics. They can span multiple teams and be grouped under initiatives."""
 
@@ -332,7 +293,7 @@ class IssueSearchResultFields(LinearModel):
     """The priority of the issue. 0 = No priority, 1 = Urgent, 2 = High, 3 = Medium, 4 = Low."""
     state: IssueSearchResultFieldsState
     """The workflow state (issue status) that the issue is currently in. Workflow states represent the issue's progress through the team's workflow, such as Triage, Todo, In Progress, Done, or Canceled."""
-    assignee: Optional[IssueSearchResultFieldsAssignee]
+    assignee: Optional[UserFields]
     """The user to whom the issue is assigned. Null if the issue is unassigned."""
     project: Optional[IssueSearchResultFieldsProject]
     """The project that the issue is associated with. Null if the issue is not part of any project."""

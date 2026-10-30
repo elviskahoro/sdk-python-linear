@@ -41,12 +41,7 @@ fragment IssueContextCommentFields on Comment {
   body
   url
   createdAt
-  user {
-    id
-    name
-    email
-    active
-  }
+  user { ...UserFields }
   externalUser {
     id
     displayName
@@ -119,12 +114,7 @@ fragment IssueFields on Issue {
     name
     type
   }
-  assignee {
-    id
-    name
-    email
-    active
-  }
+  assignee { ...UserFields }
   project {
     id
     name
@@ -143,12 +133,7 @@ fragment IssueSearchResultFields on IssueSearchResult {
     name
     type
   }
-  assignee {
-    id
-    name
-    email
-    active
-  }
+  assignee { ...UserFields }
   project {
     id
     name

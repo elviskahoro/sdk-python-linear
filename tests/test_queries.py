@@ -764,3 +764,15 @@ async def test_get_viewer() -> None:
         async with LinearClient(api_key="key") as client:
             viewer = await LinearQueries(client).get_viewer()
     assert viewer.id == "me"
+
+
+async def test_get_issue_assignee_is_shared_user_class() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(200, json={"data": {"issue": issue_payload()}}),
+        )
+        async with LinearClient(api_key="key") as client:
+            issue = await LinearQueries(client).get_issue("iss-1")
+
+    assert issue is not None
+    assert isinstance(issue.assignee, gtm_linear.User)
