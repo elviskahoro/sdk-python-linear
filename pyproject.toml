@@ -54,7 +54,7 @@ dev = [
   # have broken strawberry before (3.3 removed graphql.execution.ExecutionContext,
   # which <=0.316 imported), so re-pin this pair together when either side moves.
   "graphql-core>=3.3,<3.4",
-  "strawberry-graphql[cli]>=0.336.2",
+  "strawberry-graphql[cli]>=0.337.2",
   # codegen.py runs `ruff format` over its output so regeneration is byte-stable
   # and `trunk check` has nothing left to reformat. Pinned to the version
   # .trunk/trunk.yaml enables, so both formatters agree on the result.
@@ -110,6 +110,8 @@ include = [
 [tool.uv]
 # Dependency cooldown: ignore packages published in the last 7 days.
 exclude-newer = "7 days"
+# Temporary: strawberry 0.337.2+ (fixes #4738/#4744) landed inside the cooldown; drop once the 7 days pass (#203).
+exclude-newer-package = { strawberry-graphql = "2026-10-30T00:00:00Z" }
 # The respx fork prefers `httpx` when installed and falls back to `httpx2`.
 # Drop its transitive `httpx` requirement so it mocks `httpx2`.
 # Remove once respx ships httpx2 support upstream.

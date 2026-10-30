@@ -8,8 +8,7 @@ than crashing.
 It also owns the mapping for Linear's custom scalars. ``PythonPlugin`` asserts that
 every non-builtin scalar has a ``python_type``, which Linear's ``JSON`` /
 ``JSONObject`` / ``TimelessDate`` do not, so without this the generator aborts
-(U3, strawberry-graphql/strawberry#4741). ``generate_code`` also prunes the unused
-``List`` import (U4, #4738).
+(U3, strawberry-graphql/strawberry#4741).
 """
 
 from __future__ import annotations
@@ -200,30 +199,14 @@ class PydanticPlugin(PythonPlugin):
         types: list[GraphQLType],
         operation: GraphQLOperation,
     ) -> list[CodegenFile]:
-        """Emit one module whose import block matches what its body references.
-
-        The bodies are printed first so ``self.imports`` is fully populated, then
-        only the imports the bodies actually reference are emitted. Strawberry
-        registers ``List`` for every list field but emits lowercase ``list[...]``,
-        which would otherwise leave a dangling unused import in every generated
-        module.
-        """
+        """Emit one module: the registered imports, then the printed bodies."""
         self._nested = self._resolve_nested(types, operation)
         bodies = [t for t in (self._print_type(type_) for type_ in types) if t]
         body = "\n\n".join(bodies)
 
-        used_imports: dict[str, set[str]] = {}
-        # Docstrings are stripped from the scan: prose like "identifier in UUID
-        # v4 format" must not keep an import alive that no annotation references.
-        code = re.sub(r'""".*?"""', "", body, flags=re.DOTALL)
-        for module, names in self.imports.items():
-            referenced = {n for n in names if re.search(rf"\b{re.escape(n)}\b", code)}
-            if referenced:
-                used_imports[module] = referenced
-
         lines = [
             f"from {module} import {', '.join(sorted(names))}"
-            for module, names in used_imports.items()
+            for module, names in self.imports.items()
         ]
         lines.append("from gtm_linear.models import LinearModel")
         code = "\n".join(lines) + "\n\n" + body
