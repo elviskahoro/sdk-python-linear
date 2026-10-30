@@ -511,6 +511,10 @@ class LinearQueries:
             after=after,
             include_archived=include_archived,
         )
+        # Linear rejects optional enums sent as null, so order_by stays unset
+        # (and is omitted from the variables) unless the caller chose one.
+        # Each generated operation owns its own PaginationOrderBy enum; the
+        # public parameter uses the issues flavor, so re-wrap it here.
         if order_by is not None:
             variables.order_by = WorkflowStatesOrderBy(order_by.value)
 

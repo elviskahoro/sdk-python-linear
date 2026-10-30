@@ -56,6 +56,7 @@ from typing import TYPE_CHECKING, Annotated, Any, NoReturn, Protocol, TypeVar
 import httpx2 as httpx
 import typer
 from pydantic import BaseModel, SecretStr, ValidationError
+from pydantic.alias_generators import to_camel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typer.core import TyperGroup, _click
 
@@ -162,11 +163,11 @@ class _ConnectionLike(Protocol[_NodeT]):
 
 
 class _RawConnectionPage:
-    """A raw ``nodes``/``pageInfo`` page adapted to that connection protocol.
+    """A ``nodes``/``pageInfo`` page adapted to that connection protocol.
 
-    The resolver lookups below run ad-hoc GraphQL instead of the generated
-    operations, so their pages need a dict-backed stand-in before the SDK
-    paginator can drive them.
+    The resolver lookups below validate each page through a generated result
+    model and re-serialize its nodes to wire-keyed dicts, which is the shape
+    the SDK paginator drives and the CLI's matching consumes.
     """
 
     def __init__(
@@ -1192,7 +1193,6 @@ _UUID_RE = re.compile(
     r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
     re.IGNORECASE,
 )
-_CANDIDATE_LIMIT = 10
 
 
 def _candidates(items: Sequence[str]) -> str:
@@ -1211,7 +1211,7 @@ def _lookup_nodes(
     try:
         connection = getattr(result_type.model_validate(data), field)
     except ValidationError:
-        _fail(f"unexpected {field} response from Linear")
+        _fail(f"unexpected {to_camel(field)} response from Linear")
     return [node.model_dump(mode="json", by_alias=True) for node in connection.nodes]
 
 
@@ -1224,7 +1224,7 @@ def _raw_connection_page(
     try:
         connection = getattr(result_type.model_validate(data), field)
     except ValidationError:
-        _fail(f"unexpected {field} response from Linear")
+        _fail(f"unexpected {to_camel(field)} response from Linear")
     return _RawConnectionPage(
         [node.model_dump(mode="json", by_alias=True) for node in connection.nodes],
         connection.page_info,
@@ -1396,7 +1396,7 @@ def _resolve_labels(
 
 
 def _issue_team(linear: LinearWorkflow, issue_id: str) -> tuple[str, str]:
-    """Return (team id, team key) for an issue via a raw lookup."""
+    """Return (team id, team key) for an issue via the ``CLI_ISSUE_TEAM`` lookup."""
     data = linear.client.execute(
         CLI_ISSUE_TEAM,
         dump_variables(CliIssueTeamVariables(id=issue_id)),
