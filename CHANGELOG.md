@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Dev-only: dropped the dead `ANN101` entry from `ruff.toml`'s ignore list (the
+  rule no longer exists in ruff, so ignoring it only warned) and fixed an `I001`
+  import-block warning in `tests/test_codegen_scalar_migration.py` (#208).
+
 ## [0.7.0] - 2026-10-30
 
 ### Removed
