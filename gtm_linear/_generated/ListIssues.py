@@ -4,10 +4,10 @@ from typing import Any, Optional
 from gtm_linear.models import LinearModel
 from .fragments import (
     IssueFields,
-    IssueFieldsAssignee,
     IssueFieldsProject,
     IssueFieldsState,
     PageInfoFields,
+    UserFields,
 )
 
 
@@ -54,6 +54,13 @@ query ListIssues($filter: IssueFilter, $first: Int!, $after: String, $orderBy: P
   }
 }
 
+fragment UserFields on User {
+  id
+  name
+  email
+  active
+}
+
 fragment IssueFields on Issue {
   id
   identifier
@@ -67,10 +74,7 @@ fragment IssueFields on Issue {
     type
   }
   assignee {
-    id
-    name
-    email
-    active
+    ...UserFields
   }
   project {
     id

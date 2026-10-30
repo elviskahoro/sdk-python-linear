@@ -3,12 +3,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Any, Optional
 from gtm_linear.models import LinearModel
-from .fragments import (
-    IssueFields,
-    IssueFieldsAssignee,
-    IssueFieldsProject,
-    IssueFieldsState,
-)
+from .fragments import IssueFields, IssueFieldsProject, IssueFieldsState, UserFields
 
 
 class SLADayCountType(str, Enum):
@@ -123,6 +118,13 @@ mutation CreateIssue($input: IssueCreateInput!) {
   }
 }
 
+fragment UserFields on User {
+  id
+  name
+  email
+  active
+}
+
 fragment IssueFields on Issue {
   id
   identifier
@@ -136,10 +138,7 @@ fragment IssueFields on Issue {
     type
   }
   assignee {
-    id
-    name
-    email
-    active
+    ...UserFields
   }
   project {
     id

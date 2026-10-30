@@ -39,7 +39,7 @@ fields = ["id", "body", "url", "createdAt"]
 on = "Comment"
 fields = ["id", "body", "url", "createdAt"]
 [fragments.IssueContextCommentFields.expand]
-user = ["id", "name", "email", "active"]
+user = "UserFields"
 externalUser = ["id", "displayName", "name", "email"]
 
 [fragments.IssueContextAttachmentFields]
@@ -67,11 +67,10 @@ relatedIssue = ["id", "identifier"]
 [fragments.IssueFields]
 on = "Issue"
 fields = ["id", "identifier", "title", "description", "url", "priority"]
-# Nested objects are inlined rather than spread: strawberry codegen raises on a
-# fragment that contains a fragment spread.
+# A string value spreads that fragment; list values are inlined.
 [fragments.IssueFields.expand]
 state = ["id", "name", "type"]
-assignee = ["id", "name", "email", "active"]
+assignee = "UserFields"
 project = ["id", "name"]
 
 [fragments.IssueSearchResultFields]
@@ -79,7 +78,7 @@ on = "IssueSearchResult"
 fields = ["id", "identifier", "title", "description", "url", "priority"]
 [fragments.IssueSearchResultFields.expand]
 state = ["id", "name", "type"]
-assignee = ["id", "name", "email", "active"]
+assignee = "UserFields"
 project = ["id", "name"]
 
 
