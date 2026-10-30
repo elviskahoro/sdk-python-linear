@@ -71,6 +71,7 @@ from ._generated.ListWorkflowStates import (
     ListWorkflowStatesResult,
     ListWorkflowStatesResultWorkflowStates,
     ListWorkflowStatesVariables,
+    PaginationOrderBy as WorkflowStatesOrderBy,
 )
 from ._generated.SearchIssues import (
     DOCUMENT as SEARCH_ISSUES,
@@ -511,7 +512,7 @@ class LinearQueries:
             include_archived=include_archived,
         )
         if order_by is not None:
-            variables.order_by = order_by
+            variables.order_by = WorkflowStatesOrderBy(order_by.value)
 
         data = await self._client.execute_async(
             LIST_WORKFLOW_STATES,

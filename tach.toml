@@ -102,6 +102,7 @@ depends_on = [
   "gtm_linear",
   "gtm_linear._generated",
   "gtm_linear.exceptions",
+  "gtm_linear.models",
   "gtm_linear.pagination",
   "gtm_linear.settings",
   "gtm_linear.workflow",
@@ -133,14 +134,20 @@ depends_on = []
 [[modules]]
 path = "gtm_linear.models"
 layer = "models"
-visibility = ["gtm_linear", "gtm_linear._generated"]
+visibility = [
+  "gtm_linear",
+  "gtm_linear._generated",
+  "gtm_linear.cli",
+  "gtm_linear.mutations",
+  "gtm_linear.queries",
+]
 depends_on = []
 
 [[modules]]
 path = "gtm_linear.mutations"
 layer = "operations"
 visibility = ["gtm_linear", "gtm_linear.workflow"]
-depends_on = ["gtm_linear._generated", "gtm_linear.client"]
+depends_on = ["gtm_linear._generated", "gtm_linear.client", "gtm_linear.models"]
 
 [[modules]]
 path = "gtm_linear.pagination"
@@ -156,6 +163,7 @@ depends_on = [
   "gtm_linear._generated",
   "gtm_linear.client",
   "gtm_linear.exceptions",
+  "gtm_linear.models",
   "gtm_linear.pagination",
 ]
 
@@ -354,7 +362,7 @@ expose = [
 
 [[interfaces]]
 from = ['^gtm_linear[.]models$']
-expose = ["LinearModel"]
+expose = ["LinearModel", "dump_variables"]
 
 [[interfaces]]
 from = ['^gtm_linear[.]mutations$']
