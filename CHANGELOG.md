@@ -25,7 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - Generation-time deprecation check: `gen_operations.py`, `codegen.py` and the
-  weekly schema-drift test fail when an operation selects a deprecated field,
+  schema-drift test fail when an operation selects a deprecated field,
   argument, enum value or input field. Known-kept members go in
   `allow_deprecated` in `operations/_spec.toml` (#153).
 - `projects`, `project <id|slug|url|name>`, `project update` (preview unless

@@ -1,7 +1,7 @@
 """One definition of "deprecated" for the generation pipeline.
 
 Both ``gen_operations.py`` (spec time) and ``codegen.py`` (model time), plus the
-weekly schema-drift test, call :func:`find_deprecations`, so they cannot disagree.
+schema-drift test, call :func:`find_deprecations`, so they cannot disagree.
 Members are keyed ``Type.member``; list ones that are knowingly kept in
 ``allow_deprecated`` at the top of ``operations/_spec.toml``.
 """
