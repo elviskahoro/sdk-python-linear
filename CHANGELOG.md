@@ -17,6 +17,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `issue.assignee`, search-result assignees, and comment `user` are now the shared
   `User` (`UserFields`) class instead of per-fragment inline classes; fields are
   unchanged (#149).
+- Request variables are now built from the generated `*Variables` models and
+  serialized with `exclude_unset`: an optional argument the caller does not
+  pass is omitted from the request instead of being sent as `null` (Linear
+  rejects explicit `null` for optional enums — the old `orderBy` special case
+  is gone), while an explicit `None` is still sent as `null`. CLI responses
+  are validated against the generated models, and `project update` rejects
+  a malformed `--target-date` client-side (#151).
+- Generation now fails when an operation selects a deprecated Linear field,
+  argument, enum value, or input field, unless it is listed in the
+  `allow_deprecated` allowlist in `operations/_spec.toml`. `codegen.py`,
+  `gen_operations.py`, and the weekly schema-drift test share one detector
+  (`scripts/deprecations.py`), so they cannot disagree on what counts as
+  deprecated (#153).
 
 ### Added
 
@@ -49,9 +62,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   value, `json.dumps` serializes them, and `isinstance(x, str)` is true (#152).
 - `LinearModel` sets `validate_assignment=True`; assigning a wrong-typed value to
   a model field now raises `ValidationError` (#152). Minor version bump to 0.5.0.
-- The `[strawberry]` extra now requires `strawberry-graphql>=0.336.2` (was
-  0.328.0). Field descriptions are no longer scrubbed, so `gtm_linear._schema`
-  carries Linear's docs.
 - Generated models (`gtm_linear/_generated/*`) now render Linear's SDL type and
   field descriptions as docstrings, so `help()` and IDE hovers document every
   field on the shipped classes (#150).
@@ -82,16 +92,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- The generated Strawberry schema mirror (`gtm_linear/_schema.py`, shipped with
-  the `[strawberry]` extra) now declares the full argument lists on `Issue`'s
-  nested collection fields — `attachments`, `comments`, `relations`, and
-  `inverseRelations` — instead of dropping them. The codegen pipeline's
-  argument-restoration step was scoped to the root `Query`/`Mutation` types, so
-  these fields were emitted as plain argument-less attributes; a consumer
-  building a GraphQL server from the shipped schema could not express
-  pagination or filtering on them and queries Linear's real API validates
-  (e.g. the SDK's own `ListIssueAttachments` operation) were rejected
-  ({{detail_github_issue_ref}}).
 - The README's "Issue shape returned by queries" block now matches the generated
   `Issue` (`IssueFields`) model: `state` is the nested `IssueFieldsState` object
   (`{id, name, type}`), not a flattened `status` string, and `priority` is
