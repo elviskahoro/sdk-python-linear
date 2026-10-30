@@ -39,7 +39,7 @@ which workarounds are removable. Catalogue and repros: elviskahoro/sdk-python-li
 
   BUG-1 #4090, #4093 (PRs)   BUG-2 #4725 (fixed in 0.336)   BUG-3 #4543 (PR)
   BUG-4 #4378, #4380           BUG-5 #4734                    BUG-6 #4735
-  BUG-8 #4378, #4380         U1 #4744 (fixed in 0.337.2; see _compose)
+  BUG-8 #4378, #4380         U1 #4744 (fixed in 0.337.2)
   U2 #4742 (_hoist_fragments)   U3 #4741 and U4 #4738 (fixed in 0.337.1) and U5 #4737 (pydantic_plugin.py)
   U6 #4740 (_collect)        U7 not filed (_run, single --app-dir)
   U8 #4736 (OPAQUE_INPUTS)   U9 #4739 (_canonicalize_enum_placement)
@@ -236,37 +236,10 @@ def _rebuild(
     return node
 
 
-def _dependency_order(
-    needed: set[str],
-    fragments: dict[str, gql_ast.FragmentDefinitionNode],
-) -> list[str]:
-    """Order fragments depth-first, each after the fragments it spreads.
-
-    Siblings are visited sorted so the output is deterministic.
-    """
-    ordered: list[str] = []
-    seen: set[str] = set()
-
-    def visit(name: str) -> None:
-        if name in seen:
-            return
-        seen.add(name)
-        children: set[str] = set()
-        _spread_names(fragments[name], children)
-        for child in sorted(children):
-            visit(child)
-        ordered.append(name)
-
-    for name in sorted(needed):
-        visit(name)
-    return ordered
-
-
 def _compose(path: Path, fragments: dict[str, gql_ast.FragmentDefinitionNode]) -> str:
     """Inline the fragments an operation references, transitively.
 
-    Fragments are inlined rather than spread because strawberry resolves a nested
-    spread only if the inner fragment is defined first (U1, strawberry#4744).
+    Fragments are spliced in sorted order so the output is deterministic.
 
     Only referenced fragments are spliced in: GraphQL validation rejects a document
     containing a fragment that is never used, so dumping the whole shared file into
@@ -295,7 +268,7 @@ def _compose(path: Path, fragments: dict[str, gql_ast.FragmentDefinitionNode]) -
     document = gql_ast.DocumentNode(
         definitions=(
             *document.definitions,
-            *(fragments[name] for name in _dependency_order(needed, fragments)),
+            *(fragments[name] for name in sorted(needed)),
         ),
     )
     return print_ast(document)

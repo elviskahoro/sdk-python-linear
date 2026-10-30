@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Generated operation documents now list shared fragments in sorted order instead of dependency-first (strawberry#4744 fixed upstream); no runtime behavior change (#203).
+
 ### Removed
 
 - The `[strawberry]` extra and `gtm_linear._schema`, the generated Strawberry
