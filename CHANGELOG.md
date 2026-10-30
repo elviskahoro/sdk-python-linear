@@ -14,12 +14,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Request variables are built from the generated `*Variables` models and
+  type-checked. Optional arguments a caller does not pass are now omitted from
+  the request instead of being sent as `null`; an explicit `None` is still sent
+  as `null` (#151).
 - `issue.assignee`, search-result assignees, and comment `user` are now the shared
   `User` (`UserFields`) class instead of per-fragment inline classes; fields are
   unchanged (#149).
 
 ### Added
 
+- Generation-time deprecation check: `gen_operations.py`, `codegen.py` and the
+  schema-drift test fail when an operation selects a deprecated field,
+  argument, enum value or input field. Known-kept members go in
+  `allow_deprecated` in `operations/_spec.toml` (#153).
 - `projects`, `project <id|slug|url|name>`, `project update` (preview unless
   `--apply`; descriptions over 255 chars rejected up front), `project issues`,
   and `search --project` (#127).
