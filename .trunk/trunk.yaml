@@ -416,8 +416,8 @@ merge:
   # posted as a check-run on every PR pullfrog reviews -- distinct from the
   # plain "pullfrog" check, which only mirrors the agent run itself. It has
   # posted on every PR reviewed since the 0.1.95 bump (#108-#112, including
-  # the bot-authored #100/#101). Required since 2026-10-16 to match the repo
-  # ruleset, which gates PR admission and merges into main on the GitHub side.
+  # the bot-authored #100/#101). Required since 2026-10-16 to match
+  # main's branch protection, which gates merges on the GitHub side.
   #
   # The lint gate is two-layered: its PR mode diffs against the PR's
   # exact base commit (--upstream=$MERGE_BASE, see .rwx/lint.yml), so the
@@ -465,8 +465,8 @@ merge:
   # test branch and waits for this list there -- unverified that pullfrog
   # reviews those. Watch the first entry that stalls. Recovery: re-trigger
   # the pullfrog review on the head; for (b) verify with a throwaway PR
-  # deliberately behind main, or drop the entry and rely on the ruleset's
-  # GitHub-side gate (PR admission + final merge) instead.
+  # deliberately behind main, or drop the entry and rely on main's branch
+  # protection (final merge gate) instead.
   required_statuses:
     - "RWX: tests.yml (pull request)"
     - "RWX: lint.yml (pull request)"
