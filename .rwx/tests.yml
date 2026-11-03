@@ -273,12 +273,17 @@ tasks:
 
   # Ports the source workflow's `lean-install` job: the wheel must build and
   # import with only its runtime deps. `use:`s [uv-install, code] rather than
-  # [deps] to mirror the source job, which never runs uv sync -- `uv build`
-  # builds in an isolated hatchling env, and the import check installs only
-  # dist/*.whl into a throwaway venv.
+  # [deps] to mirror the source job, which never runs uv sync -- `uv build
+  # --wheel` builds in an isolated hatchling env, and the import check
+  # installs only dist/*.whl into a throwaway venv.
   - key: lean-install
     use: [uv-install, code]
     # Reads only what the wheel is built from; test-/docs-only commits hit.
+    # `--wheel` because the sdist's include list (scripts/, operations/,
+    # schema/, tests/ -- see [tool.hatch.build.targets.sdist]) is wider
+    # than this filter, and hatchling silently omits missing includes
+    # rather than fail; the publish pipeline builds the real sdist from
+    # the full clone.
     filter:
       - gtm_linear
       - pyproject.toml
@@ -289,7 +294,7 @@ tasks:
       UV_PYTHON: "3.13"
     run: |
       set -euo pipefail
-      uv build
+      uv build --wheel
       uv venv -p 3.13 /tmp/lean
       VIRTUAL_ENV=/tmp/lean uv pip install dist/*.whl
       # Capture the listing before grepping it: under `set -o pipefail`,

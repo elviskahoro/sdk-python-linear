@@ -244,13 +244,17 @@ tasks:
   - key: tach-external
     use: [deps]
     # Only the files tach and its import scan read (tests/ is excluded in
-    # tach.toml); docs- and test-only commits hit.
+    # tach.toml), plus the .venv `deps` installs -- a filter also hides
+    # dep-produced files, and without the venv on disk `uv run` would
+    # rebuild it from scratch on every miss. The venv only changes when
+    # the lock does, so docs- and test-only commits still hit.
     filter:
       - gtm_linear
       - scripts
       - tach.toml
       - pyproject.toml
       - uv.lock
+      - .venv
       - README.md
       - LICENSE
     run: uv run tach check-external
