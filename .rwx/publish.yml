@@ -24,7 +24,6 @@ tasks:
       ref: ${{ init.commit-sha }}
 
   - key: uv-install
-    use: [code]
     run: |
       set -euo pipefail
       script="$(mktemp)"
@@ -63,7 +62,7 @@ tasks:
   # it does not verify that the SHA belongs to the recorded release tag.
   # Weekly RWX verifies that mapping and reports drift, but does not block publishing.
   - key: verify-pin
-    use: [dagger-install]
+    use: [dagger-install, code]
     run: bash scripts/dagger_ref_drift.sh --verify-pin
 
   - key: build

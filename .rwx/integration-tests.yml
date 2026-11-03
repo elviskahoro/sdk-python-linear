@@ -49,7 +49,6 @@ tasks:
   # [tool.uv] required-version pin, so bumping this is safe as long as the
   # committed uv.lock still parses and `uv sync --locked` stays clean.
   - key: uv-install
-    use: [code]
     run: |
       set -euo pipefail
       script="$(mktemp)"
@@ -59,25 +58,39 @@ tasks:
       sh "${script}"
       echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
 
-  # No `filter:` here -- `uv sync` installs gtm-linear editable and the test
-  # suite imports scripts/ and operations/ too, so the full source tree must
-  # be present (same rationale as gtm-sdk's .rwx/lint.yml deps task).
+  # Split so a source-only commit skips the dependency download. `deps-lock`
+  # installs third-party packages only and is keyed on pyproject.toml and
+  # uv.lock alone: `filter` scopes just the task that declares it
+  # (rwx.com/docs/filtering-files), so the resolved venv is reused until a
+  # dependency changes. `deps` then installs the editable gtm-linear on top
+  # (the suite also imports scripts/ and operations/, so it sees the full
+  # tree) -- seconds against the warm venv.
   # UV_LOCKED and UV_PYTHON are exported to $RWX_ENV so every downstream
   # `uv run` inherits them -- the RWX equivalent of the source workflow's
   # workflow-level `env:` block, which existed so `uv run` steps fail loudly
   # on lockfile drift instead of silently re-resolving off PyPI. UV_PYTHON
   # mirrors setup-uv's python-version input (which sets UV_PYTHON).
-  - key: deps
-    use: [uv-install]
+  - key: deps-lock
+    use: [uv-install, code]
+    filter:
+      - pyproject.toml
+      - uv.lock
     env:
       UV_LOCKED: "1"
       UV_PYTHON: "3.13"
     run: |
-      uv sync
+      uv sync --no-install-project
       echo "$PWD/.venv/bin" >> "$RWX_ENV/PATH"
       echo "$PWD/.venv" > "$RWX_ENV/VIRTUAL_ENV"
       echo "1" > "$RWX_ENV/UV_LOCKED"
       echo "3.13" > "$RWX_ENV/UV_PYTHON"
+
+  - key: deps
+    use: [deps-lock, code]
+    env:
+      UV_LOCKED: "1"
+      UV_PYTHON: "3.13"
+    run: uv sync
 
   - key: captain
     call: rwx/install-captain 1.2.0
