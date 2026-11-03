@@ -60,7 +60,6 @@ tasks:
   # script fail closed instead of executing. Version matches tests.yml's
   # (validated against uv sync --locked + the full pytest suite).
   - key: uv-install
-    use: [code]
     run: |
       set -euo pipefail
       script="$(mktemp)"
@@ -70,23 +69,41 @@ tasks:
       sh "${script}"
       echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
 
-  # pyright and pyrefly resolve the project's dependencies through .venv
-  # (the pyright override in .trunk/trunk.yaml points at
-  # ${workspace}/.venv/bin/python), so the lint gate needs the same uv sync
-  # the test pipeline runs. Without it pyright fails red with confusing
-  # Unknown-type findings (see the comment on that override). Exports mirror
-  # tests.yml's deps task so downstream `trunk run` inherits them.
-  - key: deps
-    use: [uv-install]
+  # Split so a source-only commit skips the dependency download. `deps-lock`
+  # installs third-party packages only and is keyed on pyproject.toml and
+  # uv.lock alone: `filter` scopes just the task that declares it
+  # (rwx.com/docs/filtering-files), so the resolved venv is reused until a
+  # dependency changes. `deps` then installs the editable gtm-linear on top
+  # -- seconds against the warm venv. pyright and pyrefly resolve the
+  # project's dependencies through .venv (the pyright override in
+  # .trunk/trunk.yaml points at ${workspace}/.venv/bin/python); without it
+  # pyright fails red with confusing Unknown-type findings.
+  # UV_LOCKED and UV_PYTHON are exported to $RWX_ENV so every downstream
+  # `uv run` inherits them -- the RWX equivalent of the source workflow's
+  # workflow-level `env:` block, which existed so `uv run` steps fail loudly
+  # on lockfile drift instead of silently re-resolving off PyPI. UV_PYTHON
+  # mirrors setup-uv's python-version input (which sets UV_PYTHON).
+  - key: deps-lock
+    use: [uv-install, code]
+    filter:
+      - pyproject.toml
+      - uv.lock
     env:
       UV_LOCKED: "1"
       UV_PYTHON: "3.13"
     run: |
-      uv sync
+      uv sync --no-install-project
       echo "$PWD/.venv/bin" >> "$RWX_ENV/PATH"
       echo "$PWD/.venv" > "$RWX_ENV/VIRTUAL_ENV"
       echo "1" > "$RWX_ENV/UV_LOCKED"
       echo "3.13" > "$RWX_ENV/UV_PYTHON"
+
+  - key: deps
+    use: [deps-lock, code]
+    env:
+      UV_LOCKED: "1"
+      UV_PYTHON: "3.13"
+    run: uv sync
 
   # Ports gtm-sdk's .rwx/trunk-check.yml trunk-check-pr task, adapted for a
   # public repo: no github-token and no GIT_ASKPASS base fetch are needed --
@@ -226,4 +243,18 @@ tasks:
   # lint gate uses.
   - key: tach-external
     use: [deps]
+    # Only the files tach and its import scan read (tests/ is excluded in
+    # tach.toml), plus the .venv `deps` installs -- a filter also hides
+    # dep-produced files, and without the venv on disk `uv run` would
+    # rebuild it from scratch on every miss. The venv only changes when
+    # the lock does, so docs- and test-only commits still hit.
+    filter:
+      - gtm_linear
+      - scripts
+      - tach.toml
+      - pyproject.toml
+      - uv.lock
+      - .venv
+      - README.md
+      - LICENSE
     run: uv run tach check-external
