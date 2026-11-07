@@ -15,8 +15,8 @@
 # responses larger. An explicit list is still schema-checked: a typo or a field Linear
 # removes fails generation rather than surfacing at runtime.
 #
-# Fragments may spread other fragments; codegen orders them dependencies-first
-# (strawberry-graphql/strawberry#4744).
+# Fragments may spread other fragments, in any order (the dependency-first
+# ordering workaround for strawberry-graphql/strawberry#4744 was dropped in #209).
 
 [fragments.UserFields]
 on = "User"
