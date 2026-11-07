@@ -13,6 +13,7 @@ from importlib.metadata import PackageNotFoundError, version
 from ._generated.CreateAttachment import AttachmentCreateInput
 from ._generated.CreateComment import CommentCreateInput
 from ._generated.CreateIssue import IssueCreateInput
+from ._generated.CreateIssueLabel import IssueLabelCreateInput
 from ._generated.CreateIssueRelation import (
     IssueRelationCreateInput,
     IssueRelationType,
@@ -47,6 +48,7 @@ from ._generated.fragments import (
     IssueContextCommentFields as IssueContextComment,
     IssueContextRelationFields as IssueContextRelation,
     IssueFields as Issue,
+    IssueLabelRefFields as IssueLabel,
     IssueRelationFields as IssueRelation,
     IssueSearchResultFields as IssueSearchResult,
     PageInfoFields as PageInfo,
@@ -84,6 +86,8 @@ __all__ = [
     "IssueContextRelation",
     "IssueCreateInput",
     "IssueInverseRelationConnection",
+    "IssueLabel",
+    "IssueLabelCreateInput",
     "IssueRelation",
     "IssueRelationConnection",
     "IssueRelationCreateInput",

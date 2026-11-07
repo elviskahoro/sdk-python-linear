@@ -189,8 +189,7 @@ class LinearMutations:
 
         Matching is case-insensitive, like the CLI's label resolution, and
         considers both labels scoped to ``team_id`` and workspace-level labels.
-        A team-scoped match wins over a workspace one. If nothing matches, a
-        new label is created on the team.
+        If nothing matches, a new label is created on the team.
 
         Args:
             team_id: The ID of the team the label belongs to.
