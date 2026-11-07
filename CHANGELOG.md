@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-07
+
+### Added
+
+- `LinearMutations.find_or_create_issue_label(team_id, name)` (and the
+  `LinearWorkflow` sync/async facade): returns the team's or workspace's label
+  matching `name` case-insensitively, creating it on the team when absent.
+  Backed by the new `CreateIssueLabel` operation and `IssueLabelCreateInput`.
+
 ### Changed
 
 - Dev-only: dropped the temporary `exclude-newer-package` override for

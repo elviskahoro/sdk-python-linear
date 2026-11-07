@@ -26,6 +26,7 @@ if TYPE_CHECKING:
         AttachmentFields,
         CommentFields,
         IssueFields,
+        IssueLabelRefFields,
         IssueRelationFields,
         IssueSearchResultFields,
         TeamFields,
@@ -505,6 +506,21 @@ class LinearWorkflow:
     @_sync_doc(LinearMutations.create_comment)
     def create_comment(self, issue_id: str, body: str) -> CommentFields:
         return self._run(self.create_comment_async(issue_id, body))
+
+    async def find_or_create_issue_label_async(
+        self,
+        team_id: str,
+        name: str,
+    ) -> IssueLabelRefFields:
+        return await self._mutations.find_or_create_issue_label(team_id, name)
+
+    @_sync_doc(LinearMutations.find_or_create_issue_label)
+    def find_or_create_issue_label(
+        self,
+        team_id: str,
+        name: str,
+    ) -> IssueLabelRefFields:
+        return self._run(self.find_or_create_issue_label_async(team_id, name))
 
     async def create_attachment_async(
         self,

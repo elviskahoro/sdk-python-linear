@@ -497,3 +497,73 @@ async def test_create_attachment_and_relation_propagate_api_errors(
         async with LinearClient(api_key="key") as client:
             with pytest.raises(LinearAPIError, match="not authorized"):
                 await getattr(LinearMutations(client), method)(input_)
+
+
+async def test_find_or_create_issue_label_returns_existing_without_creating() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "issueLabels": {
+                            "nodes": [{"id": "l-1", "name": "Bug"}],
+                            "pageInfo": {
+                                "endCursor": None,
+                                "hasNextPage": False,
+                                "hasPreviousPage": False,
+                                "startCursor": None,
+                            },
+                        },
+                    },
+                },
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            label = await LinearMutations(client).find_or_create_issue_label(
+                "t-1",
+                "bug",
+            )
+
+    assert label.id == "l-1"
+    assert route.call_count == 1
+    body = json.loads(route.calls.last.request.read())
+    assert body["variables"]["filter"]["and"][0] == {"name": {"eqIgnoreCase": "bug"}}
+
+
+async def test_find_or_create_issue_label_creates_when_missing() -> None:
+    empty = {
+        "data": {
+            "issueLabels": {
+                "nodes": [],
+                "pageInfo": {
+                    "endCursor": None,
+                    "hasNextPage": False,
+                    "hasPreviousPage": False,
+                    "startCursor": None,
+                },
+            },
+        },
+    }
+    created = {
+        "data": {
+            "issueLabelCreate": {
+                "success": True,
+                "issueLabel": {"id": "l-2", "name": "New"},
+            },
+        },
+    }
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            side_effect=[httpx.Response(200, json=empty), httpx.Response(200, json=created)],
+        )
+        async with LinearClient(api_key="key") as client:
+            label = await LinearMutations(client).find_or_create_issue_label(
+                "t-1",
+                "New",
+            )
+
+    assert (label.id, label.name) == ("l-2", "New")
+    assert route.call_count == 2
+    body = json.loads(route.calls.last.request.read())
+    assert body["variables"]["input"] == {"teamId": "t-1", "name": "New"}
