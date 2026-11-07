@@ -67,5 +67,7 @@ tasks:
         # shellcheck disable=SC2086
         pyrefly check ${CHECK_PATHS}
       else
-        pyrefly check
+        # Mirror Trunk's scope: it ignores tests/** for pyrefly, and
+        # pyrefly.toml already excludes gtm_linear/_generated.
+        pyrefly check gtm_linear scripts
       fi

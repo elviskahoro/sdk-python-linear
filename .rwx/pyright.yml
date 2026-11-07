@@ -63,5 +63,11 @@ tasks:
       CHECK_PATHS: ${{ init.paths }}
     run: |
       set -euo pipefail
+      # Mirror Trunk's scope (.trunk/trunk.yaml): it lint-ignores generated
+      # code and tests/** for pyright. Layer the exclusions over the repo
+      # config; explicit paths still check exactly what was asked for.
+      cat > pyrightconfig.rwx.json <<'JSON'
+      {"extends": "./pyrightconfig.json", "exclude": ["gtm_linear/_generated", "tests", ".venv"]}
+      JSON
       # shellcheck disable=SC2086
-      pyright --pythonpath .venv/bin/python --project pyrightconfig.json ${CHECK_PATHS}
+      pyright --pythonpath .venv/bin/python --project pyrightconfig.rwx.json ${CHECK_PATHS}
