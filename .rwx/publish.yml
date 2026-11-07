@@ -67,6 +67,8 @@ tasks:
 
   - key: build
     use: [verify-pin]
+    # Dagger needs a container engine; rwx/base does not start one.
+    docker: true
     run: |
       # Required format: publisher-module-sha: <tag> <40-character lowercase SHA>.
       # Keep this record within 8 lines of the dagger -m command for Renovate.
