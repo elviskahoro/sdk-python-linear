@@ -184,14 +184,6 @@ class PydanticPlugin(PythonPlugin):
                 self.imports[module].add(name)
             return mapped.type
 
-        # `strawberry.Maybe[str | None]` round-trips into a doubly-wrapped optional.
-        # U5 (strawberry#4737). Collapse it: Optional[Optional[X]] and Optional[X] mean the same thing here.
-        if isinstance(type_, GraphQLOptional) and isinstance(
-            type_.of_type,
-            GraphQLOptional,
-        ):
-            return self._get_type_name(type_.of_type)
-
         return super()._get_type_name(type_)
 
     def generate_code(

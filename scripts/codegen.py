@@ -40,7 +40,8 @@ which workarounds are removable. Catalogue and repros: elviskahoro/sdk-python-li
   BUG-1 #4090, #4093 (PRs)   BUG-2 #4725 (fixed in 0.336)   BUG-3 #4543 (PR)
   BUG-4 #4378, #4380           BUG-5 #4734                    BUG-6 #4735
   BUG-8 #4378, #4380         U1 #4744 (fixed in 0.337.2)
-  U2 #4742 (_hoist_fragments)   U3 #4741 and U4 #4738 (fixed in 0.337.1) and U5 #4737 (pydantic_plugin.py)
+  U2 #4742 (_hoist_fragments)   U3 #4741 and U4 #4738 (fixed in 0.337.1)
+  U5 #4737 (fixed in 0.340.1)
   U6 #4740 (_collect)        U7 not filed (_run, single --app-dir)
   U8 #4736 (OPAQUE_INPUTS)   U9 #4739 (_canonicalize_enum_placement)
   Operation-model docstrings come from pydantic_plugin.py, not codegen: #4743.
