@@ -1,0 +1,8 @@
+mutation CreateIssueLabel($input: IssueLabelCreateInput!) {
+  issueLabelCreate(input: $input) {
+    success
+    issueLabel {
+      ...IssueLabelRefFields
+    }
+  }
+}

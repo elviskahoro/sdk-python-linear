@@ -2,7 +2,7 @@
 
 Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, typed wrapper around `httpx2` (Pydantic-maintained fork) with optional sync support, generated Pydantic models, explicit error semantics, and a bundled CLI.
 
-> **Status:** Alpha (`0.7.0`, see `pyproject.toml` and `CHANGELOG.md`). API surface is small but incomplete — fall back to raw `LinearClient.execute_async` for anything not yet wrapped.
+> **Status:** Alpha (`0.8.0`, see `pyproject.toml` and `CHANGELOG.md`). API surface is small but incomplete — fall back to raw `LinearClient.execute_async` for anything not yet wrapped.
 
 ---
 
@@ -184,6 +184,7 @@ Importable from `gtm_linear`:
 | `Issue` | model | Linear issue |
 | `Attachment` | model | Issue attachment linking an external URL |
 | `Comment` | model | Linear issue comment |
+| `IssueLabel` | model | Team or workspace label (`id`, `name`) |
 | `IssueRelation` | model | Relationship between two issues |
 | `IssueContextComment` | model | Comment body, author(s), URL, and creation time |
 | `IssueContextAttachment` | model | Attachment title, URL, source, and metadata |
@@ -193,6 +194,7 @@ Importable from `gtm_linear`:
 | `IssueRelationConnection`, `IssueInverseRelationConnection` | model | Paginated outgoing and incoming issue relations |
 | `IssueCreateInput` | input | `title`, `teamId`, optional `description`, `labelIds`, `priority`, `assigneeId`, `projectId`, `stateId` |
 | `IssueUpdateInput` | input | Optional `title`, `description`, `labelIds`, `priority`, `assigneeId`, `projectId`, `stateId` |
+| `IssueLabelCreateInput` | input | Required `name`; optional `teamId` (omit for a workspace-level label), `color`, `description` |
 | `AttachmentCreateInput` | input | Required `issueId`, `url`, `title`; optional `subtitle` and schema-supported metadata |
 | `IssueRelationCreateInput` | input | Required `issueId`, `relatedIssueId`, `type` (`IssueRelationType`) |
 | `IssueRelationType` | enum | Supported relation values: `blocks`, `duplicate`, `related`, `similar` |
@@ -441,6 +443,7 @@ Pydantic validation errors.
 | `update_issue(issue_id, update)` | `str`, `IssueUpdateInput` | `Issue` (full) | `ValueError` if API returns no issue; `LinearAPIError` on transport failure |
 | `delete_issue(issue_id)` | `str` | `bool` (success flag) | `LinearAPIError` on transport failure |
 | `create_comment(issue_id, body)` | `str`, `str` | `Comment` (full) | `ValueError` if API returns no comment; `LinearAPIError` on transport failure |
+| `find_or_create_issue_label(team_id, name)` | `str`, `str` | `IssueLabel` (`id` and `name`) | Pydantic validation error for malformed response; `LinearAPIError` on API failure |
 | `create_attachment(input_)` | `AttachmentCreateInput` | `Attachment` (typed projection) | Pydantic validation error for malformed response; `LinearAPIError` on API failure |
 | `create_issue_relation(input_)` | `IssueRelationCreateInput` | `IssueRelation` (both issue identifiers included) | Pydantic validation error for malformed response; `LinearAPIError` on API failure |
 
@@ -450,6 +453,7 @@ Pydantic validation errors.
 - `delete_issue` returns Linear's `success` bool. A `False` return is *not* an exception — check it explicitly if you care.
 - `create_issue` and `update_issue` raise `ValueError`, not `LinearAPIError`, when the API responds 200 but with an empty `issue`. Catch both if you're wrapping.
 - `create_comment` returns a typed `Comment` with `createdAt` parsed as a timezone-aware `datetime` when Linear returns an ISO-8601 timestamp.
+- `find_or_create_issue_label(team_id, name)` matches case-insensitively across the team's labels and workspace-level labels and creates the label on the team when nothing matches; when a team label and a workspace label share the name, it returns whichever Linear lists first (the returned `id` and `name` cannot tell them apart).
 - `create_attachment` returns Linear's existing attachment when the same URL is already linked to that issue; Linear updates that attachment rather than creating a duplicate.
 - Generated attachment and relation inputs validate required IDs, URLs, and relation types before sending the request.
 

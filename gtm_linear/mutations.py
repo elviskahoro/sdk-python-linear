@@ -16,6 +16,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ._generated.CliResolveLabel import (
+    DOCUMENT as RESOLVE_LABEL,
+    CliResolveLabelResult,
+    CliResolveLabelVariables,
+)
 from ._generated.CreateAttachment import (
     DOCUMENT as CREATE_ATTACHMENT,
     AttachmentCreateInput,
@@ -33,6 +38,12 @@ from ._generated.CreateIssue import (
     CreateIssueResult,
     CreateIssueVariables,
     IssueCreateInput,
+)
+from ._generated.CreateIssueLabel import (
+    DOCUMENT as CREATE_ISSUE_LABEL,
+    CreateIssueLabelResult,
+    CreateIssueLabelVariables,
+    IssueLabelCreateInput,
 )
 from ._generated.CreateIssueRelation import (
     DOCUMENT as CREATE_ISSUE_RELATION,
@@ -59,6 +70,7 @@ if TYPE_CHECKING:
         AttachmentFields,
         CommentFields,
         IssueFields,
+        IssueLabelRefFields,
         IssueRelationFields,
     )
     from .client import LinearClient
@@ -168,6 +180,55 @@ class LinearMutations:
         )
         return CreateCommentResult.model_validate(data).comment_create.comment
 
+    async def find_or_create_issue_label(
+        self,
+        team_id: str,
+        name: str,
+    ) -> IssueLabelRefFields:
+        """Return the team's (or workspace's) label called ``name``, creating it if absent.
+
+        Matching is case-insensitive, like the CLI's label resolution, and
+        considers both labels scoped to ``team_id`` and workspace-level labels.
+        If nothing matches, a new label is created on the team.
+
+        Args:
+            team_id: The ID of the team the label belongs to.
+            name: The label name.
+
+        Returns:
+            The existing or newly created label (``id`` and ``name``).
+        """
+        data = await self._client.execute_async(
+            RESOLVE_LABEL,
+            dump_variables(
+                CliResolveLabelVariables(
+                    filter={
+                        "and": [
+                            {"name": {"eqIgnoreCase": name}},
+                            {
+                                "or": [
+                                    {"team": {"id": {"eq": team_id}}},
+                                    {"team": {"null": True}},
+                                ],
+                            },
+                        ],
+                    },
+                    first=50,
+                ),
+            ),
+        )
+        nodes = CliResolveLabelResult.model_validate(data).issue_labels.nodes
+        if nodes:
+            return nodes[0]
+        label_input = IssueLabelCreateInput(team_id=team_id, name=name)
+        created = await self._client.execute_async(
+            CREATE_ISSUE_LABEL,
+            dump_variables(CreateIssueLabelVariables(input=label_input)),
+        )
+        return CreateIssueLabelResult.model_validate(
+            created,
+        ).issue_label_create.issue_label
+
     async def create_attachment(
         self,
         input_: AttachmentCreateInput,
@@ -216,6 +277,7 @@ __all__ = [
     "AttachmentCreateInput",
     "CommentCreateInput",
     "IssueCreateInput",
+    "IssueLabelCreateInput",
     "IssueRelationCreateInput",
     "IssueRelationType",
     "IssueUpdateInput",
