@@ -8,6 +8,7 @@ on:
   cli:
     init:
       commit-sha: ${{ event.git.sha }}
+      repository: https://github.com/elviskahoro/sdk-python-linear.git
       paths: ""
 
 base:
@@ -18,7 +19,7 @@ tasks:
   - key: code
     call: git/clone 2.2.0
     with:
-      repository: https://github.com/elviskahoro/sdk-python-linear.git
+      repository: ${{ init.repository }}
       ref: ${{ init.commit-sha }}
 
   # Checksum-pinned uv installer: fails closed if the script at the versioned
@@ -34,8 +35,8 @@ tasks:
       echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
 
   # Filtered to the lockfile inputs so this stays cached across ordinary
-  # commits. --no-install-project: sources are outside the filter; `uv run`
-  # installs the project itself.
+  # commits. --no-install-project: sources are outside the filter, and the
+  # checker reads them from the workspace, so the project is never installed.
   - key: deps
     use: [uv-install, code]
     filter:
