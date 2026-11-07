@@ -104,3 +104,18 @@ Read .entire/agent-guide.md for this repository's workflow, source inspection, a
 Live-API tests (`-m network`) need the vault key: push the branch, then
 `rwx run .rwx/integration-tests.yml --wait` (see `.entire/agent-guide.md`,
 "RWX access").
+
+## Pullfrog (automated CI fixes)
+
+Pullfrog may push fix commits to PR branches. CI stays the independent gate
+(see elviskahoro/flox-conductor-sandbox#111):
+
+- Before pushing, run `uv run pytest -q`; do not push a fix you have not run.
+- Make at most 3 automatic fix attempts per PR, then stop and comment with
+  what failed. Do not retry the same fix in a loop.
+- Never weaken, skip, delete, or loosen tests/assertions to get a check green.
+  If a test looks flaky or wrong, say so in a comment and leave it to a human.
+- Do not edit `.rwx/`, `.github/`, vault or branch-protection configuration.
+- Do not add secrets or touch the `sdk-python-linear-it` vault. Integration
+  tests are gated to PRs authored by the repo owner and will not run on
+  Pullfrog-authored PRs.
