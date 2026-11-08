@@ -10,11 +10,11 @@ CI definitions live in `.rwx/`:
 
 | File | Trigger | Purpose |
 | --- | --- | --- |
-| `tests.yml` | github push | pytest through Captain, codegen checks |
-| `lint.yml` | github pull_request | Trunk lint |
-| `integration-tests.yml` | github push | live-API tests (`-m network`), needs vault key |
-| `publish.yml` | github push | release build |
-| `dagger-ref-drift.yml` | cron (weekly) | Dagger ref drift check |
+| `tests.yml` | github push (main), pull_request, weekly cron, cli | pytest through Captain, codegen checks |
+| `lint.yml` | github pull_request, push (main), cli | Trunk lint |
+| `integration-tests.yml` | github push (main), pull_request (owner-authored PRs), weekly cron, cli | live-API tests (`-m network`), needs vault key |
+| `publish.yml` | github push (tags `v*`), cli | release build |
+| `dagger-ref-drift.yml` | cron (weekly), cli, dispatch | Dagger ref drift check |
 | `pyright.yml`, `pyrefly.yml` | `cli` only | on-demand type checks, never run on PRs |
 
 ## Auth: one injected token per RWX organization
