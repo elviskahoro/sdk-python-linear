@@ -37,30 +37,24 @@ validates configs. Full guide: `.agents/skills/rwx/SKILL.md`.
 
 ## Landing PRs
 
-PRs land through the Trunk Merge Queue, not the GitHub Merge button.
+PRs land with a squash merge through the GitHub CLI.
 
-- Submit only when the user has approved landing — an explicit ask, or the
-  create_pr preview approval that says the PR will be queued. Queueing
-  auto-merges once CI passes, so submitting is merging; otherwise stop
-  after opening the PR. Submit with `trunk merge <pr-number>` (a number,
-  not a URL or branch name).
-- Check once: `trunk merge status <pr-number>`. States: Queued, Testing,
-  Tests Passed, Merged. Report the state and stop. Never poll in a loop.
-- Never use `gh pr merge` or the GitHub Merge button. They bypass the queue.
-- Never use `--force`, `pause` or `resume`.
-- Leave priority at the default (`medium`). `urgent` and `high` are for
-  incidents and need an explicit reason from the user.
-- Failed or PENDING_FAILURE: PENDING_FAILURE may be a flake, so re-run the
-  same `trunk merge <pr-number>` submit once. Failed means push a fix to
-  the PR branch and resubmit. Do not resubmit blindly in a loop; after one
-  retry, report the state and let the user decide.
-- Auth failure: run `trunk login` once and retry.
-- Queue not active (for example "Merge queue does not exist for your repo"):
-  stop and report that the PR is open but not queued. Never fall back to
-  `gh pr merge` or the GitHub Merge button.
-- Refuse to queue from main or a protected branch.
-- A `Closes #N` line in the PR body auto-closes the issue when the queue lands
-  the PR. Do not close the issue by hand beforehand.
+- Merge only when the user has approved landing — an explicit ask, or a
+  yes after CI is green. Merging is never automatic and is
+  irreversible, so otherwise stop after opening the PR.
+- Merge with `gh pr merge <pr-number> --squash` (a number, not a URL or
+  branch name). Always pass `--squash`; never `--merge` or `--rebase`.
+  Never pass `--auto` unless the user asks for it.
+- Check once: `gh pr view <pr-number> --json state,mergeStateStatus` (or
+  `gh pr checks <pr-number>`). Report the state and stop. Never poll in a
+  loop.
+- Never use `--admin` to bypass branch protection.
+- If the merge is blocked (failing checks, required review, conflicts),
+  report the blocker and let the user decide; push a fix to the PR branch
+  if asked.
+- Refuse to merge from main or a protected branch.
+- A `Closes #N` line in the PR body auto-closes the issue when the PR
+  merges. Do not close the issue by hand beforehand.
 
 ## Architecture Overview
 
