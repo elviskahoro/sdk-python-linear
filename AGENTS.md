@@ -26,6 +26,15 @@ trunk check --all                             # lint (run uv sync first: pyright
 CI runs pytest through Captain (`captain run <suite>`, suites in
 `.captain/config.yml`); locally keep using `uv run pytest -q`.
 
+## RWX CLI
+
+CI runs on RWX (`.rwx/`). Auth uses per-org tokens injected as
+`RWX_ACCESS_TOKEN_<ORG>`; this repo uses the `ELVISKAHORO` one, passed per
+command (`RWX_ACCESS_TOKEN="$RWX_ACCESS_TOKEN_ELVISKAHORO" rwx whoami`), never
+printed. `rwx run .rwx/<file>.yml --wait` runs a pipeline against the working
+tree without committing; `rwx results`/`rwx logs` read output; `rwx lint`
+validates configs. Full guide: `.agents/skills/rwx/SKILL.md`.
+
 ## Landing PRs
 
 PRs land through the Trunk Merge Queue, not the GitHub Merge button.
