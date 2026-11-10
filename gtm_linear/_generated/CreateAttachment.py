@@ -4,6 +4,20 @@ from gtm_linear.models import LinearModel
 from .fragments import AttachmentFields
 
 
+class CreateAttachmentResultAttachmentCreate(LinearModel):
+    """The result of an attachment mutation."""
+
+    success: bool
+    """Whether the operation was successful."""
+    attachment: AttachmentFields
+    """The issue attachment that was created."""
+
+
+class CreateAttachmentResult(LinearModel):
+    attachment_create: CreateAttachmentResultAttachmentCreate
+    """Creates a new attachment, or updates existing if the same `url` and `issueId` is used. To create an integration-aware attachment, use the integration-specific mutations such as `attachmentLinkZendesk`, `attachmentLinkSlack`, or `attachmentLinkURL` instead."""
+
+
 class AttachmentCreateInput(LinearModel):
     """Input for creating a new issue attachment."""
 
@@ -31,20 +45,6 @@ class AttachmentCreateInput(LinearModel):
     """The attachment title."""
     url: str
     """Attachment location which is also used as an unique identifier for the attachment. If another attachment is created with the same `url` value, existing record is updated instead."""
-
-
-class CreateAttachmentResultAttachmentCreate(LinearModel):
-    """The result of an attachment mutation."""
-
-    success: bool
-    """Whether the operation was successful."""
-    attachment: AttachmentFields
-    """The issue attachment that was created."""
-
-
-class CreateAttachmentResult(LinearModel):
-    attachment_create: CreateAttachmentResultAttachmentCreate
-    """Creates a new attachment, or updates existing if the same `url` and `issueId` is used. To create an integration-aware attachment, use the integration-specific mutations such as `attachmentLinkZendesk`, `attachmentLinkSlack`, or `attachmentLinkURL` instead."""
 
 
 class CreateAttachmentVariables(LinearModel):
