@@ -791,3 +791,156 @@ def test_variables_models_use_snake_case_and_omit_unset() -> None:
         "after": None,
         "includeArchived": False,
     }
+
+
+def _attachment_issue(url: str, *, other: bool = False) -> dict[str, object]:
+    attachments = [
+        {
+            "id": "a1",
+            "title": "t",
+            "url": url,
+            "source": None,
+            "sourceType": None,
+            "metadata": {"k": "v"},
+            "createdAt": "2026-01-01T00:00:00.000Z",
+        },
+    ]
+    if other:
+        attachments.append({**attachments[0], "id": "a2", "url": "https://other"})
+    return {
+        "id": "i1",
+        "identifier": "ENG-1",
+        "title": "T",
+        "url": "https://linear.app/i1",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "state": {"id": "s1", "name": "Done", "type": "completed"},
+        "attachments": {"nodes": attachments},
+    }
+
+
+async def test_find_issues_by_attachment_url_sends_filter_and_narrows() -> None:
+    url = "https://x.test/a"
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "issues": {
+                            "nodes": [_attachment_issue(url, other=True)],
+                            "pageInfo": page_info_payload(has_next=False, end=None),
+                        },
+                    },
+                },
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            issues = await LinearQueries(client).find_issues_by_attachment_url(url)
+
+    variables = json.loads(route.calls.last.request.content)["variables"]
+    assert variables["filter"] == {"attachments": {"some": {"url": {"eq": url}}}}
+    assert variables["includeArchived"] is True
+    assert issues[0].state.type == "completed"
+    assert [a.id for a in issues[0].attachments.nodes] == ["a1"]
+    assert issues[0].attachments.nodes[0].metadata == {"k": "v"}
+
+
+async def test_get_project_by_name() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {"projects": {"nodes": [{"id": "p1", "name": "Roadmap"}]}},
+                },
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            project = await LinearQueries(client).get_project_by_name("roadmap")
+
+    assert project is not None
+    assert project.id == "p1"
+    body = json.loads(route.calls.last.request.content)
+    assert body["variables"]["filter"] == {"name": {"eqIgnoreCase": "roadmap"}}
+
+
+async def test_find_user_ors_name_display_name_and_email() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "users": {
+                            "nodes": [
+                                {
+                                    "id": "u1",
+                                    "name": "Ann",
+                                    "displayName": "ann",
+                                    "email": "a@x.test",
+                                },
+                            ],
+                        },
+                    },
+                },
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            users = await LinearQueries(client).find_user("Ann")
+
+    assert [u.id for u in users] == ["u1"]
+    body = json.loads(route.calls.last.request.content)
+    assert body["variables"]["filter"] == {
+        "or": [
+            {"name": {"eqIgnoreCase": "Ann"}},
+            {"displayName": {"eqIgnoreCase": "Ann"}},
+            {"email": {"eqIgnoreCase": "Ann"}},
+        ],
+    }
+
+
+async def test_find_issue_labels_maps_names_and_reports_unmatched() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "issueLabels": {
+                            "nodes": [{"id": "l1", "name": "Bug"}],
+                            "pageInfo": page_info_payload(has_next=False, end=None),
+                        },
+                    },
+                },
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            found = await LinearQueries(client).find_issue_labels(
+                "t1",
+                ["bug", "nope"],
+            )
+
+    assert [lbl.id for lbl in found["bug"]] == ["l1"]
+    assert found["nope"] == []
+    body = json.loads(route.calls.last.request.content)
+    assert body["query"].lstrip().startswith("query CliResolveLabel")
+    assert len(route.calls) == 1
+
+
+async def test_get_workflow_state_by_name_is_case_insensitive() -> None:
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json=_workflow_state_page(
+                    [("done", "completed"), ("todo", "unstarted")],
+                    has_next=False,
+                    end=None,
+                ),
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            queries = LinearQueries(client)
+            assert (await queries.get_workflow_state_by_name("t1", "DONE")).id == "done"
+            with pytest.raises(LinearWorkflowStateLookupError):
+                await queries.get_workflow_state_by_name("t1", "missing")

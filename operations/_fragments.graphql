@@ -85,6 +85,21 @@ fragment AttachmentFields on Attachment {
   subtitle
   title
   url
+  metadata
+}
+
+fragment AttachmentLookupIssueFields on Issue {
+  id
+  identifier
+  title
+  url
+  createdAt
+  state {
+    id
+    name
+    type
+  }
+  attachments { nodes { ...IssueContextAttachmentFields } }
 }
 
 fragment IssueRelationFields on IssueRelation {

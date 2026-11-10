@@ -11,6 +11,28 @@ from __future__ import annotations
 from contextlib import aclosing
 from typing import TYPE_CHECKING, Any
 
+from ._generated.CliResolveLabel import (
+    DOCUMENT as RESOLVE_LABEL,
+    CliResolveLabelResult,
+    CliResolveLabelResultIssueLabels,
+    CliResolveLabelVariables,
+)
+from ._generated.CliResolveProject import (
+    DOCUMENT as RESOLVE_PROJECT,
+    CliResolveProjectResult,
+    CliResolveProjectVariables,
+)
+from ._generated.CliResolveUser import (
+    DOCUMENT as RESOLVE_USER,
+    CliResolveUserResult,
+    CliResolveUserVariables,
+)
+from ._generated.FindIssuesByAttachmentUrl import (
+    DOCUMENT as FIND_ISSUES_BY_ATTACHMENT_URL,
+    FindIssuesByAttachmentUrlResult,
+    FindIssuesByAttachmentUrlResultIssues,
+    FindIssuesByAttachmentUrlVariables,
+)
 from ._generated.GetIssue import (
     DOCUMENT as GET_ISSUE,
     GetIssueResult,
@@ -80,6 +102,7 @@ from ._generated.SearchIssues import (
     SearchIssuesVariables,
 )
 from ._generated.fragments import (
+    AttachmentLookupIssueFields,
     IssueContextAttachmentFields,
     IssueContextCommentFields,
     IssueContextRelationFields,
@@ -113,8 +136,11 @@ if TYPE_CHECKING:
 
     from ._generated.fragments import (
         IssueFields,
+        IssueLabelRefFields,
+        ProjectRefFields,
         TeamFields,
         UserFields,
+        UserLookupFields,
     )
     from .client import LinearClient
 
@@ -614,6 +640,212 @@ class LinearQueries:
                 multiple=False,
             )
         return matches[0]
+
+    async def get_workflow_state_by_name(
+        self,
+        team_id: str,
+        name: str,
+        *,
+        include_archived: bool = False,
+    ) -> WorkflowStateFields:
+        """Return the unique state of a team whose name matches ``name``.
+
+        Matching is case-insensitive (``str.casefold``). All pages are searched.
+
+        Raises:
+            LinearWorkflowStateLookupError: No state or multiple states match.
+            LinearAPIError: Linear rejects the query or the request fails.
+            LinearPaginationError: The workflow-state connection stalls.
+        """
+        wanted = name.casefold()
+        matches: list[WorkflowStateFields] = []
+        states = self.iter_workflow_states(
+            team_id,
+            include_archived=include_archived,
+        )
+        async with aclosing(states):
+            async for state in states:
+                if state.name.casefold() == wanted:
+                    matches.append(state)
+                    if len(matches) > 1:
+                        raise LinearWorkflowStateLookupError.for_result(
+                            team_id,
+                            name,
+                            multiple=True,
+                            by="name",
+                        )
+        if not matches:
+            raise LinearWorkflowStateLookupError.for_result(
+                team_id,
+                name,
+                multiple=False,
+                by="name",
+            )
+        return matches[0]
+
+    async def find_issues_by_attachment_url_page(
+        self,
+        url: str,
+        first: int = 50,
+        after: str | None = None,
+        *,
+        include_archived: bool = True,
+    ) -> FindIssuesByAttachmentUrlResultIssues:
+        """Fetch one page of issues that have an attachment with exactly ``url``.
+
+        Each issue's ``attachments.nodes`` is narrowed to the attachments whose
+        ``url`` equals ``url``, so ``metadata`` is the matching attachment's.
+        """
+        data = await self._client.execute_async(
+            FIND_ISSUES_BY_ATTACHMENT_URL,
+            dump_variables(
+                FindIssuesByAttachmentUrlVariables(
+                    filter={"attachments": {"some": {"url": {"eq": url}}}},
+                    first=first,
+                    after=after,
+                    include_archived=include_archived,
+                ),
+            ),
+        )
+        page = FindIssuesByAttachmentUrlResult.model_validate(data).issues
+        for issue in page.nodes:
+            issue.attachments.nodes = [
+                a for a in issue.attachments.nodes if a.url == url
+            ]
+        return page
+
+    def iter_issues_by_attachment_url(
+        self,
+        url: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        include_archived: bool = True,
+    ) -> AsyncGenerator[AttachmentLookupIssueFields, None]:
+        """Iterate every issue with an attachment whose URL equals ``url``."""
+        validate_pagination_options(page_size, limit)
+
+        async def fetch(cursor: str | None) -> FindIssuesByAttachmentUrlResultIssues:
+            return await self.find_issues_by_attachment_url_page(
+                url,
+                first=page_size,
+                after=cursor,
+                include_archived=include_archived,
+            )
+
+        return paginate(fetch, limit=limit)
+
+    async def find_issues_by_attachment_url(
+        self,
+        url: str,
+        *,
+        include_archived: bool = True,
+    ) -> list[AttachmentLookupIssueFields]:
+        """Return every issue that has an attachment with exactly ``url``.
+
+        Archived issues are included by default because this is typically an
+        idempotency check. Each result carries ``created_at``, ``state.type``,
+        and the matching attachment's ``metadata``.
+        """
+        issues = self.iter_issues_by_attachment_url(
+            url,
+            include_archived=include_archived,
+        )
+        async with aclosing(issues):
+            return [issue async for issue in issues]
+
+    async def get_project_by_name(self, name: str) -> ProjectRefFields | None:
+        """Fetch a project by name (case-insensitive).
+
+        Returns:
+            The project, or None if none matches. Project names are not unique;
+            when several match, Linear's first result is returned.
+        """
+        data = await self._client.execute_async(
+            RESOLVE_PROJECT,
+            dump_variables(
+                CliResolveProjectVariables(
+                    filter={"name": {"eqIgnoreCase": name}},
+                ),
+            ),
+        )
+        nodes = CliResolveProjectResult.model_validate(data).projects.nodes
+        return nodes[0] if nodes else None
+
+    async def find_user(self, query: str) -> list[UserLookupFields]:
+        """Find users whose name, display name, or email equals ``query``.
+
+        Matching is case-insensitive and ORs the three fields. Names are not
+        unique, so a list (at most 10) is returned for the caller to
+        disambiguate.
+        """
+        data = await self._client.execute_async(
+            RESOLVE_USER,
+            dump_variables(
+                CliResolveUserVariables(
+                    filter={
+                        "or": [
+                            {"name": {"eqIgnoreCase": query}},
+                            {"displayName": {"eqIgnoreCase": query}},
+                            {"email": {"eqIgnoreCase": query}},
+                        ],
+                    },
+                ),
+            ),
+        )
+        return CliResolveUserResult.model_validate(data).users.nodes
+
+    async def find_issue_labels(
+        self,
+        team_id: str,
+        names: list[str],
+    ) -> dict[str, list[IssueLabelRefFields]]:
+        """Resolve label names for a team without creating anything.
+
+        Considers labels scoped to ``team_id`` and workspace-level labels,
+        matching case-insensitively.
+
+        Returns:
+            A mapping from each requested name to its matching labels. A name
+            with no match maps to an empty list; more than one entry means the
+            name is ambiguous.
+        """
+        result: dict[str, list[IssueLabelRefFields]] = {n: [] for n in names}
+        if not names:
+            return result
+        folded: dict[str, list[str]] = {}
+        for n in names:
+            folded.setdefault(n.casefold(), []).append(n)
+
+        async def fetch(cursor: str | None) -> CliResolveLabelResultIssueLabels:
+            data = await self._client.execute_async(
+                RESOLVE_LABEL,
+                dump_variables(
+                    CliResolveLabelVariables(
+                        filter={
+                            "and": [
+                                {"or": [{"name": {"eqIgnoreCase": n}} for n in names]},
+                                {
+                                    "or": [
+                                        {"team": {"id": {"eq": team_id}}},
+                                        {"team": {"null": True}},
+                                    ],
+                                },
+                            ],
+                        },
+                        after=cursor,
+                        first=50,
+                    ),
+                ),
+            )
+            return CliResolveLabelResult.model_validate(data).issue_labels
+
+        labels = paginate(fetch)
+        async with aclosing(labels):
+            async for label in labels:
+                for requested in folded.get(label.name.casefold(), []):
+                    result[requested].append(label)
+        return result
 
     async def get_team(self, team_id: str) -> TeamFields | None:
         """Fetch a single team by ID.
