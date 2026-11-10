@@ -177,17 +177,18 @@ class LinearWorkflowStateLookupError(LinearError):
         state_type: str,
         *,
         multiple: bool,
+        by: str = "type",
     ) -> LinearWorkflowStateLookupError:
         """Build a lookup error while retaining the query that produced it."""
         if multiple:
             message = (
                 f"Expected one workflow state for team {team_id!r}; found multiple "
-                f"states of type {state_type!r}."
+                f"states with {by} {state_type!r}."
             )
         else:
             message = (
                 f"Expected one workflow state for team {team_id!r}; found no state "
-                f"of type {state_type!r}."
+                f"with {by} {state_type!r}."
             )
         return cls(
             message,

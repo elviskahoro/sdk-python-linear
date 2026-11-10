@@ -294,6 +294,7 @@ async def test_create_attachment_sends_input_and_returns_typed_attachment() -> N
                             "success": True,
                             "attachment": {
                                 "id": "a-1",
+                                "metadata": {"pr": 456},
                                 "createdAt": "2026-01-01T00:00:00Z",
                                 "updatedAt": "2026-01-01T00:00:00Z",
                                 "subtitle": "Pull request #456",
@@ -323,6 +324,7 @@ async def test_create_attachment_sends_input_and_returns_typed_attachment() -> N
         "subtitle": "Pull request #456",
     }
     assert attachment.id == "a-1"
+    assert attachment.metadata == {"pr": 456}
     assert attachment.created_at.year == 2026
 
 
@@ -555,7 +557,10 @@ async def test_find_or_create_issue_label_creates_when_missing() -> None:
     }
     with respx.mock:
         route = respx.post(API_URL).mock(
-            side_effect=[httpx.Response(200, json=empty), httpx.Response(200, json=created)],
+            side_effect=[
+                httpx.Response(200, json=empty),
+                httpx.Response(200, json=created),
+            ],
         )
         async with LinearClient(api_key="key") as client:
             label = await LinearMutations(client).find_or_create_issue_label(

@@ -24,13 +24,16 @@ if TYPE_CHECKING:
     from ._generated.UpdateIssue import IssueUpdateInput
     from ._generated.fragments import (
         AttachmentFields,
+        AttachmentLookupIssueFields,
         CommentFields,
         IssueFields,
         IssueLabelRefFields,
         IssueRelationFields,
         IssueSearchResultFields,
+        ProjectRefFields,
         TeamFields,
         UserFields,
+        UserLookupFields,
         WorkflowStateFields,
     )
 
@@ -247,6 +250,121 @@ class LinearWorkflow:
                 include_archived=include_archived,
             ),
         )
+
+    async def get_workflow_state_by_name_async(
+        self,
+        team_id: str,
+        name: str,
+        *,
+        include_archived: bool = False,
+    ) -> WorkflowStateFields:
+        return await self._queries.get_workflow_state_by_name(
+            team_id,
+            name,
+            include_archived=include_archived,
+        )
+
+    @_sync_doc(LinearQueries.get_workflow_state_by_name)
+    def get_workflow_state_by_name(
+        self,
+        team_id: str,
+        name: str,
+        *,
+        include_archived: bool = False,
+    ) -> WorkflowStateFields:
+        return self._run(
+            self.get_workflow_state_by_name_async(
+                team_id,
+                name,
+                include_archived=include_archived,
+            ),
+        )
+
+    async def find_issues_by_attachment_url_async(
+        self,
+        url: str,
+        *,
+        include_archived: bool = True,
+    ) -> list[AttachmentLookupIssueFields]:
+        return await self._queries.find_issues_by_attachment_url(
+            url,
+            include_archived=include_archived,
+        )
+
+    @_sync_doc(LinearQueries.find_issues_by_attachment_url)
+    def find_issues_by_attachment_url(
+        self,
+        url: str,
+        *,
+        include_archived: bool = True,
+    ) -> list[AttachmentLookupIssueFields]:
+        return self._run(
+            self.find_issues_by_attachment_url_async(
+                url,
+                include_archived=include_archived,
+            ),
+        )
+
+    def iter_issues_by_attachment_url_async(
+        self,
+        url: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        include_archived: bool = True,
+    ) -> AsyncIterator[AttachmentLookupIssueFields]:
+        return self._queries.iter_issues_by_attachment_url(
+            url,
+            page_size=page_size,
+            limit=limit,
+            include_archived=include_archived,
+        )
+
+    def iter_issues_by_attachment_url(
+        self,
+        url: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        include_archived: bool = True,
+    ) -> Iterator[AttachmentLookupIssueFields]:
+        """Sync wrapper that materializes every page before yielding."""
+        async_iterator = self.iter_issues_by_attachment_url_async(
+            url,
+            page_size=page_size,
+            limit=limit,
+            include_archived=include_archived,
+        )
+        return iter(self._run(self._collect(async_iterator)))
+
+    async def get_project_by_name_async(self, name: str) -> ProjectRefFields | None:
+        return await self._queries.get_project_by_name(name)
+
+    @_sync_doc(LinearQueries.get_project_by_name)
+    def get_project_by_name(self, name: str) -> ProjectRefFields | None:
+        return self._run(self.get_project_by_name_async(name))
+
+    async def find_user_async(self, query: str) -> list[UserLookupFields]:
+        return await self._queries.find_user(query)
+
+    @_sync_doc(LinearQueries.find_user)
+    def find_user(self, query: str) -> list[UserLookupFields]:
+        return self._run(self.find_user_async(query))
+
+    async def find_issue_labels_async(
+        self,
+        team_id: str,
+        names: list[str],
+    ) -> dict[str, list[IssueLabelRefFields]]:
+        return await self._queries.find_issue_labels(team_id, names)
+
+    @_sync_doc(LinearQueries.find_issue_labels)
+    def find_issue_labels(
+        self,
+        team_id: str,
+        names: list[str],
+    ) -> dict[str, list[IssueLabelRefFields]]:
+        return self._run(self.find_issue_labels_async(team_id, names))
 
     async def list_issues_page_async(
         self,

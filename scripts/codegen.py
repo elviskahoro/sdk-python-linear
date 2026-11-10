@@ -834,6 +834,59 @@ def _canonicalize_enum_placement(source: str) -> str:
     return result
 
 
+def _canonicalize_result_placement(source: str, stem: str) -> str:
+    """Place an operation's ``<Op>Result*`` classes before its other models.
+
+    Strawberry's emission order for result models versus input models varies
+    with the Python version (3.11 and 3.13 disagree for ``CreateAttachment``),
+    so pin it: result classes keep their relative order and move ahead of the
+    first non-result, non-enum class. Result classes only reference imported
+    fragment classes and each other, so the move never breaks a forward ref.
+    """
+    tree = ast.parse(source)
+    classes = [n for n in tree.body if isinstance(n, ast.ClassDef)]
+
+    def is_result(node: ast.ClassDef) -> bool:
+        return node.name.startswith(f"{stem}Result")
+
+    def is_enum(node: ast.ClassDef) -> bool:
+        return any(
+            (isinstance(b, ast.Name) and b.id == "Enum")
+            or (isinstance(b, ast.Attribute) and b.attr == "Enum")
+            for b in node.bases
+        )
+
+    anchor = next((n for n in classes if not is_result(n) and not is_enum(n)), None)
+    if anchor is None:
+        return source
+    late = [n for n in classes if is_result(n) and n.lineno > anchor.lineno]
+    if not late:
+        return source
+
+    lines = source.splitlines(keepends=True)
+
+    def span(node: ast.ClassDef) -> tuple[int, int]:
+        start = node.lineno - 1
+        if node.decorator_list:
+            start = min(d.lineno for d in node.decorator_list) - 1
+        if node.end_lineno is None:
+            msg = f"class {node.name} has no end_lineno; refusing to reorder"
+            raise SystemExit(msg)
+        return start, node.end_lineno
+
+    moved = [span(n) for n in late]
+    moved_text = "\n\n".join("".join(lines[a:b]).strip() for a, b in moved)
+    drop = {i for a, b in moved for i in range(a, b)}
+    insert_at = span(anchor)[0]
+    kept = [line for i, line in enumerate(lines) if i not in drop]
+    insert_at -= sum(1 for i in drop if i < span(anchor)[0])
+    result = (
+        "".join(kept[:insert_at]) + moved_text + "\n\n\n" + "".join(kept[insert_at:])
+    )
+    ast.parse(result)
+    return result
+
+
 def _run(cmd: list[str], extra_path: Path | None = None) -> None:
     env = os.environ.copy()
     if extra_path is not None:
@@ -990,7 +1043,10 @@ def generate(generated_out: Path) -> None:
         print(f"  hoisted {len(hoisted)} shared fragment type(s) into fragments.py")
 
     for path in generated_out.glob("*.py"):
-        path.write_text(_canonicalize_enum_placement(path.read_text()))
+        text = _canonicalize_enum_placement(path.read_text())
+        if path.stem not in {"__init__", "fragments"}:
+            text = _canonicalize_result_placement(text, path.stem)
+        path.write_text(text)
 
     init = generated_out / "__init__.py"
     modules = _embed_documents(generated_out, composed)

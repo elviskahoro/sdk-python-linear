@@ -286,6 +286,11 @@ methods also accept human-readable issue identifiers.
 | `list_workflow_states_page(team_id, first=50, after=None, include_archived=False, order_by=None)` | `str`, `int`, `str \| None`, `bool`, `PaginationOrderBy \| None` | `WorkflowStateConnection` | Team-scoped workflow-state connection with cursor pagination |
 | `iter_workflow_states(team_id, page_size=50, limit=None, include_archived=False, order_by=None)` | `str`, `int`, `int \| None`, `bool`, `PaginationOrderBy \| None` | `AsyncIterator[WorkflowState]` | Follows all pages automatically |
 | `get_workflow_state_by_type(team_id, state_type, include_archived=False)` | `str`, `str`, `bool` | `WorkflowState` | Returns the unique state of that type; raises `LinearWorkflowStateLookupError` for zero or multiple matches |
+| `get_workflow_state_by_name(team_id, name, include_archived=False)` | `str`, `str`, `bool` | `WorkflowState` | Case-insensitive name match; raises `LinearWorkflowStateLookupError` for zero or multiple matches |
+| `find_issues_by_attachment_url(url, include_archived=True)` | `str`, `bool` | `list[AttachmentLookupIssue]` | Issues with an attachment whose URL equals `url`; each carries `created_at`, `state.type`, and the matching attachment (with `metadata`) in `attachments.nodes`. `iter_issues_by_attachment_url(url, page_size=50, limit=None, include_archived=True)` is the iterator variant (async on `LinearQueries`; `LinearWorkflow` has `iter_issues_by_attachment_url_async` and a sync twin that materializes every page). Only the first 50 attachments of each issue are inspected, so an issue with more can match yet return no attachment |
+| `get_project_by_name(name)` | `str` | `ProjectRef \| None` | Case-insensitive; project names are not unique, so Linear's first match wins |
+| `find_user(query)` | `str` | `list[UserLookup]` | Case-insensitive match on `name`, `displayName`, or `email` (OR); returns up to 10 so callers can handle ambiguity |
+| `find_issue_labels(team_id, names)` | `str`, `list[str]` | `dict[str, list[IssueLabel]]` | Read-only, case-insensitive resolve across team and workspace labels; unmatched names map to `[]`, ambiguous ones to several labels |
 
 ### Team workflow states
 
@@ -627,6 +632,27 @@ Deselecting `network_writes` does not make the run read-only — the team fixtur
 - No retries, no connection pooling tuning, no logging. Add at the call site.
 
 ---
+
+## Batching several lookups in one request
+
+`client.execute_async(document, variables)` accepts any GraphQL document, so
+resolving a team, project, assignee, state, and labels can share one round trip
+with a hand-written multi-root query:
+
+```python
+data = await client.execute_async(
+    """
+    query Resolve($team: String!, $project: String!, $user: String!) {
+      teams(filter: {key: {eq: $team}}, first: 1) { nodes { id } }
+      projects(filter: {name: {eqIgnoreCase: $project}}, first: 1) { nodes { id } }
+      users(filter: {email: {eqIgnoreCase: $user}}, first: 1) { nodes { id } }
+    }
+    """,
+    {"team": "ENG", "project": "Roadmap", "user": "a@example.com"},
+)
+```
+
+The result is the raw `data` mapping; validate it yourself.
 
 ## Known gaps (read before extending)
 

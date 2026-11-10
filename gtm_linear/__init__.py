@@ -43,6 +43,7 @@ from ._generated.SearchIssues import (
 from ._generated.UpdateIssue import IssueUpdateInput
 from ._generated.fragments import (
     AttachmentFields as Attachment,
+    AttachmentLookupIssueFields as AttachmentLookupIssue,
     CommentFields as Comment,
     IssueContextAttachmentFields as IssueContextAttachment,
     IssueContextCommentFields as IssueContextComment,
@@ -52,8 +53,10 @@ from ._generated.fragments import (
     IssueRelationFields as IssueRelation,
     IssueSearchResultFields as IssueSearchResult,
     PageInfoFields as PageInfo,
+    ProjectRefFields as ProjectRef,
     TeamFields as Team,
     UserFields as User,
+    UserLookupFields as UserLookup,
     WorkflowStateFields as WorkflowState,
 )
 from .client import LinearClient
@@ -75,6 +78,7 @@ except PackageNotFoundError:  # running from a source tree without an install
 __all__ = [
     "Attachment",
     "AttachmentCreateInput",
+    "AttachmentLookupIssue",
     "Comment",
     "CommentCreateInput",
     "Issue",
@@ -105,8 +109,10 @@ __all__ = [
     "LinearWorkflowStateLookupError",
     "PageInfo",
     "PaginationOrderBy",
+    "ProjectRef",
     "Team",
     "User",
+    "UserLookup",
     "WorkflowState",
     "WorkflowStateConnection",
 ]

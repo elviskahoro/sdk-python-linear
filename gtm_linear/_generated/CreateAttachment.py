@@ -68,4 +68,5 @@ fragment AttachmentFields on Attachment {
   subtitle
   title
   url
+  metadata
 }"""

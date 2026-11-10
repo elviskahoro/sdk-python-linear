@@ -147,6 +147,8 @@ class AttachmentFields(LinearModel):
     """Content for the title line in the Linear attachment widget."""
     url: str
     """The URL of the external resource this attachment links to. Also serves as a unique identifier for the attachment within an issue; no two attachments on the same issue can share the same URL."""
+    metadata: dict[str, Any]
+    """Integration-specific metadata for this attachment. The schema varies by source type and may include fields such as pull request status, review counts, commit information, ticket status, or other data from the external system."""
 
 
 class CommentFields(LinearModel):
@@ -270,6 +272,40 @@ class IssueContextAttachmentFields(LinearModel):
     """Integration-specific metadata for this attachment. The schema varies by source type and may include fields such as pull request status, review counts, commit information, ticket status, or other data from the external system."""
     created_at: datetime
     """The time at which the entity was created."""
+
+
+class AttachmentLookupIssueFieldsState(LinearModel):
+    """A state in a team's workflow, representing an issue status such as Triage, Backlog, Todo, In Progress, In Review, Done, or Canceled. Each team has its own set of workflow states that define the progression of issues through the team's process. Workflow states have a type that categorizes them (triage, backlog, unstarted, started, completed, canceled), a position that determines their display order, and a color for visual identification. States can be inherited from parent teams to sub-teams."""
+
+    id: str
+    """The unique identifier of the entity."""
+    name: str
+    """The state's human-readable name (e.g., 'In Progress', 'Done', 'Backlog')."""
+    type: str
+    """The type of the state. One of \"triage\", \"backlog\", \"unstarted\", \"started\", \"completed\", \"canceled\", \"duplicate\"."""
+
+
+class AttachmentLookupIssueFieldsAttachments(LinearModel):
+    nodes: list[IssueContextAttachmentFields]
+
+
+class AttachmentLookupIssueFields(LinearModel):
+    """GraphQL type: Issue."""
+
+    id: str
+    """The unique identifier of the entity."""
+    identifier: str
+    """Issue's human readable identifier (e.g. ENG-123)."""
+    title: str
+    """The issue's title. This is the primary human-readable summary of the work item."""
+    url: str
+    """Issue URL."""
+    created_at: datetime
+    """The time at which the entity was created."""
+    state: AttachmentLookupIssueFieldsState
+    """The workflow state (issue status) that the issue is currently in. Workflow states represent the issue's progress through the team's workflow, such as Triage, Todo, In Progress, Done, or Canceled."""
+    attachments: AttachmentLookupIssueFieldsAttachments
+    """Attachments associated with the issue."""
 
 
 class IssueContextCommentFieldsExternalUser(LinearModel):

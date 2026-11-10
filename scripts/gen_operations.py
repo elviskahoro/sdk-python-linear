@@ -140,7 +140,11 @@ def _render_fragment(name: str, spec: dict[str, Any], schema: Any) -> str:  # no
             raise SystemExit(msg)
         if isinstance(nested_fields, str):
             # A string is a fragment name, spread rather than inlined.
-            lines.append(f"  {field_name} {{ ...{nested_fields} }}")
+            # A connection-typed field is reached through its `nodes`.
+            spread = f"...{nested_fields}"
+            if "nodes" in getattr(_unwrap(type_.fields[field_name].type), "fields", {}):
+                spread = f"nodes {{ {spread} }}"
+            lines.append(f"  {field_name} {{ {spread} }}")
             continue
         nested_type = _unwrap(type_.fields[field_name].type)
         resolved = _resolve_fields(

@@ -58,7 +58,22 @@ relatedIssue = ["id", "identifier", "title", "url"]
 
 [fragments.AttachmentFields]
 on = "Attachment"
-fields = ["id", "createdAt", "updatedAt", "subtitle", "title", "url"]
+fields = [
+  "id",
+  "createdAt",
+  "updatedAt",
+  "subtitle",
+  "title",
+  "url",
+  "metadata",
+]
+
+[fragments.AttachmentLookupIssueFields]
+on = "Issue"
+fields = ["id", "identifier", "title", "url", "createdAt"]
+[fragments.AttachmentLookupIssueFields.expand]
+state = ["id", "name", "type"]
+attachments = "IssueContextAttachmentFields"
 
 [fragments.IssueRelationFields]
 on = "IssueRelation"
@@ -153,6 +168,13 @@ root = "issues"
 fragment = "IssueFields"
 variables = { filter = "IssueFilter", first = "Int!", after = "String", orderBy = "PaginationOrderBy", includeArchived = "Boolean!" }
 arguments = { filter = "$filter", first = "$first", after = "$after", orderBy = "$orderBy", includeArchived = "$includeArchived" }
+
+[operations.FindIssuesByAttachmentUrl]
+kind = "query"
+root = "issues"
+fragment = "AttachmentLookupIssueFields"
+variables = { filter = "IssueFilter", first = "Int!", after = "String", includeArchived = "Boolean!" }
+arguments = { filter = "$filter", first = "$first", after = "$after", includeArchived = "$includeArchived" }
 
 [operations.ListWorkflowStates]
 kind = "query"
