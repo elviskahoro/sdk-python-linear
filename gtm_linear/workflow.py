@@ -320,6 +320,23 @@ class LinearWorkflow:
             include_archived=include_archived,
         )
 
+    def iter_issues_by_attachment_url(
+        self,
+        url: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        include_archived: bool = True,
+    ) -> Iterator[AttachmentLookupIssueFields]:
+        """Sync wrapper that materializes every page before yielding."""
+        async_iterator = self.iter_issues_by_attachment_url_async(
+            url,
+            page_size=page_size,
+            limit=limit,
+            include_archived=include_archived,
+        )
+        return iter(self._run(self._collect(async_iterator)))
+
     async def get_project_by_name_async(self, name: str) -> ProjectRefFields | None:
         return await self._queries.get_project_by_name(name)
 

@@ -572,3 +572,43 @@ def test_workflow_strips_a_padded_key() -> None:
     """
     linear = LinearWorkflow("lin_api_x\n")
     assert linear.client.api_key.get_secret_value() == "lin_api_x"
+
+
+def test_sync_iter_issues_by_attachment_url_materializes_pages() -> None:
+    url = "https://x.test/a"
+    attachment = {
+        "id": "a1",
+        "title": "t",
+        "url": url,
+        "source": None,
+        "sourceType": None,
+        "metadata": {},
+        "createdAt": "2026-01-01T00:00:00.000Z",
+    }
+    node = {
+        "id": "i1",
+        "identifier": "ENG-1",
+        "title": "T",
+        "url": "https://linear.app/i1",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "state": {"id": "s1", "name": "Done", "type": "completed"},
+        "attachments": {"nodes": [attachment]},
+    }
+    with respx.mock:
+        respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "issues": {
+                            "nodes": [node],
+                            "pageInfo": page_info_payload(has_next=False, end=None),
+                        },
+                    },
+                },
+            ),
+        )
+        with LinearWorkflow("key") as linear:
+            issues = list(linear.iter_issues_by_attachment_url(url))
+
+    assert [i.identifier for i in issues] == ["ENG-1"]

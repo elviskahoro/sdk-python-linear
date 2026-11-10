@@ -695,6 +695,10 @@ class LinearQueries:
 
         Each issue's ``attachments.nodes`` is narrowed to the attachments whose
         ``url`` equals ``url``, so ``metadata`` is the matching attachment's.
+
+        Caveat: the nested ``attachments`` connection uses Linear's default
+        page size (50) and is not filtered server-side. An issue with more than
+        50 attachments can match yet return an empty ``attachments.nodes``.
         """
         data = await self._client.execute_async(
             FIND_ISSUES_BY_ATTACHMENT_URL,
