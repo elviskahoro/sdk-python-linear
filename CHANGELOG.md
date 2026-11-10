@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-10
+
+### Added
+
+- Read-only lookups on `LinearQueries` and the `LinearWorkflow` sync/async
+  facade: `find_issues_by_attachment_url` (plus `_page`/`iter_` variants),
+  `get_project_by_name`, `find_user`, `find_issue_labels` and
+  `get_workflow_state_by_name`, so callers can resolve references without
+  `find_or_create_issue_label`'s create-on-miss side effect.
+- `create_attachment` results now expose `metadata` (#231).
+
+### Changed
+
+- Workflow-state lookup errors now read "with type …" instead of "of type …".
+
 ## [0.8.0] - 2026-11-07
 
 ### Added
