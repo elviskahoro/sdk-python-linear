@@ -153,19 +153,61 @@ tasks:
   - key: captain
     call: rwx/install-captain 1.2.0
 
-  # Ports the source workflow's `test` job (Tests / Operations are current /
-  # Generated code is current), split in three so failing and flaky runs still
-  # reach Trunk: `pytest` records pytest's exit code instead of failing,
-  # `trunk-upload` uploads the JUnit files, and `test` re-fails on the saved
-  # code, then runs the two --check scripts in the original order.
-  - key: pytest
-    use: [deps, captain]
+  # --- Dagger toolchain (Layer A, content-cached) -------------------------
+  # Pinned Dagger CLI + dagger-io on the same 0.21.8 line. No `use:` so these
+  # stay cache hits across every commit.
+  - key: dagger-cli-install
+    run: |
+      set -euo pipefail
+      case "$(uname -m)" in
+        x86_64) arch=amd64; sha=53e226c7da8fb75171e58c35759d736d961ce8b3a12db0baa7b7107954fccc5a ;;
+        aarch64|arm64) arch=arm64; sha=cd0df4885f2050082932b4abc5a6aad9a733f6aa4e7d8474740558517ffec4af ;;
+        *) echo "unsupported arch" >&2; exit 1 ;;
+      esac
+      tmp="$(mktemp -d)"
+      curl -fsSL "https://dl.dagger.io/dagger/releases/0.21.8/dagger_v0.21.8_linux_${arch}.tar.gz" -o "${tmp}/d.tgz"
+      echo "${sha}  ${tmp}/d.tgz" | sha256sum -c -
+      mkdir -p "$HOME/.local/bin"
+      tar -xzf "${tmp}/d.tgz" -C "$HOME/.local/bin" dagger
+      dagger version
+      echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
+
+  # ci/ venv: only the CI project's own manifests are in scope.
+  - key: dagger-sdk-install
+    use: [uv-install, code]
+    filter:
+      - ci/pyproject.toml
+      - ci/uv.lock
     env:
-      REQUIRE_JQ: "1"
+      UV_PYTHON: "3.13"
+    run: uv sync --locked --project ci --no-install-project
+
+  # Pre-pull the engine image so the test task doesn't pay the cold pull.
+  - key: dagger-engine-warm
+    use: [dagger-cli-install]
+    docker: preserve-data
+    run: |
+      set -euo pipefail
+      for i in 1 2 3; do
+        docker pull registry.dagger.io/engine:v0.21.8 && exit 0
+        sleep 5
+      done
+      exit 1
+
+  # Layer C: pytest + the two --check scripts run inside Dagger (ci/main.py).
+  # Records the exit code instead of failing so failing runs still reach the
+  # Trunk upload; `test` re-fails below. Source changes invalidate only this
+  # task and the ones after it.
+  - key: pytest
+    use: [code, uv-install, dagger-cli-install, dagger-sdk-install, dagger-engine-warm]
+    docker: true
+    timeout: 30m
+    env:
+      CI_OUT_DIR: tmp
     run: |
       mkdir -p tmp
       set +e
-      captain run sdk-python-linear-pytest
+      ci/run.sh test
       echo "$?" > tmp/pytest-exit-code
 
   # Uploads to Trunk Flaky Tests. TRUNK_API_TOKEN is the org-wide Trunk API
@@ -262,14 +304,9 @@ tasks:
     run: |
       code="$(cat tmp/pytest-exit-code)"
       if [ "${code}" != "0" ]; then
-        echo "pytest failed (exit ${code})" >&2
+        echo "pytest or generated-code checks failed (exit ${code})" >&2
         exit "${code}"
       fi
-      # Fails if operations/*.graphql drifted from operations/_spec.toml.
-      uv run python scripts/gen_operations.py --check
-      # Fails if a generated model was hand-edited or the schema pin moved
-      # without regenerating.
-      uv run python scripts/codegen.py --check
 
   # Ports the source workflow's `lean-install` job: the wheel must build and
   # import with only its runtime deps. `use:`s [uv-install, code] rather than
@@ -277,35 +314,10 @@ tasks:
   # --wheel` builds in an isolated hatchling env, and the import check
   # installs only dist/*.whl into a throwaway venv.
   - key: lean-install
-    use: [uv-install, code]
-    # Reads only what the wheel is built from; test-/docs-only commits hit.
-    # `--wheel` because the sdist's include list (scripts/, operations/,
-    # schema/, tests/ -- see [tool.hatch.build.targets.sdist]) is wider
-    # than this filter, and hatchling silently omits missing includes
-    # rather than fail; the publish pipeline builds the real sdist from
-    # the full clone.
-    filter:
-      - gtm_linear
-      - pyproject.toml
-      - uv.lock
-      - README.md
-      - LICENSE
-    env:
-      UV_PYTHON: "3.13"
-    run: |
-      set -euo pipefail
-      uv build --wheel
-      uv venv -p 3.13 /tmp/lean
-      VIRTUAL_ENV=/tmp/lean uv pip install dist/*.whl
-      # Capture the listing before grepping it: under `set -o pipefail`,
-      # `grep -q` exits on first match and uv can take SIGPIPE (141), which
-      # would make the `if` false and pass the guard exactly when the leak
-      # exists. Captured-then-grepped closes that fail-open window.
-      lean_list="$(VIRTUAL_ENV=/tmp/lean uv pip list)"
-      if grep -qi strawberry <<<"${lean_list}"; then
-        echo "strawberry leaked into the runtime dependency tree"; exit 1
-      fi
-      /tmp/lean/bin/python -c "import gtm_linear; print(gtm_linear.__version__)"
+    use: [code, uv-install, dagger-cli-install, dagger-sdk-install, dagger-engine-warm]
+    docker: true
+    timeout: 20m
+    run: ci/run.sh lean-install
 
   # Ports the source workflow's `schema-drift` job (originally schedule-only;
   # now runs on every trigger): network-marked tests are deselected by
