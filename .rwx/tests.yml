@@ -169,7 +169,7 @@ tasks:
       echo "${sha}  ${tmp}/d.tgz" | sha256sum -c -
       mkdir -p "$HOME/.local/bin"
       tar -xzf "${tmp}/d.tgz" -C "$HOME/.local/bin" dagger
-      dagger version
+      "$HOME/.local/bin/dagger" version
       echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
 
   # ci/ venv: only the CI project's own manifests are in scope.

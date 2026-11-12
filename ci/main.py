@@ -33,7 +33,7 @@ def base() -> dagger.Container:
         dag.container()
         .from_(PYTHON_IMAGE)
         .with_exec(["sh", "-c",
-                    "apt-get update -qq && apt-get install -y -qq --no-install-recommends jq "
+                    "apt-get update -qq && apt-get install -y -qq --no-install-recommends jq git ca-certificates "
                     "&& rm -rf /var/lib/apt/lists/*"])
         .with_file("/usr/local/bin/uv", uv_bin, permissions=0o755)
         .with_env_variable("UV_LOCKED", "1")
