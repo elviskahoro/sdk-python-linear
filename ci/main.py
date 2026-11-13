@@ -21,8 +21,18 @@ UV_IMAGE = "ghcr.io/astral-sh/uv:0.11.29"
 REPO = Path(__file__).resolve().parent.parent
 # Never upload VCS state, venvs, caches, CI-only dirs or prior outputs.
 EXCLUDE = [
-    ".git", ".venv", "**/.venv", "**/__pycache__", ".context", ".pytest_cache",
-    ".ruff_cache", "tmp", "dist", "ci/.venv", ".flox", ".beads",
+    ".git",
+    ".venv",
+    "**/.venv",
+    "**/__pycache__",
+    ".context",
+    ".pytest_cache",
+    ".ruff_cache",
+    "tmp",
+    "dist",
+    "ci/.venv",
+    ".flox",
+    ".beads",
 ]
 
 
@@ -32,9 +42,16 @@ def base() -> dagger.Container:
     return (
         dag.container()
         .from_(PYTHON_IMAGE)
-        .with_exec(["sh", "-c",
-                    "apt-get update -qq && apt-get install -y -qq --no-install-recommends jq git ca-certificates "
-                    "&& rm -rf /var/lib/apt/lists/*"])
+        .with_exec(
+            [
+                "sh",
+                "-c",
+                (
+                    "apt-get update -qq && apt-get install -y -qq --no-install-recommends "
+                    "jq git ca-certificates && rm -rf /var/lib/apt/lists/*"
+                ),
+            ],
+        )
         .with_file("/usr/local/bin/uv", uv_bin, permissions=0o755)
         .with_env_variable("UV_LOCKED", "1")
         .with_env_variable("UV_PYTHON", "3.13")
@@ -46,8 +63,11 @@ def base() -> dagger.Container:
 
 def project(src: dagger.Directory) -> dagger.Container:
     """Deps layer (lockfiles only) then full source on top."""
-    manifests = dag.directory().with_file("pyproject.toml", src.file("pyproject.toml")).with_file(
-        "uv.lock", src.file("uv.lock"))
+    manifests = (
+        dag.directory()
+        .with_file("pyproject.toml", src.file("pyproject.toml"))
+        .with_file("uv.lock", src.file("uv.lock"))
+    )
     return (
         base()
         .with_workdir("/src")
@@ -59,18 +79,36 @@ def project(src: dagger.Directory) -> dagger.Container:
 
 
 async def test(src: dagger.Directory, out: Path) -> int:
-    ctr = project(src).with_env_variable("REQUIRE_JQ", "1").with_exec(["mkdir", "-p", "tmp"])
+    ctr = (
+        project(src)
+        .with_env_variable("REQUIRE_JQ", "1")
+        .with_exec(["mkdir", "-p", "tmp"])
+    )
     junit = ("-o", "junit_family=xunit1")
     first = ctr.with_exec(
-        ["uv", "run", "pytest", "-q", *junit, "--junit-xml=tmp/junit-sdk-python-linear-pytest.xml"],
+        [
+            "uv",
+            "run",
+            "pytest",
+            "-q",
+            *junit,
+            "--junit-xml=tmp/junit-sdk-python-linear-pytest.xml",
+        ],
         expect=dagger.ReturnType.ANY,
     )
     code = await first.exit_code()
     final = first
     if code != 0:  # one retry of failures only, mirrors .captain/config.yml retries
         final = first.with_exec(
-            ["uv", "run", "pytest", "-q", *junit, "--last-failed",
-             "--junit-xml=tmp/junit-sdk-python-linear-pytest-retry.xml"],
+            [
+                "uv",
+                "run",
+                "pytest",
+                "-q",
+                *junit,
+                "--last-failed",
+                "--junit-xml=tmp/junit-sdk-python-linear-pytest-retry.xml",
+            ],
             expect=dagger.ReturnType.ANY,
         )
         code = await final.exit_code()
@@ -79,8 +117,12 @@ async def test(src: dagger.Directory, out: Path) -> int:
     if code != 0:
         print(f"pytest failed (exit {code})", file=sys.stderr)
         return code
-    checked = final.with_exec(["uv", "run", "python", "scripts/gen_operations.py", "--check"])
-    checked = checked.with_exec(["uv", "run", "python", "scripts/codegen.py", "--check"])
+    checked = final.with_exec(
+        ["uv", "run", "python", "scripts/gen_operations.py", "--check"],
+    )
+    checked = checked.with_exec(
+        ["uv", "run", "python", "scripts/codegen.py", "--check"],
+    )
     print(await checked.stdout())
     return 0
 
@@ -100,7 +142,12 @@ if grep -qi strawberry <<<"${lean_list}"; then
 fi
 /tmp/lean/bin/python -c "import gtm_linear; print(gtm_linear.__version__)"
 """
-    ctr = base().with_workdir("/src").with_directory("/src", wheel_src).with_exec(["bash", "-c", script])
+    ctr = (
+        base()
+        .with_workdir("/src")
+        .with_directory("/src", wheel_src)
+        .with_exec(["bash", "-c", script])
+    )
     print(await ctr.stdout())
     return 0
 
