@@ -1,0 +1,10 @@
+[project]
+name = "gtm-linear-ci"
+version = "0.0.0"
+description = "Dagger-based CI core for sdk-python-linear (plain SDK program, not a module)"
+requires-python = ">=3.11"
+dependencies = ["dagger-io==0.21.8"]
+
+[tool.uv]
+package = false
+exclude-newer = "7 days"
