@@ -20,16 +20,15 @@ Debug with the `dagger run` TUI output, or `rwx logs <task-id>` in CI.
 | B | triggers, trunk-upload, `test` re-fail gate, schema-drift, integration-tests, publish, drift, trunk lint | `.rwx/*.yml` (unchanged) |
 | C | pytest, `--check` scripts, lean-install | `ci/main.py` via `ci/run.sh` |
 
-
 ## Cache behavior
 
 Dagger-in-container uses its own layer cache, which is discarded with the RWX
 runner, so a Dagger task that re-runs rebuilds its venv (uv download cache is a
 Dagger cache volume, not persisted across runs; RWX `tool-cache` is not wired
 up yet). The RWX tasks before it stay content-cached: unchanged commit = all
-hits; any file change in the tree re-runs `pytest` and `lean-install` only
-(`lean-install` has an RWX `filter` on wheel inputs + `ci/`); a `ci/uv.lock` change re-runs
-`dagger-sdk-install`.
+hits; any file change in the tree re-runs `pytest` (unfiltered); `lean-install`
+re-runs only when its filtered inputs change (wheel inputs + `ci/`); a
+`ci/uv.lock` change re-runs `dagger-sdk-install`.
 
 ## Cloud sandboxes
 
