@@ -7,7 +7,6 @@
 
     ci/run.sh test           # pytest (+1 retry of failures) + gen_operations/codegen --check
     ci/run.sh lean-install   # wheel builds/imports with runtime deps only
-    ci/run.sh tach           # tach check-external
     ci/run.sh all
 
 JUnit XML lands in `tmp/` (override with `CI_OUT_DIR`). No secrets are needed.
@@ -19,9 +18,8 @@ Debug with the `dagger run` TUI output, or `rwx logs <task-id>` in CI.
 | --- | --- | --- |
 | A | uv, Dagger CLI (sha256-pinned), `ci/` venv, engine image warm, `deps` for schema-drift | `.rwx/tests.yml` (content-cached) |
 | B | triggers, trunk-upload, `test` re-fail gate, schema-drift, integration-tests, publish, drift, trunk lint | `.rwx/*.yml` (unchanged) |
-| C | pytest, `--check` scripts, lean-install (+ tach locally) | `ci/main.py` via `ci/run.sh` |
+| C | pytest, `--check` scripts, lean-install | `ci/main.py` via `ci/run.sh` |
 
-`.rwx/lint.yml` still runs `tach` and Trunk natively; `ci/run.sh tach` is for local parity only.
 
 ## Cache behavior
 
@@ -30,7 +28,7 @@ runner, so a Dagger task that re-runs rebuilds its venv (uv download cache is a
 Dagger cache volume, not persisted across runs; RWX `tool-cache` is not wired
 up yet). The RWX tasks before it stay content-cached: unchanged commit = all
 hits; any file change in the tree re-runs `pytest` and `lean-install` only
-(`lean-install` is filtered to wheel inputs); a `ci/uv.lock` change re-runs
+(`lean-install` has an RWX `filter` on wheel inputs + `ci/`); a `ci/uv.lock` change re-runs
 `dagger-sdk-install`.
 
 ## Cloud sandboxes

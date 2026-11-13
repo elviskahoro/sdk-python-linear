@@ -315,6 +315,15 @@ tasks:
   # installs only dist/*.whl into a throwaway venv.
   - key: lean-install
     use: [code, uv-install, dagger-cli-install, dagger-sdk-install, dagger-engine-warm]
+    # Wheel inputs plus ci/ (the program and its venv): test-/docs-only
+    # commits stay cache hits, as before the migration.
+    filter:
+      - gtm_linear
+      - pyproject.toml
+      - uv.lock
+      - README.md
+      - LICENSE
+      - ci
     docker: true
     timeout: 20m
     run: ci/run.sh lean-install

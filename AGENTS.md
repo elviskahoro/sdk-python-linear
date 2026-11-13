@@ -24,7 +24,7 @@ trunk check --all                             # lint (run uv sync first: pyright
 ```
 
 CI core logic (pytest, generated-code checks, lean-install) lives in `ci/`
-(Dagger SDK program; `ci/run.sh <test|lean-install|tach|all>`, see
+(Dagger SDK program; `ci/run.sh <test|lean-install|all>`, see
 `ci/README.md`). Dagger needs Docker, so from a cloud workspace validate with
 `rwx run .rwx/tests.yml --wait`. CI runs pytest through `ci/` inside Dagger;
 Captain (`captain run <suite>`, suites in

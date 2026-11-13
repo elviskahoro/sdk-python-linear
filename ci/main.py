@@ -1,7 +1,7 @@
 """Portable CI core for sdk-python-linear (plain Dagger SDK program, no module).
 
 Run via ``ci/run.sh <subcommand>`` (= ``dagger run python ci/main.py ...``).
-Subcommands: test, lean-install, tach, all.  Same code path locally and in RWX;
+Subcommands: test, lean-install, all.  Same code path locally and in RWX;
 the only differences come from env vars (``CI_OUT_DIR``).
 """
 
@@ -152,13 +152,7 @@ fi
     return 0
 
 
-async def tach(src: dagger.Directory, _out: Path) -> int:
-    ctr = project(src).with_exec(["uv", "run", "tach", "check-external"])
-    print(await ctr.stdout())
-    return 0
-
-
-CHECKS = {"test": test, "lean-install": lean_install, "tach": tach}
+CHECKS = {"test": test, "lean-install": lean_install}
 
 
 async def main() -> int:
