@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Dropped the `strawberry-graphql` `exclude-newer-package` override now that
+  0.340.1 has aged past the 7-day cooldown (#221).
+
 ## [0.9.0] - 2026-11-10
 
 ### Added
