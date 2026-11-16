@@ -287,6 +287,7 @@ methods also accept human-readable issue identifiers.
 | `iter_workflow_states(team_id, page_size=50, limit=None, include_archived=False, order_by=None)` | `str`, `int`, `int \| None`, `bool`, `PaginationOrderBy \| None` | `AsyncIterator[WorkflowState]` | Follows all pages automatically |
 | `get_workflow_state_by_type(team_id, state_type, include_archived=False)` | `str`, `str`, `bool` | `WorkflowState` | Returns the unique state of that type; raises `LinearWorkflowStateLookupError` for zero or multiple matches |
 | `get_workflow_state_by_name(team_id, name, include_archived=False)` | `str`, `str`, `bool` | `WorkflowState` | Case-insensitive name match; raises `LinearWorkflowStateLookupError` for zero or multiple matches |
+| `resolve_workflow_state(team_id, state_type, name=None, *, include_archived=False)` | `str`, `str`, `str \| None`, `bool` | `WorkflowState` | Prefers a case-insensitive exact name within the requested type; otherwise requires a unique state of that type; raises `LinearWorkflowStateLookupError` for no match or ambiguity |
 | `find_issues_by_attachment_url(url, include_archived=True)` | `str`, `bool` | `list[AttachmentLookupIssue]` | Issues with an attachment whose URL equals `url`; each carries `created_at`, `state.type`, and the matching attachment (with `metadata`) in `attachments.nodes`. `iter_issues_by_attachment_url(url, page_size=50, limit=None, include_archived=True)` is the iterator variant (async on `LinearQueries`; `LinearWorkflow` has `iter_issues_by_attachment_url_async` and a sync twin that materializes every page). Only the first 50 attachments of each issue are inspected, so an issue with more can match yet return no attachment |
 | `get_project_by_name(name)` | `str` | `ProjectRef \| None` | Case-insensitive; project names are not unique, so Linear's first match wins |
 | `find_user(query)` | `str` | `list[UserLookup]` | Case-insensitive match on `name`, `displayName`, or `email` (OR); returns up to 10 so callers can handle ambiguity |
@@ -322,6 +323,25 @@ Valid state types are `triage`, `backlog`, `unstarted`, `started`, `completed`,
 and `canceled`. A team may have multiple states with the same type—especially
 `canceled` states such as Canceled and Duplicate—so the lookup can raise for
 ambiguity even when that type is valid.
+
+To prefer a particular name within a lifecycle type, use `resolve_workflow_state`.
+It reads all of the team's workflow states directly rather than inferring states
+from issues:
+
+```python
+done = await queries.resolve_workflow_state(team.id, "completed", name="Done")
+await mutations.update_issue(issue.id, IssueUpdateInput(state_id=done.id))
+```
+
+A unique case-insensitive exact name match within the requested type wins, even
+when several states have that type. If the name is omitted or no name matches
+within that type, the resolver falls back to the single state of that type.
+Multiple name matches, or zero or multiple states at fallback, raise
+`LinearWorkflowStateLookupError` before the example sends any mutation. Names in
+other lifecycle types are not considered. Archived states are excluded unless
+`include_archived=True`; API and pagination failures propagate as above.
+`LinearWorkflow` exposes the same lookup as `resolve_workflow_state` (sync) and
+`resolve_workflow_state_async` (async).
 
 Use the page method when you need explicit cursor metadata:
 
