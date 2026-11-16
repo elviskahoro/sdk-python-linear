@@ -683,6 +683,55 @@ class LinearQueries:
             )
         return matches[0]
 
+    async def resolve_workflow_state(
+        self,
+        team_id: str,
+        state_type: str,
+        name: str | None = None,
+        *,
+        include_archived: bool = False,
+    ) -> WorkflowStateFields:
+        """Resolve a team's workflow state by lifecycle type and optional name.
+
+        States are read directly from the team. When ``name`` is given and a
+        state of ``state_type`` has exactly that name (case-insensitive), it
+        wins. Otherwise the lookup falls back to the single state of
+        ``state_type``. Ambiguity raises before any caller can mutate an issue.
+
+        Raises:
+            LinearWorkflowStateLookupError: No state, or more than one, matches.
+            LinearAPIError: Linear rejects the query or the request fails.
+            LinearPaginationError: The workflow-state connection stalls.
+        """
+        of_type: list[WorkflowStateFields] = []
+        states = self.iter_workflow_states(
+            team_id,
+            include_archived=include_archived,
+        )
+        async with aclosing(states):
+            async for state in states:
+                if state.type == state_type:
+                    of_type.append(state)
+        if name is not None:
+            wanted = name.casefold()
+            named = [s for s in of_type if s.name.casefold() == wanted]
+            if len(named) == 1:
+                return named[0]
+            if len(named) > 1:
+                raise LinearWorkflowStateLookupError.for_result(
+                    team_id,
+                    name,
+                    multiple=True,
+                    by="name",
+                )
+        if len(of_type) != 1:
+            raise LinearWorkflowStateLookupError.for_result(
+                team_id,
+                state_type,
+                multiple=len(of_type) > 1,
+            )
+        return of_type[0]
+
     async def find_issues_by_attachment_url_page(
         self,
         url: str,

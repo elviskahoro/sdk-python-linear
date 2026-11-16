@@ -280,6 +280,39 @@ class LinearWorkflow:
             ),
         )
 
+    async def resolve_workflow_state_async(
+        self,
+        team_id: str,
+        state_type: str,
+        name: str | None = None,
+        *,
+        include_archived: bool = False,
+    ) -> WorkflowStateFields:
+        return await self._queries.resolve_workflow_state(
+            team_id,
+            state_type,
+            name,
+            include_archived=include_archived,
+        )
+
+    @_sync_doc(LinearQueries.resolve_workflow_state)
+    def resolve_workflow_state(
+        self,
+        team_id: str,
+        state_type: str,
+        name: str | None = None,
+        *,
+        include_archived: bool = False,
+    ) -> WorkflowStateFields:
+        return self._run(
+            self.resolve_workflow_state_async(
+                team_id,
+                state_type,
+                name,
+                include_archived=include_archived,
+            ),
+        )
+
     async def find_issues_by_attachment_url_async(
         self,
         url: str,

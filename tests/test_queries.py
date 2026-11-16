@@ -944,3 +944,67 @@ async def test_get_workflow_state_by_name_is_case_insensitive() -> None:
             assert (await queries.get_workflow_state_by_name("t1", "DONE")).id == "done"
             with pytest.raises(LinearWorkflowStateLookupError):
                 await queries.get_workflow_state_by_name("t1", "missing")
+
+
+def _ws(id_: str, name: str, type_: str) -> WorkflowState:
+    return WorkflowState(id=id_, name=name, type=type_, color="#fff", position=1)
+
+
+async def _resolve(
+    monkeypatch: pytest.MonkeyPatch,
+    states: list[WorkflowState],
+    state_type: str,
+    name: str | None,
+) -> WorkflowState:
+    async def iter_states(_self: object, _team_id: str, **_kw: object):
+        for state in states:
+            yield state
+
+    monkeypatch.setattr(LinearQueries, "iter_workflow_states", iter_states)
+    async with LinearClient(api_key="key") as client:
+        return await LinearQueries(client).resolve_workflow_state(
+            "team-1",
+            state_type,
+            name,
+        )
+
+
+async def test_resolve_workflow_state_prefers_exact_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    states = [_ws("a", "Done", "completed"), _ws("b", "Shipped", "completed")]
+    assert (await _resolve(monkeypatch, states, "completed", "Done")).id == "a"
+
+
+async def test_resolve_workflow_state_falls_back_to_type(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    states = [_ws("a", "Shipped", "completed"), _ws("t", "Todo", "unstarted")]
+    assert (await _resolve(monkeypatch, states, "completed", "Done")).id == "a"
+
+
+async def test_resolve_workflow_state_ambiguous_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    states = [_ws("a", "Shipped", "completed"), _ws("b", "Released", "completed")]
+    with pytest.raises(LinearWorkflowStateLookupError):
+        await _resolve(monkeypatch, states, "completed", "Done")
+
+
+async def test_resolve_workflow_state_no_state_of_type_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    states = [_ws("t", "Todo", "unstarted")]
+    with pytest.raises(LinearWorkflowStateLookupError) as info:
+        await _resolve(monkeypatch, states, "completed", "Done")
+    assert info.value.multiple is False
+
+
+async def test_resolve_workflow_state_duplicate_name_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    states = [_ws("a", "Done", "completed"), _ws("b", "done", "completed")]
+    with pytest.raises(LinearWorkflowStateLookupError) as info:
+        await _resolve(monkeypatch, states, "completed", "Done")
+    assert info.value.multiple is True
+    assert info.value.state_type == "Done"
