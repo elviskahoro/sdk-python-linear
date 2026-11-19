@@ -3,6 +3,11 @@
 Use GitHub Issues for all project task tracking. Create, update, label, and
 close issues in the repository's GitHub project. Do not use Beads or `bd`.
 
+## Issue claims
+
+Before starting work on an issue, follow
+https://github.com/elviskahoro/oss-hq/blob/main/AGENT-LABELS.md
+
 ## Non-Interactive Shell Commands
 
 Always use non-interactive flags with file operations to avoid confirmation
