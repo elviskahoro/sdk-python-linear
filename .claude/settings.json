@@ -1,4 +1,9 @@
 {
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
   "hooks": {
     "SessionStart": [
       {
@@ -11,5 +16,6 @@
         "matcher": ""
       }
     ]
-  }
+  },
+  "includeCoAuthoredBy": false
 }
