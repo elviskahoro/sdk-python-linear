@@ -202,3 +202,11 @@ def test_sync_workflow_states_page(workflow: LinearWorkflow, team) -> None:
     )
     assert second.nodes
     assert second.nodes[0].id != page.nodes[0].id
+
+
+async def test_issue_labels(queries: LinearQueries, team) -> None:
+    labels = await queries.list_issue_labels(team.id)
+    assert isinstance(labels, list)
+    ids = [label.id async for label in queries.iter_issue_labels(team.id, page_size=1)]
+    assert len(ids) == len(set(ids))
+    assert {label.id for label in labels} <= set(ids)

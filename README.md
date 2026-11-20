@@ -2,7 +2,7 @@
 
 Async-first Python SDK for the [Linear](https://linear.app) GraphQL API. Thin, typed wrapper around `httpx2` (Pydantic-maintained fork) with optional sync support, generated Pydantic models, explicit error semantics, and a bundled CLI.
 
-> **Status:** Alpha (`0.8.0`, see `pyproject.toml` and `CHANGELOG.md`). API surface is small but incomplete — fall back to raw `LinearClient.execute_async` for anything not yet wrapped.
+> **Status:** Alpha (`0.10.0`, see `pyproject.toml` and `CHANGELOG.md`). API surface is small but incomplete — fall back to raw `LinearClient.execute_async` for anything not yet wrapped.
 
 ---
 
@@ -292,6 +292,9 @@ methods also accept human-readable issue identifiers.
 | `get_project_by_name(name)` | `str` | `ProjectRef \| None` | Case-insensitive; project names are not unique, so Linear's first match wins |
 | `find_user(query)` | `str` | `list[UserLookup]` | Case-insensitive match on `name`, `displayName`, or `email` (OR); returns up to 10 so callers can handle ambiguity |
 | `find_issue_labels(team_id, names)` | `str`, `list[str]` | `dict[str, list[IssueLabel]]` | Read-only, case-insensitive resolve across team and workspace labels; unmatched names map to `[]`, ambiguous ones to several labels |
+| `list_issue_labels(team_id, first=50)` | `str`, `int` | `list[IssueLabel]` | First page of team-scoped and workspace labels; use `iter_issue_labels` for all pages |
+| `list_issue_labels_page(team_id, first=50, after=None, include_archived=False, order_by=None)` | `str`, `int`, `str \| None`, `bool`, `PaginationOrderBy \| None` | `ListIssueLabelsResultIssueLabels` | Label connection (team OR workspace) with cursor pagination |
+| `iter_issue_labels(team_id, page_size=50, limit=None, include_archived=False, order_by=None)` | `str`, `int`, `int \| None`, `bool`, `PaginationOrderBy \| None` | `AsyncIterator[IssueLabel]` | Follows all pages automatically |
 
 ### Team workflow states
 

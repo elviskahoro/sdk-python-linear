@@ -75,6 +75,13 @@ from ._generated.ListIssueInverseRelations import (
     ListIssueInverseRelationsResultIssueInverseRelations,
     ListIssueInverseRelationsVariables,
 )
+from ._generated.ListIssueLabels import (
+    DOCUMENT as LIST_ISSUE_LABELS,
+    ListIssueLabelsResult,
+    ListIssueLabelsResultIssueLabels,
+    ListIssueLabelsVariables,
+    PaginationOrderBy as IssueLabelsOrderBy,
+)
 from ._generated.ListIssueRelations import (
     DOCUMENT as LIST_ISSUE_RELATIONS,
     ListIssueRelationsResult,
@@ -586,6 +593,96 @@ class LinearQueries:
 
         async def fetch(cursor: str | None) -> ListWorkflowStatesResultWorkflowStates:
             return await self.list_workflow_states_page(
+                team_id,
+                first=page_size,
+                after=cursor,
+                include_archived=include_archived,
+                order_by=order_by,
+            )
+
+        return paginate(fetch, limit=limit)
+
+    async def list_issue_labels_page(
+        self,
+        team_id: str,
+        first: int = 50,
+        after: str | None = None,
+        *,
+        include_archived: bool = False,
+        order_by: PaginationOrderBy | None = None,
+    ) -> ListIssueLabelsResultIssueLabels:
+        """List a page of issue labels usable by a team.
+
+        Returns team-scoped and workspace-level labels, the same universe
+        :meth:`find_issue_labels` resolves against.
+
+        Args:
+            team_id: The Linear team ID.
+            first: Page size.
+            after: Cursor from a previous page's ``page_info.end_cursor``.
+            include_archived: Whether to include archived labels.
+            order_by: Sort field.
+
+        Returns:
+            The page: ``.nodes`` and ``.page_info``.
+        """
+        variables = ListIssueLabelsVariables(
+            filter={
+                "or": [
+                    {"team": {"id": {"eq": team_id}}},
+                    {"team": {"null": True}},
+                ],
+            },
+            first=first,
+            after=after,
+            include_archived=include_archived,
+        )
+        # Linear rejects optional enums sent as null; leave order_by unset.
+        if order_by is not None:
+            variables.order_by = IssueLabelsOrderBy(order_by.value)
+
+        data = await self._client.execute_async(
+            LIST_ISSUE_LABELS,
+            dump_variables(variables),
+        )
+        return ListIssueLabelsResult.model_validate(data).issue_labels
+
+    async def list_issue_labels(
+        self,
+        team_id: str,
+        first: int = 50,
+    ) -> list[IssueLabelRefFields]:
+        """List the first page of issue labels usable by a team.
+
+        Use :meth:`iter_issue_labels` to follow every page automatically.
+        """
+        return (await self.list_issue_labels_page(team_id, first=first)).nodes
+
+    def iter_issue_labels(
+        self,
+        team_id: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        include_archived: bool = False,
+        order_by: PaginationOrderBy | None = None,
+    ) -> AsyncGenerator[IssueLabelRefFields, None]:
+        """Iterate every issue label usable by a team, following cursors.
+
+        Args:
+            team_id: The Linear team ID.
+            page_size: How many labels to request per round trip.
+            limit: Stop after this many labels. None fetches every label.
+            include_archived: Whether to include archived labels.
+            order_by: Sort field.
+
+        Returns:
+            An async iterator over team-scoped and workspace-level labels.
+        """
+        validate_pagination_options(page_size, limit)
+
+        async def fetch(cursor: str | None) -> ListIssueLabelsResultIssueLabels:
+            return await self.list_issue_labels_page(
                 team_id,
                 first=page_size,
                 after=cursor,

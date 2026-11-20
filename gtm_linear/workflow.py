@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from ._generated.CreateIssue import IssueCreateInput
     from ._generated.CreateIssueRelation import IssueRelationCreateInput
     from ._generated.ListIssueComments import ListIssueCommentsResultIssueComments
+    from ._generated.ListIssueLabels import ListIssueLabelsResultIssueLabels
     from ._generated.ListIssues import ListIssuesResultIssues
     from ._generated.ListWorkflowStates import ListWorkflowStatesResultWorkflowStates
     from ._generated.SearchIssues import SearchIssuesResultSearchIssues
@@ -214,6 +215,94 @@ class LinearWorkflow:
     ) -> Iterator[WorkflowStateFields]:
         """Sync iterator over all states; materializes every page before yielding."""
         async_iterator = self.iter_workflow_states_async(
+            team_id,
+            page_size=page_size,
+            limit=limit,
+            include_archived=include_archived,
+            order_by=order_by,
+        )
+        return iter(self._run(self._collect(async_iterator)))
+
+    async def list_issue_labels_page_async(
+        self,
+        team_id: str,
+        first: int = 50,
+        after: str | None = None,
+        *,
+        include_archived: bool = False,
+        order_by: PaginationOrderBy | None = None,
+    ) -> ListIssueLabelsResultIssueLabels:
+        return await self._queries.list_issue_labels_page(
+            team_id,
+            first=first,
+            after=after,
+            include_archived=include_archived,
+            order_by=order_by,
+        )
+
+    @_sync_doc(LinearQueries.list_issue_labels_page)
+    def list_issue_labels_page(
+        self,
+        team_id: str,
+        first: int = 50,
+        after: str | None = None,
+        *,
+        include_archived: bool = False,
+        order_by: PaginationOrderBy | None = None,
+    ) -> ListIssueLabelsResultIssueLabels:
+        return self._run(
+            self.list_issue_labels_page_async(
+                team_id,
+                first=first,
+                after=after,
+                include_archived=include_archived,
+                order_by=order_by,
+            ),
+        )
+
+    async def list_issue_labels_async(
+        self,
+        team_id: str,
+        first: int = 50,
+    ) -> list[IssueLabelRefFields]:
+        return await self._queries.list_issue_labels(team_id, first=first)
+
+    @_sync_doc(LinearQueries.list_issue_labels)
+    def list_issue_labels(
+        self,
+        team_id: str,
+        first: int = 50,
+    ) -> list[IssueLabelRefFields]:
+        return self._run(self.list_issue_labels_async(team_id, first=first))
+
+    def iter_issue_labels_async(
+        self,
+        team_id: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        include_archived: bool = False,
+        order_by: PaginationOrderBy | None = None,
+    ) -> AsyncIterator[IssueLabelRefFields]:
+        return self._queries.iter_issue_labels(
+            team_id,
+            page_size=page_size,
+            limit=limit,
+            include_archived=include_archived,
+            order_by=order_by,
+        )
+
+    def iter_issue_labels(
+        self,
+        team_id: str,
+        *,
+        page_size: int = 50,
+        limit: int | None = None,
+        include_archived: bool = False,
+        order_by: PaginationOrderBy | None = None,
+    ) -> Iterator[IssueLabelRefFields]:
+        """Sync iterator over all labels; materializes every page before yielding."""
+        async_iterator = self.iter_issue_labels_async(
             team_id,
             page_size=page_size,
             limit=limit,
