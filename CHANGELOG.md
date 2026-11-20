@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Dev-only: added `.rwx/release.yml`, a one-command release pipeline
+  (`rwx run .rwx/release.yml --init version=X.Y.Z`) (#250).
+
 ## [0.10.0] - 2026-11-20
 
 ### Added
