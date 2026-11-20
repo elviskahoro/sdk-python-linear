@@ -6,15 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-20
+
 ### Added
 
 - `list_issue_labels_page`, `list_issue_labels` and `iter_issue_labels` on
   `LinearQueries` and the `LinearWorkflow` sync/async facade. They list the
   team-scoped and workspace-level labels that `find_issue_labels` resolves
   against (#246).
+- `resolve_workflow_state(team_id, state_type, name=None, *,
+  include_archived=False)` on `LinearQueries` and the `LinearWorkflow`
+  sync/async facade. A case-insensitive exact name within the requested
+  lifecycle type wins; otherwise the unique state of that type is returned.
+  No match or ambiguity raises `LinearWorkflowStateLookupError` (#238).
 
 ### Changed
 
+- Dev-only: the CI pytest and lean-install core now runs inside Dagger via
+  `ci/`, with RWX keeping the cached install prefix; Captain no longer wraps
+  the main suite (#233).
 - Dev-only: dropped the `strawberry-graphql` `exclude-newer-package` override
   now that 0.340.1 has aged past the 7-day cooldown (#221).
 
