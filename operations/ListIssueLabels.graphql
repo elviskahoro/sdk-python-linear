@@ -1,0 +1,10 @@
+query ListIssueLabels($filter: IssueLabelFilter, $first: Int!, $after: String, $orderBy: PaginationOrderBy, $includeArchived: Boolean!) {
+  issueLabels(filter: $filter, first: $first, after: $after, orderBy: $orderBy, includeArchived: $includeArchived) {
+    nodes {
+      ...IssueLabelRefFields
+    }
+    pageInfo {
+      ...PageInfoFields
+    }
+  }
+}

@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `list_issue_labels_page`, `list_issue_labels` and `iter_issue_labels` on
+  `LinearQueries` and the `LinearWorkflow` sync/async facade. They list the
+  team-scoped and workspace-level labels that `find_issue_labels` resolves
+  against (#246).
+
 ### Changed
 
 - Dev-only: dropped the `strawberry-graphql` `exclude-newer-package` override

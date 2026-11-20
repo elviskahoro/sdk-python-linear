@@ -79,6 +79,7 @@ async def test_iter_team_issues_follows_cursors() -> None:
         ("iter_team_issues", ("team-1",)),
         ("iter_search_issues", ("term",)),
         ("iter_workflow_states", ("team-1",)),
+        ("iter_issue_labels", ("team-1",)),
         ("iter_issue_comments", ("issue-1",)),
         ("iter_issue_attachments", ("issue-1",)),
         ("iter_issue_relations", ("issue-1",)),
@@ -472,3 +473,34 @@ async def test_pagination_limit_does_not_mask_a_stall() -> None:
 
     assert collected == []
     assert len(calls) == MAX_CONSECUTIVE_EMPTY_PAGES
+
+
+async def test_iter_issue_labels_follows_cursors_and_respects_limit() -> None:
+    def label_page(label_id: str, *, has_next: bool, end: str | None):
+        return {
+            "data": {
+                "issueLabels": {
+                    "nodes": [{"id": label_id, "name": label_id.title()}],
+                    "pageInfo": page_info_payload(has_next=has_next, end=end),
+                },
+            },
+        }
+
+    with respx.mock:
+        route = respx.post(API_URL)
+        route.side_effect = [
+            httpx.Response(200, json=label_page("a", has_next=True, end="c1")),
+            httpx.Response(200, json=label_page("b", has_next=True, end="c2")),
+        ]
+        async with LinearClient(api_key="key") as client:
+            labels = [
+                label
+                async for label in LinearQueries(client).iter_issue_labels(
+                    "team-1",
+                    page_size=1,
+                    limit=2,
+                )
+            ]
+
+    assert [label.id for label in labels] == ["a", "b"]
+    assert route.call_count == 2

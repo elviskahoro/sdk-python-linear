@@ -581,6 +581,52 @@ async def test_list_workflow_states_page_builds_team_filter() -> None:
     }
 
 
+async def test_list_issue_labels_page_builds_team_or_workspace_filter() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "issueLabels": {
+                            "nodes": [{"id": "label-1", "name": "Bug"}],
+                            "pageInfo": page_info_payload(
+                                has_next=True,
+                                end="label-cursor",
+                            ),
+                        },
+                    },
+                },
+            ),
+        )
+        async with LinearClient(api_key="key") as client:
+            page = await LinearQueries(client).list_issue_labels_page(
+                "team-1",
+                first=25,
+                after="prev",
+                include_archived=True,
+                order_by=PaginationOrderBy.updatedAt,
+            )
+            labels = await LinearQueries(client).list_issue_labels("team-1")
+
+    assert page.nodes[0].name == "Bug"
+    assert page.page_info.has_next_page is True
+    assert [label.id for label in labels] == ["label-1"]
+    body = json.loads(route.calls[0].request.content)
+    assert body["variables"] == {
+        "filter": {
+            "or": [
+                {"team": {"id": {"eq": "team-1"}}},
+                {"team": {"null": True}},
+            ],
+        },
+        "first": 25,
+        "after": "prev",
+        "includeArchived": True,
+        "orderBy": "updatedAt",
+    }
+
+
 async def test_list_workflow_states_returns_nodes() -> None:
     with respx.mock:
         respx.post(API_URL).mock(

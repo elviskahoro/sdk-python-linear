@@ -55,6 +55,25 @@ async def test_async_facade_delegates_every_query_and_mutation(
         calls.append(("iter_workflow_states", args, kwargs))
         yield "state"
 
+    async def issue_labels(
+        _self: object,
+        *args: object,
+        **kwargs: object,
+    ) -> AsyncIterator[str]:
+        calls.append(("iter_issue_labels", args, kwargs))
+        yield "label"
+
+    monkeypatch.setattr(
+        LinearQueries,
+        "list_issue_labels_page",
+        query("list_issue_labels_page", "label_page"),
+    )
+    monkeypatch.setattr(
+        LinearQueries,
+        "list_issue_labels",
+        query("list_issue_labels", ["label"]),
+    )
+    monkeypatch.setattr(LinearQueries, "iter_issue_labels", issue_labels)
     monkeypatch.setattr(LinearQueries, "get_issue", query("get_issue", "issue"))
     monkeypatch.setattr(LinearQueries, "list_issues", query("list_issues", ["issue"]))
     monkeypatch.setattr(
@@ -131,6 +150,11 @@ async def test_async_facade_delegates_every_query_and_mutation(
         assert await linear.get_issue_async("i") == "issue"
         assert await linear.list_issues_async("t") == ["issue"]
         assert await linear.list_issues_page_async() == "page"
+        assert await linear.list_issue_labels_page_async("t") == "label_page"
+        assert await linear.list_issue_labels_async("t") == ["label"]
+        assert [
+            label async for label in linear.iter_issue_labels_async("t", page_size=10)
+        ] == ["label"]
         assert await linear.list_workflow_states_page_async("t") == "state_page"
         assert await linear.list_workflow_states_async("t") == ["state"]
         assert [
@@ -181,6 +205,9 @@ async def test_async_facade_delegates_every_query_and_mutation(
         "get_issue",
         "list_issues",
         "list_issues_page",
+        "list_issue_labels_page",
+        "list_issue_labels",
+        "iter_issue_labels",
         "list_workflow_states_page",
         "list_workflow_states",
         "iter_workflow_states",
@@ -222,6 +249,11 @@ def test_sync_wrappers_inherit_docstrings_without_wraps_binding() -> None:
         (
             LinearWorkflow.list_workflow_states_page,
             LinearQueries.list_workflow_states_page,
+        ),
+        (LinearWorkflow.list_issue_labels, LinearQueries.list_issue_labels),
+        (
+            LinearWorkflow.list_issue_labels_page,
+            LinearQueries.list_issue_labels_page,
         ),
         (
             LinearWorkflow.get_workflow_state_by_type,
