@@ -162,8 +162,7 @@ async def test_async_facade_delegates_every_query_and_mutation(
             async for state in linear.iter_workflow_states_async("t", page_size=10)
         ] == ["state"]
         assert (
-            await linear.get_workflow_state_by_type_async("t", "completed")
-            == "state"
+            await linear.get_workflow_state_by_type_async("t", "completed") == "state"
         )
         assert await linear.get_team_async("t") == "team"
         assert await linear.get_team_by_key_async("ENG") == "team"

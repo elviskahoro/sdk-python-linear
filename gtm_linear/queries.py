@@ -75,6 +75,13 @@ from ._generated.ListIssueInverseRelations import (
     ListIssueInverseRelationsResultIssueInverseRelations,
     ListIssueInverseRelationsVariables,
 )
+from ._generated.ListIssueLabels import (
+    DOCUMENT as LIST_ISSUE_LABELS,
+    ListIssueLabelsResult,
+    ListIssueLabelsResultIssueLabels,
+    ListIssueLabelsVariables,
+    PaginationOrderBy as IssueLabelsOrderBy,
+)
 from ._generated.ListIssueRelations import (
     DOCUMENT as LIST_ISSUE_RELATIONS,
     ListIssueRelationsResult,
@@ -87,13 +94,6 @@ from ._generated.ListIssues import (
     ListIssuesResultIssues,
     ListIssuesVariables,
     PaginationOrderBy,
-)
-from ._generated.ListIssueLabels import (
-    DOCUMENT as LIST_ISSUE_LABELS,
-    ListIssueLabelsResult,
-    ListIssueLabelsResultIssueLabels,
-    ListIssueLabelsVariables,
-    PaginationOrderBy as IssueLabelsOrderBy,
 )
 from ._generated.ListWorkflowStates import (
     DOCUMENT as LIST_WORKFLOW_STATES,

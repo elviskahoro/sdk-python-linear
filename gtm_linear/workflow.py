@@ -18,8 +18,8 @@ if TYPE_CHECKING:
     from ._generated.CreateIssue import IssueCreateInput
     from ._generated.CreateIssueRelation import IssueRelationCreateInput
     from ._generated.ListIssueComments import ListIssueCommentsResultIssueComments
-    from ._generated.ListIssues import ListIssuesResultIssues
     from ._generated.ListIssueLabels import ListIssueLabelsResultIssueLabels
+    from ._generated.ListIssues import ListIssuesResultIssues
     from ._generated.ListWorkflowStates import ListWorkflowStatesResultWorkflowStates
     from ._generated.SearchIssues import SearchIssuesResultSearchIssues
     from ._generated.UpdateIssue import IssueUpdateInput
