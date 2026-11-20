@@ -76,14 +76,14 @@ tasks:
       dagger -m github.com/elviskahoro/sdk-python-publish-to-pypi@1cdcc45e2e4fe78768d73def9cbe23a54209f618 call build --source . export --path dist
 
   # PyPI trusted publishing is GitHub-OIDC-bound, so RWX publishes with a
-  # project-scoped API token from the repo-scoped vault. Provision with:
-  #   rwx vaults secrets set --vault sdk-python-linear PYPI_TOKEN=<token>
+  # project-scoped API token from the tag-only `sdk-python-linear-pypi` vault. Provision with:
+  #   rwx vaults secrets set --vault sdk-python-linear-pypi PYPI_TOKEN=<token>
   # cache: false so a publish is never skipped by a cache hit.
   - key: publish
     use: [build]
     cache: false
     env:
       UV_PUBLISH_TOKEN:
-        value: ${{ vaults.sdk-python-linear.secrets.PYPI_TOKEN }}
+        value: ${{ vaults.sdk-python-linear-pypi.secrets.PYPI_TOKEN }}
         cache-key: excluded
     run: uv publish dist/*

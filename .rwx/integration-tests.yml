@@ -103,7 +103,7 @@ tasks:
   # pipelines use. It holds exactly one secret -- a key for a disposable
   # Linear workspace we accept may leak -- because PR runs reach it with no
   # approval, and a PR can edit this file to exfiltrate whatever the vault
-  # holds. `GITHUB_TOKEN` and `PYPI_TOKEN` stay in the main-only vault.
+  # holds. `GITHUB_TOKEN` stays in the main-only vault; `PYPI_TOKEN` is in the tag-only `sdk-python-linear-pypi` vault.
   # Never add another secret to `sdk-python-linear-it`.
   #
   # Access model (`rwx vaults show sdk-python-linear-it`): locked, repository
