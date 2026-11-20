@@ -213,7 +213,7 @@ tasks:
   # Uploads to Trunk Flaky Tests. TRUNK_API_TOKEN is the org-wide Trunk API
   # token (the Analytics CLI accepts no scoped key), so it lives in its own
   # `sdk-python-linear-trunk` vault -- never in `sdk-python-linear`, which holds
-  # GITHUB_TOKEN and PYPI_TOKEN. Access model: locked, grants
+  # GITHUB_TOKEN. Access model: locked, grants
   # `elviskahoro/sdk-python-linear:**`, `*/*`, and `:main`, approvals disabled,
   # same reasoning as `sdk-python-linear-it` (see integration-tests.yml).
   # Branch patterns do not cross `/` (measured on #192/#193), so `*/*` is what
