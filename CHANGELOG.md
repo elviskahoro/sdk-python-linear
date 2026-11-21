@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Dev-only: added `.github/workflows/release.yml`, a one-command release workflow
+  (`gh workflow run release.yml -f version=X.Y.Z`) using the built-in
+  `GITHUB_TOKEN` (#250).
+
 ## [0.10.0] - 2026-11-20
 
 ### Added
