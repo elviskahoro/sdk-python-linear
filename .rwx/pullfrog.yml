@@ -42,7 +42,6 @@ tasks:
       ref: ${{ init.ref }}
       submodules: false
       preserve-git-dir: true
-      github-token: ${{ github['elviskahoro'].token }}
 
   - key: node
     call: nodejs/install 1.2.1
@@ -56,8 +55,6 @@ tasks:
       PR: ${{ init.pr }}
       PULLFROG_VERSION: 0.1.131
       GITHUB_REPOSITORY: elviskahoro/sdk-python-linear
-      # RWX's own app token: read access to code and PRs is all a review needs.
-      GH_TOKEN: ${{ github['elviskahoro'].token }}
       INPUT_MODEL: openai-compatible/byok
       # The verdict. The runner forces the agent to call set_output with this
       # shape (the run errors otherwise) and logs it as ::pullfrog-output::<b64>.
@@ -102,6 +99,7 @@ tasks:
       [ -n "$PR" ] || { echo 'error: pass --init pr=<number>' >&2; exit 2; }
       export GITHUB_WORKSPACE="$PWD"
       # Exported here, not in env:, so Semgrep's workflow-env-secret rule passes.
+      # Public repo: no GitHub token (RWX has no github.token in task env); the PR is read unauthenticated.
       export OPENAI_COMPATIBLE_API_KEY="${{ secrets.FIREWORKS_API_KEY }}"
       # git/clone leaves several credential.helper values; the runner sets its
       # own and refuses to overwrite a multi-valued key.
@@ -115,7 +113,7 @@ tasks:
       # var, and one entry over the per-entry exec limit (E2BIG) would fail the
       # gate without a verdict.
       pr_file=/tmp/pr.json
-      curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+      curl -fsSL \
         -H "Accept: application/vnd.github+json" \
         "https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/$PR" > "$pr_file"
       export PR_FILE="$pr_file"
