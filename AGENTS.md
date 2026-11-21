@@ -182,6 +182,10 @@ Pullfrog or agent fix commit pushed to PR branches. CI stays the independent gat
   key unattended, which is why the pre-push `pytest -q` applies to every
   push, not only Pullfrog-authored ones.
 
+The RWX `pullfrog-approval` gate (`.rwx/pullfrog.yml`) reviews same-repo PRs to
+main and fails unless the verdict approves. Manual run:
+`rwx run .rwx/pullfrog.yml --init pr=<n>`.
+
 ## Roborev review gate
 
 `roborev` is not installed in cloud sandboxes. Commit, then run
