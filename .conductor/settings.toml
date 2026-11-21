@@ -4,21 +4,21 @@
 rename_branch = "make sure that the branch prefix is always \"conductor/\""
 create_pr = '''
 Follow the canonical oss-hq prompt for creating or updating a pull request: https://github.com/elviskahoro/oss-hq/blob/main/prompts/conductor/create-pr.md
-Fetch it fresh each time (`curl -fsSL https://raw.githubusercontent.com/elviskahoro/oss-hq/main/prompts/conductor/create-pr.md` or `gh api repos/elviskahoro/oss-hq/contents/prompts/conductor/create-pr.md --jq .content | base64 -d`) and follow it exactly. Where this repo's CLAUDE.md differs, the repo wins.
+Fetch it fresh each time; set `CONDUCTOR_PROMPTS_REF` to a SHA or tag to pin, default `main` (`curl -fsSL https://raw.githubusercontent.com/elviskahoro/oss-hq/${CONDUCTOR_PROMPTS_REF:-main}/prompts/conductor/create-pr.md` or `gh api \"repos/elviskahoro/oss-hq/contents/prompts/conductor/create-pr.md?ref=${CONDUCTOR_PROMPTS_REF:-main}\" --jq .content | base64 -d`) and follow it exactly. Where this repo's CLAUDE.md differs, the repo wins.
 Repo override for roborev: `roborev` is not installed in cloud sandboxes, so run the review with `RWX_ACCESS_TOKEN="$RWX_ACCESS_TOKEN_ELVISKAHORO" rwx run .rwx/roborev.yml --wait` and read findings with `rwx results` / `rwx logs`. Skip only if `rwx` is unavailable, and disclose that.
 '''
 fix_errors = '''
 Follow the canonical oss-hq prompt for fixing errors: https://github.com/elviskahoro/oss-hq/blob/main/prompts/conductor/fix-errors.md
-Fetch it fresh each time (`curl -fsSL https://raw.githubusercontent.com/elviskahoro/oss-hq/main/prompts/conductor/fix-errors.md` or `gh api repos/elviskahoro/oss-hq/contents/prompts/conductor/fix-errors.md --jq .content | base64 -d`) and follow it exactly. Where this repo's CLAUDE.md differs, the repo wins.
+Fetch it fresh each time; set `CONDUCTOR_PROMPTS_REF` to a SHA or tag to pin, default `main` (`curl -fsSL https://raw.githubusercontent.com/elviskahoro/oss-hq/${CONDUCTOR_PROMPTS_REF:-main}/prompts/conductor/fix-errors.md` or `gh api \"repos/elviskahoro/oss-hq/contents/prompts/conductor/fix-errors.md?ref=${CONDUCTOR_PROMPTS_REF:-main}\" --jq .content | base64 -d`) and follow it exactly. Where this repo's CLAUDE.md differs, the repo wins.
 Repo override for roborev: `roborev` is not installed in cloud sandboxes, so run the review with `RWX_ACCESS_TOKEN="$RWX_ACCESS_TOKEN_ELVISKAHORO" rwx run .rwx/roborev.yml --wait` and read findings with `rwx results` / `rwx logs`. Skip only if `rwx` is unavailable, and disclose that.
 '''
 general = '''
 Follow the canonical oss-hq prompt for any task in this workspace: https://github.com/elviskahoro/oss-hq/blob/main/prompts/conductor/general.md
-Fetch it fresh each time (`curl -fsSL https://raw.githubusercontent.com/elviskahoro/oss-hq/main/prompts/conductor/general.md` or `gh api repos/elviskahoro/oss-hq/contents/prompts/conductor/general.md --jq .content | base64 -d`) and follow it exactly. Where this repo's CLAUDE.md differs, the repo wins.
+Fetch it fresh each time; set `CONDUCTOR_PROMPTS_REF` to a SHA or tag to pin, default `main` (`curl -fsSL https://raw.githubusercontent.com/elviskahoro/oss-hq/${CONDUCTOR_PROMPTS_REF:-main}/prompts/conductor/general.md` or `gh api \"repos/elviskahoro/oss-hq/contents/prompts/conductor/general.md?ref=${CONDUCTOR_PROMPTS_REF:-main}\" --jq .content | base64 -d`) and follow it exactly. Where this repo's CLAUDE.md differs, the repo wins.
 Repo override for roborev: `roborev` is not installed in cloud sandboxes, so run the review with `RWX_ACCESS_TOKEN="$RWX_ACCESS_TOKEN_ELVISKAHORO" rwx run .rwx/roborev.yml --wait` and read findings with `rwx results` / `rwx logs`. Skip only if `rwx` is unavailable, and disclose that.
 '''
 resolve_merge_conflicts = '''
 Follow the canonical oss-hq prompt for resolving merge conflicts: https://github.com/elviskahoro/oss-hq/blob/main/prompts/conductor/resolve-merge-conflicts.md
-Fetch it fresh each time (`curl -fsSL https://raw.githubusercontent.com/elviskahoro/oss-hq/main/prompts/conductor/resolve-merge-conflicts.md` or `gh api repos/elviskahoro/oss-hq/contents/prompts/conductor/resolve-merge-conflicts.md --jq .content | base64 -d`) and follow it exactly. Where this repo's CLAUDE.md differs, the repo wins.
+Fetch it fresh each time; set `CONDUCTOR_PROMPTS_REF` to a SHA or tag to pin, default `main` (`curl -fsSL https://raw.githubusercontent.com/elviskahoro/oss-hq/${CONDUCTOR_PROMPTS_REF:-main}/prompts/conductor/resolve-merge-conflicts.md` or `gh api \"repos/elviskahoro/oss-hq/contents/prompts/conductor/resolve-merge-conflicts.md?ref=${CONDUCTOR_PROMPTS_REF:-main}\" --jq .content | base64 -d`) and follow it exactly. Where this repo's CLAUDE.md differs, the repo wins.
 Repo override for roborev: `roborev` is not installed in cloud sandboxes, so run the review with `RWX_ACCESS_TOKEN="$RWX_ACCESS_TOKEN_ELVISKAHORO" rwx run .rwx/roborev.yml --wait` and read findings with `rwx results` / `rwx logs`. Skip only if `rwx` is unavailable, and disclose that.
 '''
