@@ -117,7 +117,8 @@ disposable-workspace key). Approvals are off and a same-repo ref resolves it
 unattended if it matches a grant (`**`, `*/*`, `main`). Branch patterns do not
 cross `/` — not even `**` — so `*/*` covers one-segment prefixes like
 `w-565/...`, but a deeper name (`a/b/c`) is refused ("The vault is locked");
-PR runs only trigger for PRs authored by `elviskahoro`.
+PR runs only trigger for PRs authored by `elviskahoro` or by
+`github-actions[bot]` on `release/v*` branches.
 Dispatching the pipeline manually also works — the dispatch runs as the
 account user, who holds vault access — so your pushed commit runs with the key
 and no local secret is needed:

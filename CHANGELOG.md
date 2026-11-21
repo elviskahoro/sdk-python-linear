@@ -15,6 +15,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   vault (#252).
 - Dev-only: roborev now runs through RWX, and the integration suite no longer
   creates teams per run (#248).
+- Dev-only: the integration-tests author gate also admits the release
+  workflow's bot-authored `release/v*` PRs, so the required check reports on
+  them (#250).
 
 ## [0.10.0] - 2026-11-20
 

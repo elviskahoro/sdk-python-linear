@@ -120,8 +120,9 @@ Pullfrog may push fix commits to PR branches. CI stays the independent gate
   If a test looks flaky or wrong, say so in a comment and leave it to a human.
 - Do not edit `.rwx/`, `.github/`, vault or branch-protection configuration.
 - Do not add secrets or touch the `sdk-python-linear-it` vault. Integration
-  tests are gated to PRs authored by the repo owner (the gate in
-  `.rwx/integration-tests.yml` checks the PR author, not the commit author),
+  tests are gated to PRs authored by the repo owner or by `github-actions[bot]`
+  on `release/v*` branches (the gate in `.rwx/integration-tests.yml` checks
+  the PR author, not the commit author),
   so they skip Pullfrog-authored PRs — but a Pullfrog-pushed fix commit on a
   human-authored PR still triggers the live-API suite and resolves the vault
   key unattended, which is why the pre-push `pytest -q` applies to every
