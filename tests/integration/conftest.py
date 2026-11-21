@@ -162,46 +162,6 @@ def _sweep_leaked_teams(client: LinearClient) -> None:
         after = page["pageInfo"]["endCursor"]
 
 
-def _create_team_reclaiming(client: LinearClient, variables: dict) -> dict:
-    """Create the team, freeing a plan slot first if the workspace is full.
-
-    Linear answers ``FORBIDDEN`` when the plan's team limit is reached. The key
-    must belong to a disposable workspace, so delete the other (non-``sdk-it``)
-    teams one at a time, oldest first, retrying the create after each. Only
-    runs when the plain create is refused.
-    """
-    try:
-        return _with_backoff_sync(
-            partial(client.execute, _CREATE_TEAM, variables),
-        )["teamCreate"]["team"]
-    except LinearGraphQLError as exc:
-        if "FORBIDDEN" not in exc.codes:
-            raise
-        first_error = exc
-    nodes: list[dict] = []
-    after: str | None = None
-    while True:
-        page = _with_backoff_sync(
-            partial(client.execute, _LIST_TEAMS, {"after": after}),
-        )["teams"]
-        nodes += [
-            n for n in page["nodes"] if not n["name"].startswith(TEAM_NAME_PREFIX)
-        ]
-        if not page["pageInfo"]["hasNextPage"]:
-            break
-        after = page["pageInfo"]["endCursor"]
-    for node in sorted(nodes, key=lambda n: n["createdAt"]):
-        _with_backoff_sync(partial(client.execute, _DELETE_TEAM, {"id": node["id"]}))
-        try:
-            return _with_backoff_sync(
-                partial(client.execute, _CREATE_TEAM, variables),
-            )["teamCreate"]["team"]
-        except LinearGraphQLError as exc:
-            if "FORBIDDEN" not in exc.codes:
-                raise
-    raise first_error
-
-
 @pytest.fixture(scope="session")
 def team(api_key: str, run_id: str) -> Iterator[TeamFields]:
     """A disposable team created for this run, seeded with issues, deleted after.
@@ -209,18 +169,20 @@ def team(api_key: str, run_id: str) -> Iterator[TeamFields]:
     The suite needs only ``LINEAR_API_KEY``: it builds the team it tests
     against, so no pre-provisioned workspace state is assumed. Teams leaked by
     crashed earlier runs (name prefix ``sdk-it``) are swept first, sparing
-    young ones a sibling run may still be using. If the plan's team limit
-    blocks the create, other teams are deleted until one fits. Because the suite only ever
+    young ones a sibling run may still be using. Because the suite only ever
     deletes teams it created or recognises by that prefix, point it at a
     disposable workspace.
     """
     with LinearClient(api_key=api_key) as client:
         _sweep_leaked_teams(client)
         letters = "".join(secrets.choice(string.ascii_uppercase) for _ in range(4))
-        created = _create_team_reclaiming(
-            client,
-            {"i": {"name": f"{TEAM_NAME_PREFIX} {run_id}", "key": f"IT{letters}"}},
-        )
+        created = _with_backoff_sync(
+            partial(
+                client.execute,
+                _CREATE_TEAM,
+                {"i": {"name": f"{TEAM_NAME_PREFIX} {run_id}", "key": f"IT{letters}"}},
+            ),
+        )["teamCreate"]["team"]
         team = TeamFields(**created)
         try:
             with LinearWorkflow(api_key) as wf:
