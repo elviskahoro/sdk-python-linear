@@ -1,4 +1,4 @@
-"""Release helpers for .rwx/release.yml: version bump and CHANGELOG cut."""
+"""Release helpers for .github/workflows/release.yml: version bump and CHANGELOG cut."""
 
 from __future__ import annotations
 
