@@ -4,16 +4,13 @@
 # and its status is "RWX: pullfrog-approval". Pullfrog posts nothing on the PR:
 # its findings are printed at the end of this run's log.
 # Required via: GitHub ruleset on main (required status check "RWX: pullfrog-approval").
-# Fork PRs never get this status (no key for them): merging one needs a ruleset
-# bypass. A manual run without --init pr=<n> fails in the pullfrog task.
 # Manual run (no status posted): rwx run .rwx/pullfrog.yml --init pr=123
 on:
   github:
     pull_request:
       # Same-repo PRs only: a fork PR must not get the Fireworks key or a run
-      # whose prompt it controls. Trunk queue drafts (trunk-merge/ or
-      # trunk-merge-beta/) are skipped: the gate must not spend a run on them.
-      if: ${{ event.github.pull_request.pull_request.base.ref == 'main' && event.github.pull_request.pull_request.head.repo.full_name == event.github.pull_request.pull_request.base.repo.full_name && event.github.pull_request.pull_request.head.ref !~ '^trunk-merge(-beta)?/' }}
+      # whose prompt it controls.
+      if: ${{ event.github.pull_request.pull_request.base.ref == 'main' && event.github.pull_request.pull_request.head.repo.full_name == 'elviskahoro/sdk-python-linear' }}
       init:
         pr: ${{ event.github.pull_request.number }}
         ref: ${{ event.git.sha }}
@@ -26,8 +23,8 @@ on:
 
 concurrency-pools:
   - id: sdk-python-linear/pullfrog-pr-${{ init.pr }}
-    capacity: 1
-    on-overflow: queue
+    capacity: 5
+    on-overflow: cancel-running
 
 base:
   image: ubuntu:24.04
@@ -47,17 +44,17 @@ tasks:
   - key: node
     call: nodejs/install 1.2.1
     with:
-      node-version: 24.22.3
+      node-version: "24.22.3"
 
   - key: pullfrog
     use: [code, node]
     cache: false
     env:
       PR: ${{ init.pr }}
-      # RWX GitHub app token (needs the app connected for elviskahoro/sdk-python-linear).
-      GH_TOKEN: ${{ github['elviskahoro'].token }}
-      PULLFROG_VERSION: 0.1.131
+      PULLFROG_VERSION: "0.1.131"
       GITHUB_REPOSITORY: elviskahoro/sdk-python-linear
+      # RWX's own app token: read access to code and PRs is all a review needs.
+      GH_TOKEN: ${{ github['elviskahoro'].token }}
       INPUT_MODEL: openai-compatible/byok
       # The verdict. The runner forces the agent to call set_output with this
       # shape (the run errors otherwise) and logs it as ::pullfrog-output::<b64>.
@@ -111,23 +108,18 @@ tasks:
 
       # Build the runner's JSON payload with a PR event, so it reviews the PR
       # (checks out its head, reads its diff) instead of running a bare prompt.
-      # Kept in a file, and the body is truncated below: INPUT_PROMPT is an env
-      # var, and one entry over the per-entry exec limit (E2BIG) would fail the
-      # gate without a verdict.
-      pr_file=/tmp/pr.json
-      curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+      pr_json=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
         -H "Accept: application/vnd.github+json" \
-        "https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/$PR" > "$pr_file"
-      export PR_FILE="$pr_file"
-      INPUT_PROMPT=$(node -e '
-        const pr = JSON.parse(require("fs").readFileSync(process.env.PR_FILE, "utf8"));
+        "https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/$PR")
+      INPUT_PROMPT=$(PR_JSON="$pr_json" node -e '
+        const pr = JSON.parse(process.env.PR_JSON);
         process.stdout.write(JSON.stringify({
           "~pullfrog": true,
           version: process.env.PULLFROG_VERSION,
           prompt: process.env.REVIEW_PROMPT,
           event: {
             trigger: "pull_request_opened", is_pr: true, issue_number: pr.number,
-            title: pr.title, body: (pr.body ?? "").slice(0, 20000), branch: pr.head.ref,
+            title: pr.title, body: pr.body ?? null, branch: pr.head.ref,
             authorPermission: "write",
             // silent: without it the runner Review mode demands a posted review
             // (create_pull_request_review) and fails the run after 3 retries.
@@ -136,7 +128,7 @@ tasks:
         }));
       ')
       export INPUT_PROMPT
-      echo "Reviewing PR #$PR at $(node -p 'JSON.parse(require("fs").readFileSync(process.env.PR_FILE, "utf8")).head.sha')"
+      echo "Reviewing PR #$PR at $(PR_JSON="$pr_json" node -p 'JSON.parse(process.env.PR_JSON).head.sha')"
 
       # Local stub standing in for pullfrog.com: every request gets 404, which
       # the runner treats as "no stored settings" and falls back to defaults.
