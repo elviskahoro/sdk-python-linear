@@ -2,9 +2,7 @@
 
 [prompts]
 create_pr = '''
-<!-- Canonical source: flox-conductor-sandbox prompts/conductor/create-pr.md.
-     Installed into a repo's .conductor settings [prompts].create_pr by
-     scripts/install-conductor-prompts.py — do not hand-edit the TOML copy.
+<!-- Repo-owned copy: edit this file directly; it is not re-synced from upstream.
      Upstream history: gtm-sdk prompts/conductor/create-pr.md (incl. #921).
      Repo-specific references (Linear, design/ artifacts,
      roborev) follow the cross-repo conventions — where a repo's own
@@ -494,9 +492,7 @@ What's wrong: the Summary paraphrases the diff, the Test plan has no reasoning, 
 
 rename_branch = "make sure that the branch prefix is always \"conductor/\""
 fix_errors = '''
-<!-- Canonical source: flox-conductor-sandbox prompts/conductor/fix-errors.md.
-     Installed into a repo's .conductor settings [prompts].fix_errors by
-     scripts/install-conductor-prompts.py — do not hand-edit the TOML copy.
+<!-- Repo-owned copy: edit this file directly; it is not re-synced from upstream.
      Companion to create-pr.md; shares its conventions (roborev gate, no AI
      attribution). Where a repo's own instructions differ,
      the repo wins. -->
@@ -669,9 +665,7 @@ git push                                      # fast-forward only; never -f
 ```
 '''
 general = '''
-<!-- Canonical source: flox-conductor-sandbox prompts/conductor/general.md.
-     Installed into a repo's .conductor settings [prompts].general by
-     scripts/install-conductor-prompts.py — do not hand-edit the TOML copy.
+<!-- Repo-owned copy: edit this file directly; it is not re-synced from upstream.
      The installer validates TOML parsing; CI checks source/copy synchronization.
      Baseline preferences for every Conductor session. Companion to
      create-pr.md and fix-errors.md, which own the PR and red-checks
@@ -799,9 +793,7 @@ Otherwise, proceed.
 | Instructions conflict (this file vs. repo vs. user) | User's message wins, then the repo's AGENTS.md/CLAUDE.md, then this file. |
 '''
 resolve_merge_conflicts = '''
-<!-- Canonical source: flox-conductor-sandbox prompts/conductor/resolve-merge-conflicts.md.
-     Installed into a repo's .conductor settings [prompts].resolve_merge_conflicts by
-     scripts/install-conductor-prompts.py — do not hand-edit the TOML copy.
+<!-- Repo-owned copy: edit this file directly; it is not re-synced from upstream.
      Sibling of create-pr.md; shares its gates (roborev, no AI
      attribution). Where a repo's own instructions differ, the repo wins. -->
 
