@@ -39,22 +39,19 @@ tasks:
       ref: ${{ init.ref }}
       submodules: false
       preserve-git-dir: true
-      github-token: ${{ github['elviskahoro'].token }}
 
   - key: node
     call: nodejs/install 1.2.1
     with:
-      node-version: "24.22.3"
+      node-version: 24.22.3
 
   - key: pullfrog
     use: [code, node]
     cache: false
     env:
       PR: ${{ init.pr }}
-      PULLFROG_VERSION: "0.1.131"
+      PULLFROG_VERSION: 0.1.131
       GITHUB_REPOSITORY: elviskahoro/sdk-python-linear
-      # RWX's own app token: read access to code and PRs is all a review needs.
-      GH_TOKEN: ${{ github['elviskahoro'].token }}
       INPUT_MODEL: openai-compatible/byok
       # The verdict. The runner forces the agent to call set_output with this
       # shape (the run errors otherwise) and logs it as ::pullfrog-output::<b64>.
@@ -108,7 +105,7 @@ tasks:
 
       # Build the runner's JSON payload with a PR event, so it reviews the PR
       # (checks out its head, reads its diff) instead of running a bare prompt.
-      pr_json=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+      pr_json=$(curl -fsSL \
         -H "Accept: application/vnd.github+json" \
         "https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/$PR")
       INPUT_PROMPT=$(PR_JSON="$pr_json" node -e '
