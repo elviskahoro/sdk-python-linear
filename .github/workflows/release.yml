@@ -95,7 +95,7 @@ jobs:
             ms="$(gh pr view "${pr}" --json mergeStateStatus -q .mergeStateStatus)"
             [ "${ms}" = "CLEAN" ] && break
             [ "${ms}" = "DIRTY" ] && { echo "merge conflict: ${pr_url}" >&2; exit 1; }
-            if [ "$(gh pr checks "${pr}" --required --json bucket -q 'map(.bucket == "fail") | any' 2>/dev/null || echo false)" = "true" ]; then
+            if [ "$(gh pr checks "${pr}" --required --json bucket -q 'map(.bucket == "fail") | any' 2>/dev/null || true)" = "true" ]; then
               echo "required check failed: ${pr_url}" >&2; exit 1
             fi
             sleep 30
