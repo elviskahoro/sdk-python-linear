@@ -100,7 +100,7 @@ jobs:
             fi
             sleep 30
           done
-          [ "${ms}" = "CLEAN" ] || { echo "not mergeable in time (${ms}): ${pr_url}. BLOCKED with all checks green usually means pullfrog-approval never posted: check the Pullfrog console toggle 'Include PRs opened by bots'." >&2; exit 1; }
+          [ "${ms}" = "CLEAN" ] || { echo "not mergeable in time (${ms}): ${pr_url}. BLOCKED with all checks green usually means the 'RWX: pullfrog-approval' status never posted: check the pullfrog.yml run on RWX." >&2; exit 1; }
 
           gh pr merge "${pr}" --squash --delete-branch
           for _ in $(seq 1 40); do

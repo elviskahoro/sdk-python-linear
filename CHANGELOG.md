@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Dev-only: moved the Pullfrog review gate from GitHub Actions to RWX
+  (`.rwx/pullfrog.yml`, status `RWX: pullfrog-approval`) and dropped
+  `pullfrog-approval` from the trunk required statuses.
+
 ## [0.10.1] - 2026-11-21
 
 ### Changed

@@ -162,7 +162,9 @@ Live-API tests (`-m network`) need the vault key: push the branch, then
 
 ## Pullfrog (automated CI fixes)
 
-Pullfrog may push fix commits to PR branches. CI stays the independent gate
+Pullfrog runs on RWX (`.rwx/pullfrog.yml`, status `RWX: pullfrog-approval`):
+it reviews same-repo PRs and posts no comments. The rules below apply to any
+Pullfrog or agent fix commit pushed to PR branches. CI stays the independent gate
 (see elviskahoro/flox-conductor-sandbox#111):
 
 - Before pushing, run `uv run pytest -q`; do not push a fix you have not run.
