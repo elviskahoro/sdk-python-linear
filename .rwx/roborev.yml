@@ -22,7 +22,7 @@ tasks:
       ref: ${{ init.ref }}
       submodules: false
       preserve-git-dir: true
-      github-token: ${{ github.token }}
+      fetch-full-depth: true
 
   - key: node
     call: nodejs/install 1.2.1
@@ -34,15 +34,11 @@ tasks:
     cache: false
     env:
       GITHUB_REPOSITORY: elviskahoro/sdk-python-linear
-      GH_TOKEN: ${{ github.token }}
-      # trunk-ignore(semgrep/yaml.github-actions.security.gha-workflow-env-secret.gha-workflow-env-secret): task-scoped `env:` in an RWX run definition, not a GHA workflow-level env block.
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       ROBOREV_VERSION: 0.63.0
       PI_VERSION: 1.4.0
     run: |
       set -euo pipefail
-      # Pinned to the version in .flox/env/manifest.toml (the installer only
-      # fetches latest).
+      # Pinned here because the installer only fetches latest.
       mkdir -p "$HOME/.local/bin"
       curl -fsSL "https://github.com/kenn-io/roborev/releases/download/v${ROBOREV_VERSION}/roborev_${ROBOREV_VERSION}_linux_amd64.tar.gz" \
         | tar -xz -C "$HOME/.local/bin" roborev
@@ -51,16 +47,8 @@ tasks:
       # .roborev.toml selects the pi agent; roborev finds no agent without it.
       npm install -g "@earendil-works/pi-coding-agent@${PI_VERSION}"
       pi --version
-      git config --global credential.helper store
-      echo "https://x-access-token:$GITHUB_TOKEN@github.com" > ~/.git-credentials
-      chmod 600 ~/.git-credentials
       # Key is exported here, not in env:, so Semgrep's workflow-env-secret passes.
       export FIREWORKS_API_KEY="${{ secrets.FIREWORKS_API_KEY }}"
-      # The clone is shallow; merge-base needs full history when HEAD is a
-      # pushed branch commit rather than main.
-      if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
-        git fetch --no-tags --unshallow origin
-      fi
       git fetch --no-tags origin main:refs/remotes/origin/main
       # `rwx run` ships local work as a patch on top of the nearest pushed
       # commit, so commit it here or roborev (committed ranges only) sees an
