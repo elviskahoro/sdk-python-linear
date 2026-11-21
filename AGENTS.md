@@ -188,3 +188,9 @@ Pullfrog may push fix commits to PR branches. CI stays the independent gate
 `default` vault). It reviews `merge-base(origin/main, HEAD)..HEAD` and fails
 unless roborev prints `Review Passed`; read findings with `rwx results` /
 `rwx logs`. Record "skipped" only if `rwx` itself is unavailable.
+
+## PR issue links
+
+PR bodies need `Closes #N`, `Refs #N` (partial work), or `No issue: <reason>`.
+`.rwx/check-pr-issue-link.yml` (`scripts/check-pr-issue-link.sh`) enforces it;
+bot-authored PRs are skipped. The check is advisory until made a required check.
