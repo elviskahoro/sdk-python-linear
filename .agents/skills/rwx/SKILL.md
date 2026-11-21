@@ -15,6 +15,7 @@ CI definitions live in `.rwx/`:
 | `integration-tests.yml` | github push (main), pull_request (owner-authored PRs), weekly cron, cli | live-API tests (`-m network`), needs vault key |
 | `publish.yml` | github push (tags `v*`), cli | release build |
 | `dagger-ref-drift.yml` | cron (weekly), cli, dispatch | Dagger ref drift check |
+| `roborev.yml` | `cli` only | advisory roborev review of the branch vs `origin/main`; needs `FIREWORKS_API_KEY` (default vault) |
 | `pyright.yml`, `pyrefly.yml` | `cli` only | on-demand type checks, never run on PRs |
 
 ## Auth: one injected token per RWX organization

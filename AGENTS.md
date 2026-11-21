@@ -126,3 +126,12 @@ Pullfrog may push fix commits to PR branches. CI stays the independent gate
   human-authored PR still triggers the live-API suite and resolves the vault
   key unattended, which is why the pre-push `pytest -q` applies to every
   push, not only Pullfrog-authored ones.
+
+## Roborev review gate
+
+`roborev` is not installed in cloud sandboxes. Commit, then run
+`RWX_ACCESS_TOKEN="$RWX_ACCESS_TOKEN_ELVISKAHORO" rwx run .rwx/roborev.yml --wait`
+(dispatch-only; uses `.roborev.toml` and the `FIREWORKS_API_KEY` in the
+`default` vault). It reviews `merge-base(origin/main, HEAD)..HEAD` and fails
+unless roborev prints `Review Passed`; read findings with `rwx results` /
+`rwx logs`. Record "skipped" only if `rwx` itself is unavailable.
