@@ -60,7 +60,7 @@ tasks:
       # `roborev ci review` exits 0 even with findings: gate on the verdict
       # header, failing closed if none is printed.
       roborev ci review --ref "${base}..HEAD" 2>&1 | tee roborev-output.txt
-      if ! grep -q "^ roborev-output.txt; then
+      if ! grep -q "^## roborev: Review Passed" roborev-output.txt; then
         echo "roborev did not pass: see findings above" >&2
         exit 1
       fi
