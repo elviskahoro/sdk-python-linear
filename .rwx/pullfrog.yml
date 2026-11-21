@@ -39,6 +39,7 @@ tasks:
       ref: ${{ init.ref }}
       submodules: false
       preserve-git-dir: true
+      github-token: ${{ vaults.sdk-python-linear-pullfrog.github-apps.rwx-automation-elviskahoro.token }}
 
   - key: node
     call: nodejs/install 1.2.1
@@ -50,6 +51,8 @@ tasks:
     cache: false
     env:
       PR: ${{ init.pr }}
+      # RWX automation GitHub app token from the repo's pullfrog vault.
+      GH_TOKEN: ${{ vaults.sdk-python-linear-pullfrog.github-apps.rwx-automation-elviskahoro.token }}
       PULLFROG_VERSION: 0.1.131
       GITHUB_REPOSITORY: elviskahoro/sdk-python-linear
       INPUT_MODEL: openai-compatible/byok
@@ -105,7 +108,7 @@ tasks:
 
       # Build the runner's JSON payload with a PR event, so it reviews the PR
       # (checks out its head, reads its diff) instead of running a bare prompt.
-      pr_json=$(curl -fsSL \
+      pr_json=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
         -H "Accept: application/vnd.github+json" \
         "https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/$PR")
       INPUT_PROMPT=$(PR_JSON="$pr_json" node -e '
