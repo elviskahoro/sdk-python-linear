@@ -16,6 +16,7 @@ CI definitions live in `.rwx/`:
 | `publish.yml` | github push (tags `v*`), cli | release build |
 | `dagger-ref-drift.yml` | cron (weekly), cli, dispatch | Dagger ref drift check |
 | `pyright.yml`, `pyrefly.yml` | `cli` only | on-demand type checks, never run on PRs |
+| `roborev.yml` | `cli` only | roborev review of branch vs main; dispatch-only, never a PR check or required status |
 
 ## Auth: one injected token per RWX organization
 
