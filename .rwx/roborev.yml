@@ -20,6 +20,7 @@ tasks:
     with:
       repository: https://github.com/elviskahoro/sdk-python-linear.git
       ref: ${{ init.ref }}
+      fetch-full-depth: true
       preserve-git-dir: true
 
   - key: node
