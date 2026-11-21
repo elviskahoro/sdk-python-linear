@@ -8,6 +8,7 @@
 name: Release
 run-name: Release v${{ inputs.version }}
 
+# trunk-ignore-begin(checkov/CKV_GHA_7): the version is the release entry point; it is regex-validated and passed via env, not a build parameter.
 on:
   workflow_dispatch:
     inputs:
@@ -15,6 +16,7 @@ on:
         description: Version to release (X.Y.Z)
         type: string
         required: true
+# trunk-ignore-end(checkov/CKV_GHA_7)
 
 permissions:
   contents: write
