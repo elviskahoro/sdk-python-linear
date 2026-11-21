@@ -84,6 +84,13 @@ miss one and runs fail with "The vault is locked":
    `rwx vaults access allow --vault <name> --email <user>` (confirm first;
    it is a grant change).
 
+Tag-triggered runs (the publish pipeline) match the ref `refs/tags/<tag>`, so
+the vault needs a `refs/tags/v*` grant. A bare `v*` grant matches only a
+*branch* named `v*` and never matches a tag. This is the likely cause of the
+v0.10.0 publish lock (#252). `rwx retry` does not re-test grant changes; only
+a fresh tag push (or a `rwx run` dispatch) does. Confirm the grant exists
+before pushing a release tag, then check PyPI for the version.
+
 Setting a placeholder secret (`rwx vaults secrets set --vault <name> KEY=...`)
 lets the pipeline resolve while the owner supplies the real value. A green run
 with a placeholder or a masked-exit-code tool proves nothing: read the task
