@@ -8,12 +8,14 @@ on:
     # PR runs reach the vault unattended, but only for PRs authored by the
     # repo owner: the `if:` below is the author gate (vault grants match only
     # repo + branch pattern, never author). See the integration-tests task.
+    # The release workflow's bot-authored `release/v*` PRs are admitted too:
+    # this check is required on main, and without it those PRs never merge.
     pull_request:
       init:
         commit-sha: ${{ event.git.sha }}
         repository: https://github.com/elviskahoro/sdk-python-linear.git
         event-type: pull_request
-      if: ${{ event.github.pull_request.pull_request.user.login == 'elviskahoro' }}
+      if: ${{ event.github.pull_request.pull_request.user.login == 'elviskahoro' || (event.github.pull_request.pull_request.user.login == 'github-actions[bot]' && event.git.branch =~ '^release/v') }}
   cron:
     - key: weekly-integration-tests
       schedule: 17 7 * * 1
