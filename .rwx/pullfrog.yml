@@ -3,14 +3,18 @@
 # structured verdict ({approve, summary}). The run fails unless approve is true,
 # and its status is "RWX: pullfrog-approval". Pullfrog posts nothing on the PR:
 # its findings are printed at the end of this run's log.
-# Required via: GitHub ruleset on main (required status check "RWX: pullfrog-approval").
+# Required via main branch protection (not trunk merge.required_statuses: the queue tests trunk-merge/** via push, so the gate never runs there).
+# Fork PRs never get this status (no key for them): merging one needs a ruleset
+# bypass. A manual run without --init pr=<n> fails in the pullfrog task.
 # Manual run (no status posted): rwx run .rwx/pullfrog.yml --init pr=123
 on:
   github:
     pull_request:
       # Same-repo PRs only: a fork PR must not get the Fireworks key or a run
-      # whose prompt it controls.
-      if: ${{ event.github.pull_request.pull_request.base.ref == 'main' && event.github.pull_request.pull_request.head.repo.full_name == 'elviskahoro/sdk-python-linear' }}
+      # whose prompt it controls. Trunk queue drafts (trunk-merge/ or
+      # trunk-merge-beta/) are skipped: the gate must not spend a run on them.
+      # Dependabot PRs are skipped: their bodies embed upstream-controlled text.
+      if: ${{ event.github.pull_request.pull_request.base.ref == 'main' && event.github.pull_request.pull_request.head.repo.full_name == event.github.pull_request.pull_request.base.repo.full_name && event.github.pull_request.pull_request.head.ref !~ '^trunk-merge(-beta)?/' && event.github.pull_request.pull_request.user.login != 'dependabot[bot]' }}
       init:
         pr: ${{ event.github.pull_request.number }}
         ref: ${{ event.git.sha }}
@@ -23,8 +27,8 @@ on:
 
 concurrency-pools:
   - id: sdk-python-linear/pullfrog-pr-${{ init.pr }}
-    capacity: 5
-    on-overflow: cancel-running
+    capacity: 1
+    on-overflow: queue
 
 base:
   image: ubuntu:24.04
@@ -39,7 +43,6 @@ tasks:
       ref: ${{ init.ref }}
       submodules: false
       preserve-git-dir: true
-      github-token: ${{ vaults.sdk-python-linear-pullfrog.github-apps.rwx-automation-elviskahoro.token }}
 
   - key: node
     call: nodejs/install 1.2.1
@@ -51,8 +54,6 @@ tasks:
     cache: false
     env:
       PR: ${{ init.pr }}
-      # RWX automation GitHub app token from the repo's pullfrog vault.
-      GH_TOKEN: ${{ vaults.sdk-python-linear-pullfrog.github-apps.rwx-automation-elviskahoro.token }}
       PULLFROG_VERSION: 0.1.131
       GITHUB_REPOSITORY: elviskahoro/sdk-python-linear
       INPUT_MODEL: openai-compatible/byok
@@ -100,6 +101,11 @@ tasks:
       export GITHUB_WORKSPACE="$PWD"
       # Exported here, not in env:, so Semgrep's workflow-env-secret rule passes.
       export OPENAI_COMPATIBLE_API_KEY="${{ secrets.FIREWORKS_API_KEY }}"
+      # Public repo: RWX's github.token is not provided on PR runs, so the token
+      # is a short-lived GitHub App token from the sdk-python-linear-pullfrog
+      # vault (app rwx-automation-elviskahoro; read access to code and PRs).
+      export GH_TOKEN="${{ vaults.sdk-python-linear-pullfrog.github-apps.rwx-automation-elviskahoro.token }}"
+      [ -n "$GH_TOKEN" ] || { echo 'no GitHub App token from the vault' >&2; exit 1; }
       # git/clone leaves several credential.helper values; the runner sets its
       # own and refuses to overwrite a multi-valued key.
       for scope in --local --global --system; do
@@ -108,18 +114,23 @@ tasks:
 
       # Build the runner's JSON payload with a PR event, so it reviews the PR
       # (checks out its head, reads its diff) instead of running a bare prompt.
-      pr_json=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+      # Kept in a file, and the body is truncated below: INPUT_PROMPT is an env
+      # var, and one entry over the per-entry exec limit (E2BIG) would fail the
+      # gate without a verdict.
+      pr_file=/tmp/pr.json
+      curl -fsSL \
         -H "Accept: application/vnd.github+json" \
-        "https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/$PR")
-      INPUT_PROMPT=$(PR_JSON="$pr_json" node -e '
-        const pr = JSON.parse(process.env.PR_JSON);
+        "https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/$PR" > "$pr_file"
+      export PR_FILE="$pr_file"
+      INPUT_PROMPT=$(node -e '
+        const pr = JSON.parse(require("fs").readFileSync(process.env.PR_FILE, "utf8"));
         process.stdout.write(JSON.stringify({
           "~pullfrog": true,
           version: process.env.PULLFROG_VERSION,
           prompt: process.env.REVIEW_PROMPT,
           event: {
             trigger: "pull_request_opened", is_pr: true, issue_number: pr.number,
-            title: pr.title, body: pr.body ?? null, branch: pr.head.ref,
+            title: pr.title, body: "", branch: pr.head.ref,
             authorPermission: "write",
             // silent: without it the runner Review mode demands a posted review
             // (create_pull_request_review) and fails the run after 3 retries.
@@ -128,7 +139,7 @@ tasks:
         }));
       ')
       export INPUT_PROMPT
-      echo "Reviewing PR #$PR at $(PR_JSON="$pr_json" node -p 'JSON.parse(process.env.PR_JSON).head.sha')"
+      echo "Reviewing PR #$PR at $(node -p 'JSON.parse(require("fs").readFileSync(process.env.PR_FILE, "utf8")).head.sha')"
 
       # Local stub standing in for pullfrog.com: every request gets 404, which
       # the runner treats as "no stored settings" and falls back to defaults.
@@ -150,12 +161,12 @@ tasks:
       log=/tmp/pullfrog.log
       npx --yes "pullfrog@$PULLFROG_VERSION" gha 2>&1 | tee "$log"
 
-      # The gate: decode the last ::pullfrog-output:: line and fail unless approve.
+      # The gate: decode the single ::pullfrog-output:: line (zero or several fail closed: a forged extra marker must not self-approve) and fail unless approve.
       LOG="$log" node -e '
         const log = require("fs").readFileSync(process.env.LOG, "utf8");
         const hits = [...log.matchAll(/::pullfrog-output::([A-Za-z0-9+\/=]+)/g)];
-        if (!hits.length) { console.error("Pullfrog produced no verdict"); process.exit(1); }
-        const out = JSON.parse(Buffer.from(hits.at(-1)[1], "base64").toString("utf8"));
+        if (hits.length !== 1) { console.error(`expected exactly one verdict, got ${hits.length}`); process.exit(1); }
+        const out = JSON.parse(Buffer.from(hits[0][1], "base64").toString("utf8"));
         console.log(`\n===== Pullfrog verdict: ${out.approve === true ? "APPROVE" : "CHANGES NEEDED"} =====\n${out.summary}\n`);
         process.exit(out.approve === true ? 0 : 1);
       '

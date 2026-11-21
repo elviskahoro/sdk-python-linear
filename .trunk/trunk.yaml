@@ -135,7 +135,7 @@ lint:
     # explicit `policy:` config is supported but the upgrade note warns the new
     # policies can turn previously clean workflows into exits with status 1, even
     # on repositories without a configuration file). Bump to 1.17.x once the
-    # surviving workflows (.github/workflows/{pullfrog,pypi}.yml) are revised and
+    # surviving workflows (.github/workflows/{release}.yml) are revised and
     # the policies pass on them.
     - actionlint@1.16.1
     - add-trailing-comma@4.0.0
@@ -408,13 +408,9 @@ merge:
   # (contexts) here rather than check-runs; the queue and `gh pr checks`
   # match on the name either way.
   #
-  # "pullfrog-approval" is the pullfrog GitHub App's pass/fail verdict on
-  # the PR under review (success = approved, failure = changes requested),
-  # posted as a check-run on every PR pullfrog reviews -- distinct from the
-  # plain "pullfrog" check, which only mirrors the agent run itself. It has
-  # posted on every PR reviewed since the 0.1.95 bump (#108-#112, including
-  # the bot-authored #100/#101). Required since 2026-10-16 to match
-  # main's branch protection, which gates merges on the GitHub side.
+  # "pullfrog-approval" (RWX: .rwx/pullfrog.yml) is deliberately NOT listed:
+  # it is a PR-only review gate and the queue tests trunk-merge/** via push,
+  # so it would never report there. Enforce it with main branch protection.
   #
   # The lint gate is two-layered: its PR mode diffs against the PR's
   # exact base commit (--upstream=$MERGE_BASE, see .rwx/lint.yml), so the
@@ -448,19 +444,6 @@ merge:
   # same reason: posting on every PR is not enough when the verdict only
   # resolves behind a human vault approval.
   #
-  # Residual risk for "pullfrog-approval": every landing so far merged
-  # directly against the PR head, where pullfrog always posts. The check
-  # can still go missing and stall the queue (Queued forever instead of
-  # failing loudly) in two ways: (a) pullfrog skips a PR, is down or
-  # rate-limited, or does not re-run after a rebase or force-push, so the
-  # verdict never posts on the current head; (b) an entry is submitted
-  # while out of date with main, so the queue builds a trunk-merge/*
-  # test branch and waits for this list there -- unverified that pullfrog
-  # reviews those. Watch the first entry that stalls. Recovery: re-trigger
-  # the pullfrog review on the head; for (b) verify with a throwaway PR
-  # deliberately behind main, or drop the entry and rely on main's branch
-  # protection (final merge gate) instead.
   required_statuses:
     - "RWX: tests.yml (pull request)"
     - "RWX: lint.yml (pull request)"
-    - pullfrog-approval

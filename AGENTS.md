@@ -162,7 +162,9 @@ Live-API tests (`-m network`) need the vault key: push the branch, then
 
 ## Pullfrog (automated CI fixes)
 
-Pullfrog may push fix commits to PR branches. CI stays the independent gate
+Pullfrog runs on RWX (`.rwx/pullfrog.yml`, required status `RWX: pullfrog-approval`):
+it reviews same-repo PRs and posts no comments. The rules below apply to any
+Pullfrog or agent fix commit pushed to PR branches. CI stays the independent gate
 (see elviskahoro/flox-conductor-sandbox#111):
 
 - Before pushing, run `uv run pytest -q`; do not push a fix you have not run.
@@ -192,3 +194,9 @@ main and fails unless the verdict approves. Manual run:
 `default` vault). It reviews `merge-base(origin/main, HEAD)..HEAD` and fails
 unless roborev prints `Review Passed`; read findings with `rwx results` /
 `rwx logs`. Record "skipped" only if `rwx` itself is unavailable.
+
+## PR issue links
+
+PR bodies need `Closes #N`, `Refs #N` (partial work), or `No issue: <reason>`.
+`.rwx/check-pr-issue-link.yml` (`scripts/check-pr-issue-link.sh`) enforces it;
+bot-authored PRs are skipped. The check is advisory until made a required check.

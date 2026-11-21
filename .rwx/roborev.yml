@@ -1,6 +1,6 @@
 # RoboRev review as a tool for the local agent. Dispatch-only (cli trigger): it
 # is not a PR check, posts no comment or status, and does not replace
-# pullfrog-approval. Run it before pushing:
+# pullfrog-approval (.rwx/pullfrog.yml). Run it before pushing:
 #   rwx run .rwx/roborev.yml --wait
 # It reviews local work (committed or not) against origin/main with the model in
 # .roborev.toml (pi + Fireworks) and fails when roborev reports findings.
