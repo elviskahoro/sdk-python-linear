@@ -43,6 +43,7 @@ tasks:
       ref: ${{ init.ref }}
       submodules: false
       preserve-git-dir: true
+      github-token: ${{ github['elviskahoro'].token }}
 
   - key: node
     call: nodejs/install 1.2.1
@@ -54,11 +55,8 @@ tasks:
     cache: false
     env:
       PR: ${{ init.pr }}
-      # RWX has no implicit GitHub token here: a read-only fine-grained PAT from
-      # the locked sdk-python-linear-pullfrog vault (same-repo PRs only).
-      GH_TOKEN:
-        value: ${{ vaults.sdk-python-linear-pullfrog.secrets.GITHUB_TOKEN }}
-        cache-key: excluded
+      # RWX's own app token: read access to code and PRs is all a review needs.
+      GH_TOKEN: ${{ github['elviskahoro'].token }}
       PULLFROG_VERSION: 0.1.131
       GITHUB_REPOSITORY: elviskahoro/sdk-python-linear
       INPUT_MODEL: openai-compatible/byok
