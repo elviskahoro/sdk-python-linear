@@ -612,7 +612,7 @@ sdk-python-linear/
 ├── pyrightconfig.json        # pyright config (repo-local)
 ├── pyrefly.toml              # type-checker config
 ├── .github/workflows/        # release.yml (manual release)
-├── .rwx/                     # RWX pipeline — tests.yml (canonical test gate) + dagger-ref-drift.yml (weekly fallback)
+├── .rwx/                     # RWX pipeline — tests.yml (canonical test gate) + dagger-ref-drift.yml (weekly fallback) + pullfrog.yml (review gate)
 └── .trunk/                   # lint config (trunk.io)
 ```
 
