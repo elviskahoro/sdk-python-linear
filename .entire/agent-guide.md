@@ -90,6 +90,9 @@ the vault needs a `refs/tags/v*` grant. A bare `v*` grant matches only a
 v0.10.0 publish lock (#252). `rwx retry` does not re-test grant changes; only
 a fresh tag push (or a `rwx run` dispatch) does. Confirm the grant exists
 before pushing a release tag, then check PyPI for the version.
+The grant belongs on the tag-only `sdk-python-linear-pypi` vault, which holds
+`PYPI_TOKEN`. Keep it off `sdk-python-linear` (main-only, `GITHUB_TOKEN`) so
+main runs cannot resolve the publish credential.
 
 Setting a placeholder secret (`rwx vaults secrets set --vault <name> KEY=...`)
 lets the pipeline resolve while the owner supplies the real value. A green run
