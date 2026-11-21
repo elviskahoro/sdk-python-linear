@@ -121,7 +121,7 @@ It reviews `merge-base(origin/main, HEAD)..HEAD` with the model in
 `.roborev.toml` and fails unless roborev prints `Review Passed`. Read findings
 with `rwx logs <run-id> --task roborev --output "$(mktemp -d)"`. It is
 dispatch-only (no PR status) and uses `FIREWORKS_API_KEY` from the `default`
-vault. Only say "skipped" if this dispatch also failed, and give the reason.
+vault. Never skip the review: if the dispatch fails, fix it or report `unavailable (reason)` and ask.
 
 ## Pullfrog (automated CI fixes)
 
