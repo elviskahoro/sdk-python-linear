@@ -43,7 +43,7 @@ tasks:
       ref: ${{ init.ref }}
       submodules: false
       preserve-git-dir: true
-      github-token: ${{ github.token }}
+      github-token: ${{ github['elviskahoro'].token }}
 
   - key: node
     call: nodejs/install 1.2.1
@@ -58,7 +58,7 @@ tasks:
       PULLFROG_VERSION: 0.1.131
       GITHUB_REPOSITORY: elviskahoro/sdk-python-linear
       # RWX's own app token: read access to code and PRs is all a review needs.
-      GH_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github['elviskahoro'].token }}
       INPUT_MODEL: openai-compatible/byok
       # The verdict. The runner forces the agent to call set_output with this
       # shape (the run errors otherwise) and logs it as ::pullfrog-output::<b64>.
