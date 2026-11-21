@@ -61,8 +61,14 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # The release branch is disposable: clear leftovers from a failed run.
           if git ls-remote --exit-code --heads origin "release/${tag}" >/dev/null 2>&1; then
-            echo "refusing: branch release/${tag} already exists; delete it first" >&2; exit 1
+            old_pr="$(gh pr list --head "release/${tag}" --state open --json number -q '.[0].number // empty')"
+            if [ -n "${old_pr}" ]; then
+              gh pr close "${old_pr}" --comment "Superseded by a new release run." --delete-branch
+            else
+              git push -q origin --delete "release/${tag}"
+            fi
           fi
           git checkout -q -b "release/${tag}"
 
@@ -94,7 +100,7 @@ jobs:
             fi
             sleep 30
           done
-          [ "${ms}" = "CLEAN" ] || { echo "not mergeable in time (${ms}): ${pr_url}" >&2; exit 1; }
+          [ "${ms}" = "CLEAN" ] || { echo "not mergeable in time (${ms}): ${pr_url}. BLOCKED with all checks green usually means pullfrog-approval never posted: check the Pullfrog console toggle 'Include PRs opened by bots'." >&2; exit 1; }
 
           gh pr merge "${pr}" --squash --delete-branch
           for _ in $(seq 1 40); do
@@ -108,4 +114,4 @@ jobs:
           git fetch -q origin "${sha}"
           git tag "${tag}" "${sha}"
           git push -q origin "${tag}"
-          echo "pushed ${tag} at ${sha}; .rwx/publish.yml now publishes to PyPI"
+          echo "pushed ${tag} at ${sha}; confirm in the RWX dashboard that .rwx/publish.yml started (a GITHUB_TOKEN tag push is not first-party documented to trigger it)"
