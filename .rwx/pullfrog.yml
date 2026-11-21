@@ -3,7 +3,7 @@
 # structured verdict ({approve, summary}). The run fails unless approve is true,
 # and its status is "RWX: pullfrog-approval". Pullfrog posts nothing on the PR:
 # its findings are printed at the end of this run's log.
-# Required via a GitHub ruleset (not trunk merge.required_statuses: the queue tests trunk-merge/** via push, so the gate never runs there).
+# Required via main branch protection (not trunk merge.required_statuses: the queue tests trunk-merge/** via push, so the gate never runs there).
 # Fork PRs never get this status (no key for them): merging one needs a ruleset
 # bypass. A manual run without --init pr=<n> fails in the pullfrog task.
 # Manual run (no status posted): rwx run .rwx/pullfrog.yml --init pr=123

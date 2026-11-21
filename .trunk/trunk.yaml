@@ -410,7 +410,7 @@ merge:
   #
   # "pullfrog-approval" (RWX: .rwx/pullfrog.yml) is deliberately NOT listed:
   # it is a PR-only review gate and the queue tests trunk-merge/** via push,
-  # so it would never report there. Enforce it with the GitHub ruleset.
+  # so it would never report there. Enforce it with main branch protection.
   #
   # The lint gate is two-layered: its PR mode diffs against the PR's
   # exact base commit (--upstream=$MERGE_BASE, see .rwx/lint.yml), so the
