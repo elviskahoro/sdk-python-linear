@@ -117,7 +117,8 @@ tasks:
   # a ref matching no grant fails before `run:` when approvals are disabled,
   # which is why `**` is granted rather than relying on approval to pause.
   # The only author gate is the `pull_request` trigger's `if:` above; a branch
-  # pushed by another collaborator is not covered by it.
+  # pushed by another collaborator is not covered by it (since #265, pushing
+  # to the bot's open `release/v*` PR needs no gate edit either).
   #
   # Vault matching uses the run's own repository/ref context from the trigger
   # event, NOT `init` parameters (#163 tried `branch:` in the init and
