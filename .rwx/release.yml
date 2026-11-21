@@ -4,9 +4,9 @@
 # which triggers .rwx/publish.yml. Never uses --admin or --auto.
 #
 # CLI-only on purpose: no PR/push trigger may ever resolve the write token.
-# Provision (main-only `sdk-python-linear` vault; fine-grained PAT on this
+# Provision (locked `sdk-python-linear-release` vault; fine-grained PAT on this
 # repo only, Contents + Pull requests: Read/Write):
-#   rwx vaults secrets set --vault sdk-python-linear GITHUB_RELEASE_TOKEN=<pat>
+#   rwx vaults secrets set --vault sdk-python-linear-release GITHUB_RELEASE_TOKEN=<pat>
 on:
   cli:
     init:
@@ -51,7 +51,7 @@ tasks:
       BASE_BRANCH: ${{ init.branch }}
       REPO: elviskahoro/sdk-python-linear
       GH_TOKEN:
-        value: ${{ vaults.sdk-python-linear.secrets.GITHUB_RELEASE_TOKEN }}
+        value: ${{ vaults.sdk-python-linear-release.secrets.GITHUB_RELEASE_TOKEN }}
         cache-key: excluded
     run: |
       set -euo pipefail
