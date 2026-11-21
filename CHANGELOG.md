@@ -11,6 +11,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Dev-only: added `.github/workflows/release.yml`, a one-command release workflow
   (`gh workflow run release.yml -f version=X.Y.Z`) using the built-in
   `GITHUB_TOKEN` (#250).
+- Dev-only: publishing to PyPI now uses a tag-only `sdk-python-linear-pypi`
+  vault (#252).
+- Dev-only: roborev now runs through RWX, and the integration suite no longer
+  creates teams per run (#248).
 
 ## [0.10.0] - 2026-11-20
 
