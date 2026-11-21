@@ -54,6 +54,11 @@ tasks:
     cache: false
     env:
       PR: ${{ init.pr }}
+      # RWX has no implicit GitHub token here: a read-only fine-grained PAT from
+      # the locked sdk-python-linear-pullfrog vault (same-repo PRs only).
+      GH_TOKEN:
+        value: ${{ vaults.sdk-python-linear-pullfrog.secrets.GITHUB_TOKEN }}
+        cache-key: excluded
       PULLFROG_VERSION: 0.1.131
       GITHUB_REPOSITORY: elviskahoro/sdk-python-linear
       INPUT_MODEL: openai-compatible/byok
@@ -113,7 +118,7 @@ tasks:
       # var, and one entry over the per-entry exec limit (E2BIG) would fail the
       # gate without a verdict.
       pr_file=/tmp/pr.json
-      curl -fsSL \
+      curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
         -H "Accept: application/vnd.github+json" \
         "https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/$PR" > "$pr_file"
       export PR_FILE="$pr_file"
