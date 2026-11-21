@@ -13,7 +13,8 @@ on:
       # Same-repo PRs only: a fork PR must not get the Fireworks key or a run
       # whose prompt it controls. Trunk queue drafts (trunk-merge/ or
       # trunk-merge-beta/) are skipped: the gate must not spend a run on them.
-      if: ${{ event.github.pull_request.pull_request.base.ref == 'main' && event.github.pull_request.pull_request.head.repo.full_name == event.github.pull_request.pull_request.base.repo.full_name && event.github.pull_request.pull_request.head.ref !~ '^trunk-merge(-beta)?/' }}
+      # Dependabot PRs are skipped: their bodies embed upstream-controlled text.
+      if: ${{ event.github.pull_request.pull_request.base.ref == 'main' && event.github.pull_request.pull_request.head.repo.full_name == event.github.pull_request.pull_request.base.repo.full_name && event.github.pull_request.pull_request.head.ref !~ '^trunk-merge(-beta)?/' && event.github.pull_request.pull_request.user.login != 'dependabot[bot]' }}
       init:
         pr: ${{ event.github.pull_request.number }}
         ref: ${{ event.git.sha }}
@@ -127,7 +128,7 @@ tasks:
           prompt: process.env.REVIEW_PROMPT,
           event: {
             trigger: "pull_request_opened", is_pr: true, issue_number: pr.number,
-            title: pr.title, body: (pr.body ?? "").slice(0, 20000), branch: pr.head.ref,
+            title: pr.title, body: "", branch: pr.head.ref,
             authorPermission: "write",
             // silent: without it the runner Review mode demands a posted review
             // (create_pull_request_review) and fails the run after 3 retries.
@@ -158,12 +159,12 @@ tasks:
       log=/tmp/pullfrog.log
       npx --yes "pullfrog@$PULLFROG_VERSION" gha 2>&1 | tee "$log"
 
-      # The gate: decode the last ::pullfrog-output:: line and fail unless approve.
+      # The gate: decode the single ::pullfrog-output:: line (zero or several fail closed: a forged extra marker must not self-approve) and fail unless approve.
       LOG="$log" node -e '
         const log = require("fs").readFileSync(process.env.LOG, "utf8");
         const hits = [...log.matchAll(/::pullfrog-output::([A-Za-z0-9+\/=]+)/g)];
-        if (!hits.length) { console.error("Pullfrog produced no verdict"); process.exit(1); }
-        const out = JSON.parse(Buffer.from(hits.at(-1)[1], "base64").toString("utf8"));
+        if (hits.length !== 1) { console.error(`expected exactly one verdict, got ${hits.length}`); process.exit(1); }
+        const out = JSON.parse(Buffer.from(hits[0][1], "base64").toString("utf8"));
         console.log(`\n===== Pullfrog verdict: ${out.approve === true ? "APPROVE" : "CHANGES NEEDED"} =====\n${out.summary}\n`);
         process.exit(out.approve === true ? 0 : 1);
       '
