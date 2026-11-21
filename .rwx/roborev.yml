@@ -36,12 +36,14 @@ tasks:
       GITHUB_REPOSITORY: elviskahoro/sdk-python-linear
       ROBOREV_VERSION: 0.63.0
       PI_VERSION: 1.4.0
+      ROBOREV_SHA256: c7dbbefed91747b80d04498358fa0207880adb7e2b57c95677214195a3ece887
     run: |
       set -euo pipefail
       # Pinned here because the installer only fetches latest.
       mkdir -p "$HOME/.local/bin"
-      curl -fsSL "https://github.com/kenn-io/roborev/releases/download/v${ROBOREV_VERSION}/roborev_${ROBOREV_VERSION}_linux_amd64.tar.gz" \
-        | tar -xz -C "$HOME/.local/bin" roborev
+      curl -fsSL -o /tmp/roborev.tar.gz "https://github.com/kenn-io/roborev/releases/download/v${ROBOREV_VERSION}/roborev_${ROBOREV_VERSION}_linux_amd64.tar.gz"
+      echo "${ROBOREV_SHA256}  /tmp/roborev.tar.gz" | sha256sum -c -
+      tar -xzf /tmp/roborev.tar.gz -C "$HOME/.local/bin" roborev
       export PATH="$HOME/.local/bin:$PATH"
       roborev version
       # .roborev.toml selects the pi agent; roborev finds no agent without it.
