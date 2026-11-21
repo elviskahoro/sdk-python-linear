@@ -53,8 +53,6 @@ tasks:
       PULLFROG_VERSION: 0.1.131
       GITHUB_REPOSITORY: elviskahoro/sdk-python-linear
       INPUT_MODEL: openai-compatible/byok
-      # Public repo, no GitHub token: the runner only requires the input to be non-empty.
-      INPUT_TOKEN: none
       # The verdict. The runner forces the agent to call set_output with this
       # shape (the run errors otherwise) and logs it as ::pullfrog-output::<b64>.
       INPUT_OUTPUT_SCHEMA: >-
