@@ -611,8 +611,8 @@ sdk-python-linear/
 ├── ruff.toml                 # lint config (repo-local, incl. per-file ignores)
 ├── pyrightconfig.json        # pyright config (repo-local)
 ├── pyrefly.toml              # type-checker config
-├── .github/workflows/        # pullfrog.yml (agent harness)
-├── .rwx/                     # RWX pipeline — tests.yml (canonical test gate) + dagger-ref-drift.yml (weekly fallback)
+├── .github/workflows/        # release.yml
+├── .rwx/                     # RWX pipeline — tests.yml (canonical test gate) + pullfrog.yml (PR review gate) + dagger-ref-drift.yml (weekly fallback)
 └── .trunk/                   # lint config (trunk.io)
 ```
 

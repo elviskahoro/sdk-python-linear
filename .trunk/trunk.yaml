@@ -287,15 +287,6 @@ lint:
       paths:
         - .agents/skills/beads/**
 
-    # Vendor-managed Pullfrog workflow ("DO NOT EDIT EXCEPT WHERE INDICATED").
-    # Mirrors gtm-sdk's pinned copy; its inline trunk-ignores cover the
-    # workflow_dispatch prompt finding. Kept waived because a future Pullfrog
-    # re-install may still overwrite the file back to stock (unpinned) form,
-    # and semgrep/yamlfmt fixes would diverge it further from the vendor form.
-    - linters: [checkov, semgrep, yamlfmt]
-      paths:
-        - .github/workflows/pullfrog.yml
-
     - linters: [ruff]
       paths:
         - "*.ipynb"
