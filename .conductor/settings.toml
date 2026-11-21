@@ -1,6 +1,7 @@
 "$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
 
 [prompts]
+rename_branch = "make sure that the branch prefix is always \"conductor/\""
 create_pr = '''
 Follow the canonical oss-hq prompt for creating or updating a pull request: https://github.com/elviskahoro/oss-hq/blob/main/prompts/conductor/create-pr.md
 Fetch it fresh each time (`curl -fsSL https://raw.githubusercontent.com/elviskahoro/oss-hq/main/prompts/conductor/create-pr.md` or `gh api repos/elviskahoro/oss-hq/contents/prompts/conductor/create-pr.md --jq .content | base64 -d`) and follow it exactly. Where this repo's CLAUDE.md differs, the repo wins.
