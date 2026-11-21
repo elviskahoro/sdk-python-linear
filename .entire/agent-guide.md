@@ -84,6 +84,22 @@ miss one and runs fail with "The vault is locked":
    `rwx vaults access allow --vault <name> --email <user>` (confirm first;
    it is a grant change).
 
+Tag-triggered runs (the publish pipeline) match the ref `refs/tags/<tag>`, so
+the vault needs a `refs/tags/v*` grant. A bare `v*` grant matches only a
+*branch* named `v*` and never matches a tag. This is the likely cause of the
+v0.10.0 publish lock (#252), but unconfirmed: it is not known whether the
+grant predated the tag push. `rwx retry` does not re-test grant changes; only
+a fresh tag push does. A `rwx run` dispatch resolves via the account user's
+access entry instead: fine for publishing, but it proves nothing about the tag
+grant. Confirm the grant exists before pushing a release tag, then check PyPI
+for the version. If a fresh tag run still locks with the grant verifiably in
+place, tag matching is not behaving as documented: escalate to RWX support
+with the run IDs (v0.9.0 `01a1c426acaa714faff6eea4fa429c19`, v0.10.0
+`01a1fa9244e77e54b96c701365234059`).
+The grant belongs on the tag-only `sdk-python-linear-pypi` vault, which holds
+`PYPI_TOKEN`. Keep it off `sdk-python-linear` (main-only, `GITHUB_TOKEN`) so
+main runs cannot resolve the publish credential.
+
 Setting a placeholder secret (`rwx vaults secrets set --vault <name> KEY=...`)
 lets the pipeline resolve while the owner supplies the real value. A green run
 with a placeholder or a masked-exit-code tool proves nothing: read the task
