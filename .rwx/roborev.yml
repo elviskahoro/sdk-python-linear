@@ -56,6 +56,11 @@ tasks:
       chmod 600 ~/.git-credentials
       # Key is exported here, not in env:, so Semgrep's workflow-env-secret passes.
       export FIREWORKS_API_KEY="${{ secrets.FIREWORKS_API_KEY }}"
+      # The clone is shallow; merge-base needs full history when HEAD is a
+      # pushed branch commit rather than main.
+      if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
+        git fetch --no-tags --unshallow origin
+      fi
       git fetch --no-tags origin main:refs/remotes/origin/main
       # `rwx run` ships local work as a patch on top of the nearest pushed
       # commit, so commit it here or roborev (committed ranges only) sees an
