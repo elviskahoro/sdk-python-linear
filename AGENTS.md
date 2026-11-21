@@ -3,10 +3,62 @@
 Use GitHub Issues for all project task tracking. Create, update, label, and
 close issues in the repository's GitHub project. Do not use Beads or `bd`.
 
-## Issue claims
+## Working issues and labels
 
-Before starting work on an issue, follow
-https://github.com/elviskahoro/oss-hq/blob/main/AGENT-LABELS.md
+Canonical source: https://github.com/elviskahoro/oss-hq/blob/main/AGENT-LABELS.md
+(this section is an inline copy; follow it before starting any issue).
+
+gh-dash hides issues labeled `status::*` and `gas-city`, so label hygiene
+decides what humans see.
+
+### Labels
+
+| Label | Meaning |
+| --- | --- |
+| `status::in_progress` | Claimed and being worked on by an agent. Do not pick up. |
+| `status::blocked` | Waiting on another issue in this repo ("blocked by #N"). |
+| `status::blocked-external` | Waiting on something outside the repo (another repo, upstream, a vendor). |
+| `status::deferred` | Parked on purpose; revisit date is in a comment. |
+| `needs-human` | A person must decide. Agents must not pick up. |
+| `gas-city` | Routed to Gas City. Conductor dispatch must not pick up. |
+| `stale-claim` | Claim has no recent heartbeat; reclaimable. |
+
+### Picking up work
+
+1. Never pick up an issue labeled `needs-human`, `status::in_progress`,
+   `status::blocked`, `status::blocked-external`, `status::deferred`, or
+   `gas-city`.
+2. An issue labeled `stale-claim` may be reclaimed. Re-claim it and comment
+   that you took over.
+
+### Claiming (required before any work)
+
+1. When you start an issue, claim it first: add `status::in_progress`, assign
+   yourself, and leave a one-line "starting" comment.
+2. If `status::in_progress` is already present, stop. Two agents must never
+   work one issue.
+3. Re-read the labels right after claiming. If another agent claimed at the
+   same moment, back off.
+4. For long-running work, comment periodically so the claim does not become a
+   `stale-claim`.
+
+### Releasing
+
+1. When done, put `Closes #N` in the PR body and remove `status::in_progress`
+   once the PR is open. Merge closes the issue.
+2. If you abandon or fail, remove `status::in_progress` and comment what
+   happened and what remains. Never leave a dead claim.
+3. If you need a decision you cannot make, remove `status::in_progress`, add
+   `needs-human`, and comment the exact question. Do not guess. Never remove
+   `needs-human` yourself.
+
+### Blocked and deferred
+
+1. Blocked by another issue in this repo: add `status::blocked`, comment
+   "blocked by #N", and release the claim.
+2. Blocked by something outside the repo: add `status::blocked-external`,
+   comment what you are waiting on, and release the claim.
+3. Never set `status::deferred` yourself. Only a human parks work.
 
 ## Non-Interactive Shell Commands
 
@@ -120,9 +172,19 @@ Pullfrog may push fix commits to PR branches. CI stays the independent gate
   If a test looks flaky or wrong, say so in a comment and leave it to a human.
 - Do not edit `.rwx/`, `.github/`, vault or branch-protection configuration.
 - Do not add secrets or touch the `sdk-python-linear-it` vault. Integration
-  tests are gated to PRs authored by the repo owner (the gate in
-  `.rwx/integration-tests.yml` checks the PR author, not the commit author),
+  tests are gated to PRs authored by the repo owner or by `github-actions[bot]`
+  on `release/v*` branches (the gate in `.rwx/integration-tests.yml` checks
+  the PR author, not the commit author),
   so they skip Pullfrog-authored PRs — but a Pullfrog-pushed fix commit on a
   human-authored PR still triggers the live-API suite and resolves the vault
   key unattended, which is why the pre-push `pytest -q` applies to every
   push, not only Pullfrog-authored ones.
+
+## Roborev review gate
+
+`roborev` is not installed in cloud sandboxes. Commit, then run
+`RWX_ACCESS_TOKEN="$RWX_ACCESS_TOKEN_ELVISKAHORO" rwx run .rwx/roborev.yml --wait`
+(dispatch-only; uses `.roborev.toml` and the `FIREWORKS_API_KEY` in the
+`default` vault). It reviews `merge-base(origin/main, HEAD)..HEAD` and fails
+unless roborev prints `Review Passed`; read findings with `rwx results` /
+`rwx logs`. Record "skipped" only if `rwx` itself is unavailable.

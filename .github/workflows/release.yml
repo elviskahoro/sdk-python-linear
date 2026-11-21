@@ -1,0 +1,117 @@
+# One-command release: `gh workflow run release.yml -f version=X.Y.Z`.
+# Uses the built-in GITHUB_TOKEN (no PAT, no vault): bumps the version (unless
+# already at target), cuts CHANGELOG.md, opens the release PR, waits for
+# required checks, squash-merges, then pushes the vX.Y.Z tag, which triggers
+# .rwx/publish.yml. Never uses --admin or --auto.
+# Needs repo setting: Actions > "Allow GitHub Actions to create and approve
+# pull requests".
+name: Release
+run-name: Release v${{ inputs.version }}
+
+# trunk-ignore-begin(checkov/CKV_GHA_7): the version is the release entry point; it is regex-validated and passed via env, not a build parameter.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release (X.Y.Z)
+        type: string
+        required: true
+# trunk-ignore-end(checkov/CKV_GHA_7)
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: github.ref == 'refs/heads/main'
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Install uv
+        run: |
+          set -euo pipefail
+          script="$(mktemp)"
+          curl -LsSf https://astral.sh/uv/0.11.29/install.sh -o "${script}"
+          echo "504a79fd2ed0dcd47e7f04f0792cfd0871f62e24a7fe40fa8ae0f563a369f2bd  ${script}" | sha256sum -c -
+          sh "${script}"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Release
+        run: |
+          set -euo pipefail
+          tag="v${VERSION}"
+          [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "bad version" >&2; exit 1; }
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            echo "refusing: tag ${tag} already exists" >&2; exit 1
+          fi
+          state="$(python3 scripts/release_prep.py compare "${VERSION}")"
+          [ "${state}" != "older" ] || { echo "refusing: pyproject is newer than ${VERSION}" >&2; exit 1; }
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # The release branch is disposable: clear leftovers from a failed run.
+          if git ls-remote --exit-code --heads origin "release/${tag}" >/dev/null 2>&1; then
+            old_pr="$(gh pr list --head "release/${tag}" --state open --json number -q '.[0].number // empty')"
+            if [ -n "${old_pr}" ]; then
+              gh pr close "${old_pr}" --comment "Superseded by a new release run." --delete-branch
+            else
+              git push -q origin --delete "release/${tag}"
+            fi
+          fi
+          git checkout -q -b "release/${tag}"
+
+          files=(CHANGELOG.md)
+          if [ "${state}" = "bump" ]; then
+            uv version "${VERSION}"
+            python3 scripts/release_prep.py readme "${VERSION}"
+            files+=(pyproject.toml uv.lock README.md)
+          fi
+          python3 scripts/release_prep.py changelog "${VERSION}"
+
+          git add -- "${files[@]}"
+          git commit -q -m "Release ${tag}"
+          git push -q origin "release/${tag}"
+          pr_url="$(gh pr create --base main --head "release/${tag}" \
+            --title "Release ${tag}" \
+            --body "Release ${tag}. After merge the workflow tags \`${tag}\` on main, which triggers \`.rwx/publish.yml\`. (Opened by .github/workflows/release.yml; refs #250.)")"
+          pr="${pr_url##*/}"
+          echo "release PR: ${pr_url}"
+
+          # Wait for checks and mergeability; never bypass protection.
+          ms=""
+          for _ in $(seq 1 100); do
+            ms="$(gh pr view "${pr}" --json mergeStateStatus -q .mergeStateStatus)"
+            [ "${ms}" = "CLEAN" ] && break
+            [ "${ms}" = "DIRTY" ] && { echo "merge conflict: ${pr_url}" >&2; exit 1; }
+            if [ "$(gh pr checks "${pr}" --required --json bucket -q 'map(.bucket == "fail") | any' 2>/dev/null || true)" = "true" ]; then
+              echo "required check failed: ${pr_url}" >&2; exit 1
+            fi
+            sleep 30
+          done
+          [ "${ms}" = "CLEAN" ] || { echo "not mergeable in time (${ms}): ${pr_url}. BLOCKED with all checks green usually means pullfrog-approval never posted: check the Pullfrog console toggle 'Include PRs opened by bots'." >&2; exit 1; }
+
+          gh pr merge "${pr}" --squash --delete-branch
+          for _ in $(seq 1 40); do
+            [ "$(gh pr view "${pr}" --json state -q .state)" = "MERGED" ] && break
+            sleep 15
+          done
+          [ "$(gh pr view "${pr}" --json state -q .state)" = "MERGED" ] \
+            || { echo "merge not completed: ${pr_url}" >&2; exit 1; }
+
+          sha="$(gh pr view "${pr}" --json mergeCommit -q .mergeCommit.oid)"
+          git fetch -q origin "${sha}"
+          git tag "${tag}" "${sha}"
+          git push -q origin "${tag}"
+          echo "pushed ${tag} at ${sha}; confirm in the RWX dashboard that .rwx/publish.yml started (a GITHUB_TOKEN tag push is not first-party documented to trigger it)"

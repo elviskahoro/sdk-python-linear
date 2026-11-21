@@ -27,14 +27,14 @@ def _ok(args: list[str]):
 
 @pytest.fixture
 def ready_team(team: TeamFields) -> TeamFields:
-    """The fresh team's seeds can lag the CLI's reads; wait until they show up."""
+    """Fresh seeds can lag the CLI's reads; wait until they show up."""
     for _ in range(15):
         issues = json.loads(_ok(["issues", "--team", team.key, "--json"]).stdout)
         teams = json.loads(_ok(["teams", "--json"]).stdout)
         if issues and team.key in {t["key"] for t in teams}:
             return team
         time.sleep(2)
-    pytest.fail("scaffolded team never became visible to the CLI")
+    pytest.fail("team never became visible to the CLI")
 
 
 @pytest.mark.usefixtures("api_key")
@@ -44,7 +44,7 @@ def test_viewer_json() -> None:
     assert "email" in data
 
 
-def test_teams_json_lists_scaffolded_team(ready_team: TeamFields) -> None:
+def test_teams_json_lists_test_team(ready_team: TeamFields) -> None:
     data = json.loads(_ok(["teams", "--json"]).stdout)
     assert ready_team.key in {t["key"] for t in data}
 
