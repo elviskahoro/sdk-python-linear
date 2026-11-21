@@ -1,0 +1,66 @@
+# roborev review as a tool for the local agent. Dispatch-only (cli trigger): it
+# is not a PR check, posts no comment or status, and is not a required status.
+#   rwx run .rwx/roborev.yml --wait
+# Reviews local work (committed or not) against origin/main with the model in
+# .roborev.toml (pi + Fireworks) and fails unless roborev reports a pass.
+# Mirrors oss-hq and gtm-sdk's .rwx/roborev.yml; keep them in step.
+on:
+  cli:
+    init:
+      ref: ${{ event.git.sha }}
+
+base:
+  image: ubuntu:24.04
+  config: rwx/base 1.2.0
+
+tasks:
+  - key: code
+    call: git/clone 2.2.0
+    cache: false
+    with:
+      repository: https://github.com/elviskahoro/sdk-python-linear.git
+      ref: ${{ init.ref }}
+      fetch-full-depth: true
+      preserve-git-dir: true
+
+  - key: node
+    call: nodejs/install 1.2.1
+    with:
+      node-version: 24.22.3
+
+  - key: roborev
+    use: [code, node]
+    cache: false
+    env:
+      ROBOREV_VERSION: 0.63.0
+      PI_VERSION: 1.4.0
+    run: |
+      set -euo pipefail
+      mkdir -p "$HOME/.local/bin"
+      curl -fsSL "https://github.com/kenn-io/roborev/releases/download/v${ROBOREV_VERSION}/roborev_${ROBOREV_VERSION}_linux_amd64.tar.gz" \
+        | tar -xz -C "$HOME/.local/bin" roborev
+      export PATH="$HOME/.local/bin:$PATH"
+      roborev version
+      # .roborev.toml selects the pi agent; roborev finds no agent without it.
+      npm install -g "@earendil-works/pi-coding-agent@${PI_VERSION}"
+      pi --version
+      # Exported here, not in env:, so the key stays out of the task env.
+      export FIREWORKS_API_KEY="${{ secrets.FIREWORKS_API_KEY }}"
+      git fetch --no-tags origin main:refs/remotes/origin/main
+      # `rwx run` ships local work as a patch on the nearest pushed commit;
+      # commit it so roborev (committed ranges only) sees it.
+      if [ -n "$(git status --porcelain)" ]; then
+        git add -A
+        git -c user.name=roborev-ci -c user.email=roborev-ci@localhost commit -q -m "local changes under review"
+      fi
+      # Merge-base, not origin/main, so a main that moved ahead isn't reviewed in reverse.
+      base="$(git merge-base origin/main HEAD)"
+      echo "reviewing ${base}..HEAD"
+      git diff --stat "${base}..HEAD" | tail -5
+      # `roborev ci review` exits 0 even with findings: gate on the verdict
+      # header, failing closed if none is printed.
+      roborev ci review --ref "${base}..HEAD" 2>&1 | tee roborev-output.txt
+      if ! grep -q "^## roborev: Review Passed" roborev-output.txt; then
+        echo "roborev did not pass: see findings above" >&2
+        exit 1
+      fi

@@ -108,6 +108,21 @@ Live-API tests (`-m network`) need the vault key: push the branch, then
 `rwx run .rwx/integration-tests.yml --wait` (see `.entire/agent-guide.md`,
 "RWX access").
 
+## Roborev review (blocking pre-push gate)
+
+If `command -v roborev` fails (cloud sandboxes), run the review on RWX instead
+of recording "skipped": commit your work, then
+
+```bash
+RWX_ACCESS_TOKEN="$RWX_ACCESS_TOKEN_ELVISKAHORO" rwx run .rwx/roborev.yml --wait
+```
+
+It reviews `merge-base(origin/main, HEAD)..HEAD` with the model in
+`.roborev.toml` and fails unless roborev prints `Review Passed`. Read findings
+with `rwx logs <run-id> --task roborev --output "$(mktemp -d)"`. It is
+dispatch-only (no PR status) and uses `FIREWORKS_API_KEY` from the `default`
+vault. Never skip the review: if the dispatch fails, fix it or report `unavailable (reason)` and ask.
+
 ## Pullfrog (automated CI fixes)
 
 Pullfrog may push fix commits to PR branches. CI stays the independent gate
