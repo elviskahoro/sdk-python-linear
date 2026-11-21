@@ -51,6 +51,7 @@ changes error. `RWX_DISABLE_GIT_PATCH=1` turns it off.
     rwx run .rwx/pyright.yml --wait --init paths="gtm_linear/client.py"
     rwx run .rwx/pyrefly.yml --wait --init paths="gtm_linear/client.py"
     rwx run .rwx/integration-tests.yml --wait           # live API, vault key
+    rwx run .rwx/roborev.yml --wait                     # roborev review of branch vs main
 
 Keep `commit-sha: ${{ event.git.sha }}` in each `on:` trigger and
 `ref: ${{ init.commit-sha }}` on `git/clone`; that wiring makes the patch apply.
