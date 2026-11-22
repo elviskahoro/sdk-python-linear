@@ -10,7 +10,7 @@
 on:
   github:
     pull_request:
-      # Same-repo PRs only: a fork PR must not get the Fireworks key or a run
+      # Same-repo PRs only: a fork PR must not get the Kilo key or a run
       # whose prompt it controls. Trunk queue drafts (trunk-merge/ or
       # trunk-merge-beta/) are skipped: the gate must not spend a run on them.
       # Dependabot PRs are skipped: their bodies embed upstream-controlled text.
@@ -90,9 +90,11 @@ tasks:
         In summary, list each finding as `path:line - problem - suggested fix`,
         blocking ones first and marked [blocking]. If you approve, say in one or
         two sentences why the PR is safe to merge.
-      # Same model as .roborev.toml, via Fireworks' OpenAI-compatible endpoint.
-      OPENAI_COMPATIBLE_BASE_URL: https://api.fireworks.ai/inference/v1
-      OPENAI_COMPATIBLE_MODEL: accounts/fireworks/models/glm-5p3-flash
+      # Kilo Gateway's OpenAI-compatible endpoint (same GLM 5.3 Flash model as .roborev.toml).
+      OPENAI_COMPATIBLE_BASE_URL: https://ai-gateway.kilo.ai/api/v1
+      OPENAI_COMPATIBLE_MODEL: z-ai/glm-5.3-flash
+      # Bills the Kilo organization. One `Name: Value` per line.
+      OPENAI_COMPATIBLE_HEADERS: "X-KiloCode-OrganizationId: 9722c7e7-64c5-4638-8f1a-f046787d1175"
       OPENAI_COMPATIBLE_CONTEXT: "1040000"
       OPENAI_COMPATIBLE_MAX_OUTPUT: "32768"
     run: |
@@ -100,7 +102,7 @@ tasks:
       [ -n "$PR" ] || { echo 'error: pass --init pr=<number>' >&2; exit 2; }
       export GITHUB_WORKSPACE="$PWD"
       # Exported here, not in env:, so Semgrep's workflow-env-secret rule passes.
-      export OPENAI_COMPATIBLE_API_KEY="${{ secrets.FIREWORKS_API_KEY }}"
+      export OPENAI_COMPATIBLE_API_KEY="${{ vaults.sdk-python-linear-pullfrog.secrets.KILO_API_KEY }}"
       # Public repo: RWX's github.token is not provided on PR runs, so the token
       # is a short-lived GitHub App token from the sdk-python-linear-pullfrog
       # vault (app rwx-automation-elviskahoro; read access to code and PRs).
