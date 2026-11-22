@@ -92,7 +92,7 @@ tasks:
         two sentences why the PR is safe to merge.
       # Kilo Gateway's OpenAI-compatible endpoint (same GLM 5.3 Flash model as .roborev.toml).
       OPENAI_COMPATIBLE_BASE_URL: https://ai-gateway.kilo.ai/api/v1
-      OPENAI_COMPATIBLE_MODEL: z-ai/glm-5.3-flash
+      OPENAI_COMPATIBLE_MODEL: deepseek/deepseek-v4-pro
       # Bills the Kilo organization. One `Name: Value` per line.
       OPENAI_COMPATIBLE_HEADERS: "X-KiloCode-OrganizationId: 9722c7e7-64c5-4638-8f1a-f046787d1175"
       OPENAI_COMPATIBLE_CONTEXT: "1040000"
