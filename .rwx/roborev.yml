@@ -50,7 +50,7 @@ tasks:
       npm install -g "@earendil-works/pi-coding-agent@${PI_VERSION}"
       pi --version
       # Key is exported here, not in env:, so Semgrep's workflow-env-secret passes.
-      export KILO_API_KEY="${{ vaults.sdk-python-linear-pullfrog.secrets.KILO_API_KEY }}"
+      export KILO_API_KEY="${{ vaults.roborev.secrets.KILO_API_KEY }}"
       [ -n "$KILO_API_KEY" ] || { echo "error: KILO_API_KEY unavailable" >&2; exit 1; }
       # Register the Kilo gateway as a pi provider (pi has no built-in one).
       mkdir -p "$HOME/.pi/agent"
