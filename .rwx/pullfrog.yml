@@ -90,13 +90,14 @@ tasks:
         In summary, list each finding as `path:line - problem - suggested fix`,
         blocking ones first and marked [blocking]. If you approve, say in one or
         two sentences why the PR is safe to merge.
-      # Kilo Gateway's OpenAI-compatible endpoint (same GLM 5.3 Flash model as .roborev.toml).
-      OPENAI_COMPATIBLE_BASE_URL: https://ai-gateway.kilo.ai/api/v1
-      OPENAI_COMPATIBLE_MODEL: z-ai/glm-5.3-flash
+      # Kilo Gateway's OpenAI-compatible endpoint. Model, URL and org come from
+      # vars in the roborev vault, so changing them needs no repo change.
+      OPENAI_COMPATIBLE_BASE_URL: ${{ vaults.roborev.vars.KILO_BASE_URL }}
+      OPENAI_COMPATIBLE_MODEL: ${{ vaults.roborev.vars.KILO_MODEL }}
       # Bills the Kilo organization. One `Name: Value` per line.
-      OPENAI_COMPATIBLE_HEADERS: "X-KiloCode-OrganizationId: 9722c7e7-64c5-4638-8f1a-f046787d1175"
-      OPENAI_COMPATIBLE_CONTEXT: "1040000"
-      OPENAI_COMPATIBLE_MAX_OUTPUT: "32768"
+      OPENAI_COMPATIBLE_HEADERS: "X-KiloCode-OrganizationId: ${{ vaults.roborev.vars.KILO_ORG_ID }}"
+      OPENAI_COMPATIBLE_CONTEXT: ${{ vaults.roborev.vars.KILO_CONTEXT }}
+      OPENAI_COMPATIBLE_MAX_OUTPUT: ${{ vaults.roborev.vars.KILO_MAX_OUTPUT }}
     run: |
       set -euo pipefail
       [ -n "$PR" ] || { echo 'error: pass --init pr=<number>' >&2; exit 2; }
