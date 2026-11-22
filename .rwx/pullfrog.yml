@@ -102,11 +102,11 @@ tasks:
       [ -n "$PR" ] || { echo 'error: pass --init pr=<number>' >&2; exit 2; }
       export GITHUB_WORKSPACE="$PWD"
       # Exported here, not in env:, so Semgrep's workflow-env-secret rule passes.
-      export OPENAI_COMPATIBLE_API_KEY="${{ vaults.sdk-python-linear-pullfrog.secrets.KILO_API_KEY }}"
+      export OPENAI_COMPATIBLE_API_KEY="${{ vaults.roborev.secrets.KILO_API_KEY }}"
       # Public repo: RWX's github.token is not provided on PR runs, so the token
-      # is a short-lived GitHub App token from the sdk-python-linear-pullfrog
+      # is a short-lived GitHub App token from the roborev
       # vault (app rwx-automation-elviskahoro; read access to code and PRs).
-      export GH_TOKEN="${{ vaults.sdk-python-linear-pullfrog.github-apps.rwx-automation-elviskahoro.token }}"
+      export GH_TOKEN="${{ vaults.roborev.github-apps.rwx-automation-elviskahoro.token }}"
       [ -n "$GH_TOKEN" ] || { echo 'no GitHub App token from the vault' >&2; exit 1; }
       # git/clone leaves several credential.helper values; the runner sets its
       # own and refuses to overwrite a multi-valued key.
