@@ -191,7 +191,7 @@ main and fails unless the verdict approves. Manual run:
 `roborev` is not installed in cloud sandboxes. Commit, then run
 `RWX_ACCESS_TOKEN="$RWX_ACCESS_TOKEN_ELVISKAHORO" rwx run .rwx/roborev.yml --wait`
 (dispatch-only; uses `.roborev.toml` and the `KILO_API_KEY` in the
-`sdk-python-linear-pullfrog` vault). It reviews `merge-base(origin/main, HEAD)..HEAD` and fails
+`roborev` vault). It reviews `merge-base(origin/main, HEAD)..HEAD` and fails
 unless roborev prints `Review Passed`; read findings with `rwx results` /
 `rwx logs`. Record "skipped" only if `rwx` itself is unavailable.
 
