@@ -28,7 +28,7 @@ on:
 concurrency-pools:
   - id: sdk-python-linear/pullfrog-pr-${{ init.pr }}
     capacity: 1
-    on-overflow: queue
+    on-overflow: cancel-running
 
 base:
   image: ubuntu:24.04
