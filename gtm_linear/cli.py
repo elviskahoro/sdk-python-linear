@@ -2465,7 +2465,8 @@ def label_create(
     name = _validate_text(name, "name") or ""
     color = _validate_text(color, "--color")
     if color is not None and not re.fullmatch(r"#[0-9A-Fa-f]{6}", color):
-        raise typer.BadParameter("must look like #rrggbb", param_hint="--color")
+        message = "must look like #rrggbb"
+        raise typer.BadParameter(message, param_hint="--color")
     with _workflow() as linear:
         resolved_team = linear.get_team_by_key(team)
         if resolved_team is None:
