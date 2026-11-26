@@ -751,16 +751,39 @@ class LinearWorkflow:
         self,
         team_id: str,
         name: str,
+        color: str | None = None,
     ) -> IssueLabelRefFields:
-        return await self._mutations.find_or_create_issue_label(team_id, name)
+        return await self._mutations.find_or_create_issue_label(
+            team_id,
+            name,
+            color,
+        )
 
     @_sync_doc(LinearMutations.find_or_create_issue_label)
     def find_or_create_issue_label(
         self,
         team_id: str,
         name: str,
+        color: str | None = None,
     ) -> IssueLabelRefFields:
-        return self._run(self.find_or_create_issue_label_async(team_id, name))
+        return self._run(self.find_or_create_issue_label_async(team_id, name, color))
+
+    async def create_issue_label_async(
+        self,
+        team_id: str,
+        name: str,
+        color: str | None = None,
+    ) -> IssueLabelRefFields:
+        return await self._mutations.create_issue_label(team_id, name, color)
+
+    @_sync_doc(LinearMutations.create_issue_label)
+    def create_issue_label(
+        self,
+        team_id: str,
+        name: str,
+        color: str | None = None,
+    ) -> IssueLabelRefFields:
+        return self._run(self.create_issue_label_async(team_id, name, color))
 
     async def create_attachment_async(
         self,

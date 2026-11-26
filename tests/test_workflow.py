@@ -132,6 +132,11 @@ async def test_async_facade_delegates_every_query_and_mutation(
     )
     monkeypatch.setattr(
         LinearMutations,
+        "create_issue_label",
+        mutation("create_issue_label", "label"),
+    )
+    monkeypatch.setattr(
+        LinearMutations,
         "find_or_create_issue_label",
         mutation("find_or_create_issue_label", "label"),
     )
@@ -268,6 +273,7 @@ def test_sync_wrappers_inherit_docstrings_without_wraps_binding() -> None:
         (LinearWorkflow.delete_issue, LinearMutations.delete_issue),
         (LinearWorkflow.create_comment, LinearMutations.create_comment),
         (LinearWorkflow.create_attachment, LinearMutations.create_attachment),
+        (LinearWorkflow.create_issue_label, LinearMutations.create_issue_label),
         (
             LinearWorkflow.find_or_create_issue_label,
             LinearMutations.find_or_create_issue_label,

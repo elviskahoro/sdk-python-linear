@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `create_issue_label(team_id, name, color=None)` on `LinearMutations` and
+  `LinearWorkflow`; `find_or_create_issue_label` gains an optional `color`.
+- `gtm-linear label create <team> <name> [--color #rrggbb] [--apply]`
+  (preview by default, idempotent when the name exists).
+
 ### Changed
 
 - Dev-only: moved the Pullfrog review gate from GitHub Actions to RWX
