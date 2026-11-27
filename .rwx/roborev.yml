@@ -1,6 +1,6 @@
 # RoboRev review as a tool for the local agent. Dispatch-only (cli trigger): it
 # is not a PR check, posts no comment or status, and does not replace
-# pullfrog-approval (.rwx/pullfrog.yml). Run it before pushing:
+# pullfrog-approval. Run it before pushing:
 #   rwx run .rwx/roborev.yml --wait
 # It reviews local work (committed or not) against origin/main with the model in
 # .roborev.toml (pi + Kilo gateway) and fails when roborev reports findings.
@@ -23,6 +23,7 @@ tasks:
       submodules: false
       preserve-git-dir: true
       fetch-full-depth: true
+      github-token: ${{ github['elviskahoro'].token }}
 
   - key: node
     call: nodejs/install 1.2.1
@@ -34,6 +35,7 @@ tasks:
     cache: false
     env:
       GITHUB_REPOSITORY: elviskahoro/sdk-python-linear
+      GH_TOKEN: ${{ github['elviskahoro'].token }}
       ROBOREV_VERSION: 0.63.0
       PI_VERSION: 1.4.0
       # Kilo settings come from vars in the roborev vault (no repo change to switch model).
@@ -69,7 +71,9 @@ tasks:
           models: [{id: e.KILO_MODEL, name: e.KILO_MODEL, contextWindow: +e.KILO_CONTEXT, maxTokens: +e.KILO_MAX_OUTPUT}]
         }}}, null, 2));
       '
-      git fetch --no-tags origin main:refs/remotes/origin/main
+      # The clone's credentials are not kept, so authenticate the fetch.
+      git -c "http.https://github.com/.extraheader=Authorization: Basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)" \
+        fetch --no-tags origin main:refs/remotes/origin/main
       # `rwx run` ships local work as a patch on top of the nearest pushed
       # commit, so commit it here or roborev (committed ranges only) sees an
       # empty diff. Merge-base, not origin/main, so a main that moved ahead
@@ -84,12 +88,40 @@ tasks:
       base="$(git merge-base origin/main HEAD)"
       echo "reviewing ${base}..HEAD"
       git diff --stat "${base}..HEAD" | tail -5
+      # Preflight: roborev hides the agent's stderr, so a broken gateway, key or
+      # model shows up only as "No review output generated". Call pi once
+      # directly and fail with its real output (never the key) if it cannot answer.
+      if ! pi --model "kilo/${KILO_MODEL}" -p "Reply with the single word OK." >pi-preflight.txt 2>&1 || [ ! -s pi-preflight.txt ]; then
+        echo "error: pi agent cannot run (kilo/${KILO_MODEL} via ${KILO_BASE_URL}); its output:" >&2
+        sed "s|${KILO_API_KEY}|***|g" pi-preflight.txt >&2
+        exit 1
+      fi
+      # An empty range makes roborev pass without reviewing anything.
+      if git diff --quiet "${base}..HEAD"; then
+        echo "error: nothing to review in ${base}..HEAD (commit your changes before running)" >&2
+        exit 1
+      fi
       args=(--ref "${base}..HEAD")
       # `roborev ci review` exits 0 even with findings, so gate on the verdict
       # header ("Review Passed" vs "Review Complete"/"Review Failed"). Fails
       # closed if no verdict is printed.
-      roborev ci review "${args[@]}" 2>&1 | tee roborev-output.txt
-      if ! grep -q "roborev: Review Passed" roborev-output.txt; then
+      # The Kilo model sometimes writes its tool calls as plain text (a
+      # <｜DSML｜tool_calls> block) instead of calling them, so pi ends the turn
+      # with no review (#218). Such output has no verdict, so retry it.
+      verdict_ok() {
+        grep -q "^## roborev: Review" roborev-output.txt \
+          && ! grep -q "^<｜DSML｜\|^<tool_call" roborev-output.txt
+      }
+      for attempt in 1 2 3 4; do
+        roborev ci review "${args[@]}" 2>&1 | tee roborev-output.txt || true
+        if verdict_ok; then break; fi
+        echo "attempt ${attempt}: roborev returned no usable verdict" >&2
+      done
+      if ! verdict_ok; then
+        echo "roborev returned no verdict after retries" >&2
+        exit 1
+      fi
+      if ! grep -q "^## roborev: Review Passed" roborev-output.txt; then
         echo "roborev did not pass: see findings above" >&2
         exit 1
       fi
