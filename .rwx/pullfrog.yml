@@ -48,12 +48,11 @@ tasks:
       ref: ${{ init.ref }}
       submodules: false
       preserve-git-dir: true
-      github-token: ${{ github['elviskahoro'].token }}
 
   - key: node
     call: nodejs/install 1.2.1
     with:
-      node-version: "24.22.3"
+      node-version: 24.22.3
 
   - key: pullfrog
     use: [code, node]
@@ -61,7 +60,7 @@ tasks:
     timeout: 45m
     env:
       PR: ${{ init.pr }}
-      PULLFROG_VERSION: "0.1.131"
+      PULLFROG_VERSION: 0.1.131
       GITHUB_REPOSITORY: elviskahoro/sdk-python-linear
       INPUT_MODEL: openai-compatible/byok
       # The verdict. The runner forces the agent to call set_output with this
