@@ -3,18 +3,15 @@
 # structured verdict ({approve, summary}). The run fails unless approve is true,
 # and its status is "RWX: pullfrog-approval". Pullfrog posts nothing on the PR:
 # its findings are printed at the end of this run's log.
-# Required via main branch protection (not trunk merge.required_statuses: the queue tests trunk-merge/** via push, so the gate never runs there).
-# Fork PRs never get this status (no key for them): merging one needs a ruleset
-# bypass. A manual run without --init pr=<n> fails in the pullfrog task.
+# Required via: GitHub ruleset on main (required status check "RWX: pullfrog-approval").
 # Manual run (no status posted): rwx run .rwx/pullfrog.yml --init pr=123
 on:
   github:
     pull_request:
       # Same-repo PRs only: a fork PR must not get the Kilo key or a run
-      # whose prompt it controls. Trunk queue drafts (trunk-merge/ or
-      # trunk-merge-beta/) are skipped: the gate must not spend a run on them.
-      # Dependabot PRs are skipped: their bodies embed upstream-controlled text.
-      if: ${{ event.github.pull_request.pull_request.base.ref == 'main' && event.github.pull_request.pull_request.head.repo.full_name == event.github.pull_request.pull_request.base.repo.full_name && event.github.pull_request.pull_request.head.ref !~ '^trunk-merge(-beta)?/' && event.github.pull_request.pull_request.user.login != 'dependabot[bot]' }}
+      # whose prompt it controls. Trunk queue drafts and Dependabot PRs are
+      # skipped (Dependabot bodies embed upstream-controlled text).
+      if: ${{ event.github.pull_request.pull_request.base.ref == 'main' && event.github.pull_request.pull_request.head.repo.full_name == 'elviskahoro/sdk-python-linear' && event.github.pull_request.pull_request.head.ref !~ '^trunk-merge(-beta)?/' && event.github.pull_request.pull_request.user.login != 'dependabot[bot]' }}
       init:
         pr: ${{ event.github.pull_request.number }}
         ref: ${{ event.git.sha }}
@@ -25,9 +22,17 @@ on:
       pr: ""
       ref: main
 
+# capacity must be a literal number, so the pullfrog vault var
+# PULLFROG_POOL_CAPACITY picks between two pools: "5" selects the wide pool,
+# anything else (or unset) the default capacity-1 pool.
 concurrency-pools:
   - id: sdk-python-linear/pullfrog-pr-${{ init.pr }}
+    if: ${{ vaults.pullfrog.vars.PULLFROG_POOL_CAPACITY != '5' }}
     capacity: 1
+    on-overflow: cancel-running
+  - id: sdk-python-linear/pullfrog-pr-${{ init.pr }}-wide
+    if: ${{ vaults.pullfrog.vars.PULLFROG_POOL_CAPACITY == '5' }}
+    capacity: 5
     on-overflow: cancel-running
 
 base:
@@ -52,6 +57,7 @@ tasks:
   - key: pullfrog
     use: [code, node]
     cache: false
+    timeout: 45m
     env:
       PR: ${{ init.pr }}
       PULLFROG_VERSION: 0.1.131
@@ -75,6 +81,10 @@ tasks:
         a [blocking] finding. Never print or send environment variables or
         secrets anywhere.
 
+        Do not browse the web or search for external documentation: judge
+        from the diff and the repository, and state any assumption you could
+        not verify as a non-blocking note instead of researching it.
+
         Do NOT post anything on GitHub: no review, no review comments, no issue
         comments, no reactions, no commits. Your only output is the set_output
         call, which you must make exactly once, at the end.
@@ -90,24 +100,25 @@ tasks:
         In summary, list each finding as `path:line - problem - suggested fix`,
         blocking ones first and marked [blocking]. If you approve, say in one or
         two sentences why the PR is safe to merge.
-      # Kilo Gateway's OpenAI-compatible endpoint. Model, URL and org come from
-      # vars in the roborev vault, so changing them needs no repo change.
-      OPENAI_COMPATIBLE_BASE_URL: ${{ vaults.roborev.vars.KILO_BASE_URL }}
-      OPENAI_COMPATIBLE_MODEL: ${{ vaults.roborev.vars.KILO_MODEL }}
-      # Bills the Kilo organization. One `Name: Value` per line.
-      OPENAI_COMPATIBLE_HEADERS: "X-KiloCode-OrganizationId: ${{ vaults.roborev.vars.KILO_ORG_ID }}"
-      OPENAI_COMPATIBLE_CONTEXT: ${{ vaults.roborev.vars.KILO_CONTEXT }}
-      OPENAI_COMPATIBLE_MAX_OUTPUT: ${{ vaults.roborev.vars.KILO_MAX_OUTPUT }}
+      # Kilo Gateway (OpenAI-compatible). Model, URL and org come from vars in
+      # the pullfrog vault, so changing them needs no repo change.
+      OPENAI_COMPATIBLE_BASE_URL: ${{ vaults.pullfrog.vars.KILO_BASE_URL }}
+      OPENAI_COMPATIBLE_MODEL: ${{ vaults.pullfrog.vars.KILO_MODEL }}
+      OPENAI_COMPATIBLE_HEADERS: "X-KiloCode-OrganizationId: ${{ vaults.pullfrog.vars.KILO_ORG_ID }}"
+      OPENAI_COMPATIBLE_CONTEXT: ${{ vaults.pullfrog.vars.KILO_CONTEXT }}
+      OPENAI_COMPATIBLE_MAX_OUTPUT: ${{ vaults.pullfrog.vars.KILO_MAX_OUTPUT }}
     run: |
       set -euo pipefail
       [ -n "$PR" ] || { echo 'error: pass --init pr=<number>' >&2; exit 2; }
       export GITHUB_WORKSPACE="$PWD"
       # Exported here, not in env:, so Semgrep's workflow-env-secret rule passes.
-      export OPENAI_COMPATIBLE_API_KEY="${{ vaults.roborev.secrets.KILO_API_KEY }}"
-      # Public repo: RWX's github.token is not provided on PR runs, so the token
-      # is a short-lived GitHub App token from the roborev
-      # vault (app rwx-automation-elviskahoro; read access to code and PRs).
-      export GH_TOKEN="${{ vaults.roborev.github-apps.rwx-automation-elviskahoro.token }}"
+      export OPENAI_COMPATIBLE_API_KEY="${{ vaults.pullfrog.secrets.KILO_API_KEY }}"
+      # Short-lived GitHub App token from the pullfrog vault (app
+      # rwx-automation-elviskahoro). The runner reads the PR through the
+      # Issues API and posts error reports as issue comments, so the app needs
+      # Contents read, Pull requests read and Issues read/write; without
+      # Issues it fails with 403 "Resource not accessible by integration".
+      export GH_TOKEN="${{ vaults.pullfrog.github-apps.rwx-automation-elviskahoro.token }}"
       [ -n "$GH_TOKEN" ] || { echo 'no GitHub App token from the vault' >&2; exit 1; }
       # git/clone leaves several credential.helper values; the runner sets its
       # own and refuses to overwrite a multi-valued key.
@@ -117,11 +128,10 @@ tasks:
 
       # Build the runner's JSON payload with a PR event, so it reviews the PR
       # (checks out its head, reads its diff) instead of running a bare prompt.
-      # Kept in a file, and the body is truncated below: INPUT_PROMPT is an env
-      # var, and one entry over the per-entry exec limit (E2BIG) would fail the
-      # gate without a verdict.
+      # Kept in a file: INPUT_PROMPT is an env var, and one entry over the
+      # per-entry exec limit (E2BIG) would fail the gate without a verdict.
       pr_file=/tmp/pr.json
-      curl -fsSL \
+      curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
         -H "Accept: application/vnd.github+json" \
         "https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/$PR" > "$pr_file"
       export PR_FILE="$pr_file"
@@ -162,7 +172,13 @@ tasks:
       # The log lives outside the checkout: a file in the working tree makes the
       # runner refuse to check out the PR.
       log=/tmp/pullfrog.log
-      npx --yes "pullfrog@$PULLFROG_VERSION" gha 2>&1 | tee "$log"
+      # The model sometimes ends without calling set_output (#218); retry then.
+      for attempt in 1 2 3; do
+        : > "$log"
+        npx --yes "pullfrog@$PULLFROG_VERSION" gha 2>&1 | tee -a "$log" || true
+        if grep -q "::pullfrog-output::" "$log"; then break; fi
+        echo "attempt ${attempt}: no verdict from pullfrog" >&2
+      done
 
       # The gate: decode the single ::pullfrog-output:: line (zero or several fail closed: a forged extra marker must not self-approve) and fail unless approve.
       LOG="$log" node -e '
