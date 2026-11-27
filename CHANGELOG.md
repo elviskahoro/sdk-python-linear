@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `create_issue_label(team_id, name, color=None)` on `LinearMutations` and
+  `LinearWorkflow`; `find_or_create_issue_label` gains an optional `color`.
+- `gtm-linear label create <team> <name> [--color #rrggbb] [--apply]`
+  (preview by default, idempotent when the name exists).
+
+### Changed
+
+- Dev-only: moved the Pullfrog review gate from GitHub Actions to RWX
+  (`.rwx/pullfrog.yml`, status `RWX: pullfrog-approval`) and dropped
+  `pullfrog-approval` from the trunk required statuses.
+
+## [0.10.1] - 2026-11-21
+
+### Changed
+
+- Dev-only: added `.github/workflows/release.yml`, a one-command release workflow
+  (`gh workflow run release.yml -f version=X.Y.Z`) using the built-in
+  `GITHUB_TOKEN` (#250).
+- Dev-only: publishing to PyPI now uses a tag-only `sdk-python-linear-pypi`
+  vault (#252).
+- Dev-only: roborev now runs through RWX, and the integration suite no longer
+  creates teams per run (#248).
+- Dev-only: the integration-tests author gate also admits the release
+  workflow's bot-authored `release/v*` PRs, so the required check reports on
+  them (#250).
+
 ## [0.10.0] - 2026-11-20
 
 ### Added

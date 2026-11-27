@@ -15,8 +15,8 @@ CI definitions live in `.rwx/`:
 | `integration-tests.yml` | github push (main), pull_request (owner-authored PRs), weekly cron, cli | live-API tests (`-m network`), needs vault key |
 | `publish.yml` | github push (tags `v*`), cli | release build |
 | `dagger-ref-drift.yml` | cron (weekly), cli, dispatch | Dagger ref drift check |
+| `roborev.yml` | `cli` only | advisory roborev review of the branch vs `origin/main`; needs `FIREWORKS_API_KEY` (default vault) |
 | `pyright.yml`, `pyrefly.yml` | `cli` only | on-demand type checks, never run on PRs |
-| `roborev.yml` | `cli` only | roborev review of branch vs main; dispatch-only, never a PR check or required status |
 
 ## Auth: one injected token per RWX organization
 
@@ -52,7 +52,6 @@ changes error. `RWX_DISABLE_GIT_PATCH=1` turns it off.
     rwx run .rwx/pyright.yml --wait --init paths="gtm_linear/client.py"
     rwx run .rwx/pyrefly.yml --wait --init paths="gtm_linear/client.py"
     rwx run .rwx/integration-tests.yml --wait           # live API, vault key
-    rwx run .rwx/roborev.yml --wait                     # roborev review of branch vs main
 
 Keep `commit-sha: ${{ event.git.sha }}` in each `on:` trigger and
 `ref: ${{ init.commit-sha }}` on `git/clone`; that wiring makes the patch apply.

@@ -572,3 +572,31 @@ async def test_find_or_create_issue_label_creates_when_missing() -> None:
     assert route.call_count == 2
     body = json.loads(route.calls.last.request.read())
     assert body["variables"]["input"] == {"teamId": "t-1", "name": "New"}
+
+
+async def test_create_issue_label_sends_color() -> None:
+    created = {
+        "data": {
+            "issueLabelCreate": {
+                "success": True,
+                "issueLabel": {"id": "l-3", "name": "C"},
+            },
+        },
+    }
+    with respx.mock:
+        route = respx.post(API_URL).mock(
+            return_value=httpx.Response(200, json=created),
+        )
+        async with LinearClient(api_key="key") as client:
+            label = await LinearMutations(client).create_issue_label(
+                "t-1",
+                "C",
+                "#00ff00",
+            )
+    assert label.id == "l-3"
+    body = json.loads(route.calls.last.request.read())
+    assert body["variables"]["input"] == {
+        "teamId": "t-1",
+        "name": "C",
+        "color": "#00ff00",
+    }

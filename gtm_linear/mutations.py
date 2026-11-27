@@ -184,6 +184,7 @@ class LinearMutations:
         self,
         team_id: str,
         name: str,
+        color: str | None = None,
     ) -> IssueLabelRefFields:
         """Return the team's (or workspace's) label called ``name``, creating it if absent.
 
@@ -194,6 +195,8 @@ class LinearMutations:
         Args:
             team_id: The ID of the team the label belongs to.
             name: The label name.
+            color: Optional hex color (e.g. ``"#ff0000"``) used only when the
+                label is created; an existing label is returned unchanged.
 
         Returns:
             The existing or newly created label (``id`` and ``name``).
@@ -220,7 +223,27 @@ class LinearMutations:
         nodes = CliResolveLabelResult.model_validate(data).issue_labels.nodes
         if nodes:
             return nodes[0]
+        return await self.create_issue_label(team_id, name, color=color)
+
+    async def create_issue_label(
+        self,
+        team_id: str,
+        name: str,
+        color: str | None = None,
+    ) -> IssueLabelRefFields:
+        """Create a team label (no existence check).
+
+        Args:
+            team_id: The ID of the team the label belongs to.
+            name: The label name.
+            color: Optional hex color, e.g. ``"#ff0000"``.
+
+        Returns:
+            The created label (``id`` and ``name``).
+        """
         label_input = IssueLabelCreateInput(team_id=team_id, name=name)
+        if color is not None:
+            label_input.color = color
         created = await self._client.execute_async(
             CREATE_ISSUE_LABEL,
             dump_variables(CreateIssueLabelVariables(input=label_input)),

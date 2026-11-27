@@ -2435,6 +2435,80 @@ def comments(
 
 app.add_typer(issue_app, name="issue")
 
+label_app = typer.Typer(
+    help="Create Linear issue labels (preview unless --apply).",
+    no_args_is_help=True,
+    pretty_exceptions_show_locals=False,
+    pretty_exceptions_enable=False,
+)
+
+
+@label_app.command(name="create")
+def label_create(
+    team: Annotated[
+        str,
+        typer.Argument(
+            callback=_normalize_team_key,
+            help="Team key, e.g. ENG (any casing).",
+        ),
+    ],
+    name: Annotated[str, typer.Argument(help="Label name.")],
+    *,
+    color: Annotated[
+        str | None,
+        typer.Option(help="Hex color, e.g. #ff0000."),
+    ] = None,
+    apply: ApplyOpt = False,
+    as_json: JsonOpt = False,
+) -> None:
+    """Create a team label; idempotent if the name exists. Preview by default."""
+    name = _validate_text(name, "name") or ""
+    color = _validate_text(color, "--color")
+    if color is not None and not re.fullmatch(r"#[0-9A-Fa-f]{6}", color):
+        message = "must look like #rrggbb"
+        raise typer.BadParameter(message, param_hint="--color")
+    with _workflow() as linear:
+        resolved_team = linear.get_team_by_key(team)
+        if resolved_team is None:
+            _fail(f"no Linear team with key {team!r}")
+        payload: dict[str, Any] = {"teamId": resolved_team.id, "name": name}
+        if color is not None:
+            payload["color"] = color
+        target = {"team": resolved_team.key, "id": resolved_team.id}
+        if not apply:
+            _render_preview("label.create", target, payload, as_json=as_json)
+            return
+        try:
+            label = linear.find_or_create_issue_label(
+                resolved_team.id,
+                name,
+                color,
+            )
+        except (
+            LinearAPIError,
+            httpx.InvalidURL,
+            httpx.HTTPError,
+            ValidationError,
+            ValueError,
+        ) as exc:
+            _render_write_failure("label.create", target, exc, as_json=as_json)
+    if as_json:
+        typer.echo(
+            json.dumps(
+                {
+                    "applied": True,
+                    "operation": "label.create",
+                    "label": {"id": label.id, "name": label.name},
+                },
+                indent=2,
+            ),
+        )
+        return
+    typer.echo(f"Label {_cell(label.name)} (id: {_cell(label.id)})")
+
+
+app.add_typer(label_app, name="label")
+
 
 # Unknown leading tokens are treated as the search term, so queries like
 # `gtm-linear search "-foo"` work without teaching users the `--` separator,

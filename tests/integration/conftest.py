@@ -1,16 +1,14 @@
 """Shared fixtures for the live-API integration suite.
 
 The only input is ``LINEAR_API_KEY`` (skips, never fails, when absent). The
-``team`` fixture scaffolds everything else: a disposable team seeded with issues,
-deleted at session end. Use a key for a disposable workspace.
+``team`` fixture uses an existing team, seeds it with issues and deletes them at
+session end; it never creates or deletes teams. Use a key for a disposable workspace.
 """
 
 from __future__ import annotations
 
 import asyncio
 import os
-import secrets
-import string
 import time
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -121,41 +119,48 @@ def workflow(api_key: str) -> Iterator[LinearWorkflow]:
         yield wf
 
 
-TEAM_NAME_PREFIX = "sdk-it"
-# A team younger than this may still belong to a sibling integration-tests run
-# (overlapping main pushes, the weekly cron, manual dispatches), so the
-# sweep leaves it alone; crashed-run leftovers outlive the guard and go.
-SWEEP_MIN_TEAM_AGE = timedelta(minutes=45)
-_CREATE_TEAM = (
-    "mutation($i: TeamCreateInput!) { teamCreate(input: $i) { team { id name key } } }"
+# An issue younger than this may still belong to a sibling integration-tests run
+# (overlapping main pushes, the weekly cron, manual dispatches), so the sweep
+# leaves it alone; crashed-run leftovers outlive the guard and go.
+SWEEP_MIN_ISSUE_AGE = timedelta(minutes=45)
+_LIST_TEAMS = "query { teams(first: 50) { nodes { id name key } } }"
+_LIST_TEST_ISSUES = (
+    "query($team: ID!, $prefix: String!, $after: String) {"
+    " issues(first: 100, after: $after, includeArchived: false, filter:"
+    " { team: { id: { eq: $team } }, title: { startsWith: $prefix } })"
+    " { nodes { id createdAt title } pageInfo { hasNextPage endCursor } } }"
 )
-_DELETE_TEAM = "mutation($id: String!) { teamDelete(id: $id) { success } }"
-_LIST_TEAMS = (
-    "query($after: String) { teams(first: 100, after: $after)"
-    " { nodes { id name createdAt } pageInfo { hasNextPage endCursor } } }"
-)
+_DELETE_ISSUE = "mutation($id: String!) { issueDelete(id: $id) { success } }"
 
 
-def _sweep_leaked_teams(client: LinearClient) -> None:
-    """Delete ``sdk-it`` teams leaked by crashed earlier runs.
+def _delete_test_issues(
+    client: LinearClient,
+    team_id: str,
+    *,
+    run_prefix: str | None,
+) -> None:
+    """Delete ``[sdk-it`` issues in the team.
 
-    Teams younger than ``SWEEP_MIN_TEAM_AGE`` are skipped: a concurrent
-    integration-tests run may still be executing against one. The listing paginates
-    so workspaces with more than 100 teams sweep past page 1.
+    With ``run_prefix`` set, delete only that run's issues (teardown). Otherwise
+    sweep issues leaked by crashed earlier runs, sparing young ones a sibling run
+    may still be using.
     """
     after: str | None = None
     while True:
         page = _with_backoff_sync(
-            partial(client.execute, _LIST_TEAMS, {"after": after}),
-        )["teams"]
+            partial(
+                client.execute,
+                _LIST_TEST_ISSUES,
+                {"team": team_id, "prefix": run_prefix or TITLE_PREFIX, "after": after},
+            ),
+        )["issues"]
         for node in page["nodes"]:
-            if not node["name"].startswith(TEAM_NAME_PREFIX):
-                continue
-            created = datetime.fromisoformat(node["createdAt"])
-            if datetime.now(UTC) - created < SWEEP_MIN_TEAM_AGE:
-                continue
+            if run_prefix is None:
+                created = datetime.fromisoformat(node["createdAt"])
+                if datetime.now(UTC) - created < SWEEP_MIN_ISSUE_AGE:
+                    continue
             _with_backoff_sync(
-                partial(client.execute, _DELETE_TEAM, {"id": node["id"]}),
+                partial(client.execute, _DELETE_ISSUE, {"id": node["id"]}),
             )
         if not page["pageInfo"]["hasNextPage"]:
             break
@@ -163,32 +168,37 @@ def _sweep_leaked_teams(client: LinearClient) -> None:
 
 
 @pytest.fixture(scope="session")
-def team(api_key: str, run_id: str) -> Iterator[TeamFields]:
-    """A disposable team created for this run, seeded with issues, deleted after.
+def team(api_key: str, title_prefix: str) -> Iterator[TeamFields]:
+    """An existing team to test against, seeded with issues, cleaned up after.
 
-    The suite needs only ``LINEAR_API_KEY``: it builds the team it tests
-    against, so no pre-provisioned workspace state is assumed. Teams leaked by
-    crashed earlier runs (name prefix ``sdk-it``) are swept first, sparing
-    young ones a sibling run may still be using. Because the suite only ever
-    deletes teams it created or recognises by that prefix, point it at a
-    disposable workspace.
+    The suite never creates or deletes teams (free Linear plans cap them, and
+    deleted teams keep counting). It uses the team whose key is
+    ``LINEAR_IT_TEAM_KEY`` or, if unset, the first team in the workspace.
+    Every issue it creates is titled ``[sdk-it <run id>] ...`` and is deleted at
+    session end; leaked ``[sdk-it`` issues from crashed runs are swept first.
+    Point the key at a disposable workspace.
     """
     with LinearClient(api_key=api_key) as client:
-        _sweep_leaked_teams(client)
-        letters = "".join(secrets.choice(string.ascii_uppercase) for _ in range(4))
-        created = _with_backoff_sync(
-            partial(
-                client.execute,
-                _CREATE_TEAM,
-                {"i": {"name": f"{TEAM_NAME_PREFIX} {run_id}", "key": f"IT{letters}"}},
-            ),
-        )["teamCreate"]["team"]
-        team = TeamFields(**created)
+        teams = _with_backoff_sync(partial(client.execute, _LIST_TEAMS))["teams"][
+            "nodes"
+        ]
+        wanted = os.environ.get("LINEAR_IT_TEAM_KEY")
+        picked = [t for t in teams if wanted in (None, t["key"])]
+        if not picked:
+            pytest.fail(
+                "no team available for live integration tests"
+                + (f" (LINEAR_IT_TEAM_KEY={wanted})" if wanted else ""),
+            )
+        team = TeamFields(**picked[0])
+        _delete_test_issues(client, team.id, run_prefix=None)
         try:
             with LinearWorkflow(api_key) as wf:
                 for n in range(3):
-                    seed = IssueCreateInput(title=f"seed {n}", team_id=team.id)
+                    seed = IssueCreateInput(
+                        title=f"{title_prefix} seed {n}",
+                        team_id=team.id,
+                    )
                     _with_backoff_sync(partial(wf.create_issue, seed))
             yield team
         finally:
-            _with_backoff_sync(partial(client.execute, _DELETE_TEAM, {"id": team.id}))
+            _delete_test_issues(client, team.id, run_prefix=title_prefix)

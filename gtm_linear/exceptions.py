@@ -82,12 +82,15 @@ class LinearAPIError(LinearError):
     Attributes:
         message: Human-readable summary.
         errors: Structured GraphQL errors, empty for transport-level failures.
+        headers: Response headers with lowercased names (e.g.
+            ``x-ratelimit-requests-reset``), empty when no response was seen.
     """
 
     def __init__(
         self,
         message: str,
         errors: list[GraphQLError] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         """Store the human summary and any structured GraphQL errors.
 
@@ -96,6 +99,7 @@ class LinearAPIError(LinearError):
         """
         self.message = message
         self.errors = errors or []
+        self.headers = headers or {}
         super().__init__(message)
 
     @property
@@ -116,7 +120,13 @@ class LinearHTTPError(LinearAPIError):
     depending on how the request failed.
     """
 
-    def __init__(self, message: str, status_code: int = 0, body: str = "") -> None:
+    def __init__(
+        self,
+        message: str,
+        status_code: int = 0,
+        body: str = "",
+        headers: dict[str, str] | None = None,
+    ) -> None:
         """Capture the transport failure verbatim.
 
         ``status_code`` defaults so that ``cls(message)`` — the form
@@ -130,7 +140,7 @@ class LinearHTTPError(LinearAPIError):
         """
         self.status_code = status_code
         self.body = body
-        super().__init__(message)
+        super().__init__(message, headers=headers)
 
 
 class LinearResponseError(LinearAPIError):

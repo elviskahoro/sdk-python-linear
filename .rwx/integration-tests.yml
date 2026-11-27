@@ -8,12 +8,14 @@ on:
     # PR runs reach the vault unattended, but only for PRs authored by the
     # repo owner: the `if:` below is the author gate (vault grants match only
     # repo + branch pattern, never author). See the integration-tests task.
+    # The release workflow's bot-authored `release/v*` PRs are admitted too:
+    # this check is required on main, and without it those PRs never merge.
     pull_request:
       init:
         commit-sha: ${{ event.git.sha }}
         repository: https://github.com/elviskahoro/sdk-python-linear.git
         event-type: pull_request
-      if: ${{ event.github.pull_request.pull_request.user.login == 'elviskahoro' }}
+      if: ${{ event.github.pull_request.pull_request.user.login == 'elviskahoro' || (event.github.pull_request.pull_request.user.login == 'github-actions[bot]' && event.git.branch =~ '^release/v') }}
   cron:
     - key: weekly-integration-tests
       schedule: 17 7 * * 1
@@ -115,7 +117,8 @@ tasks:
   # a ref matching no grant fails before `run:` when approvals are disabled,
   # which is why `**` is granted rather than relying on approval to pause.
   # The only author gate is the `pull_request` trigger's `if:` above; a branch
-  # pushed by another collaborator is not covered by it.
+  # pushed by another collaborator is not covered by it (since #265, pushing
+  # to the bot's open `release/v*` PR needs no gate edit either).
   #
   # Vault matching uses the run's own repository/ref context from the trigger
   # event, NOT `init` parameters (#163 tried `branch:` in the init and

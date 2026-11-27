@@ -1,9 +1,9 @@
-# roborev review as a tool for the local agent. Dispatch-only (cli trigger): it
-# is not a PR check, posts no comment or status, and is not a required status.
+# RoboRev review as a tool for the local agent. Dispatch-only (cli trigger): it
+# is not a PR check, posts no comment or status, and does not replace
+# pullfrog-approval (.rwx/pullfrog.yml). Run it before pushing:
 #   rwx run .rwx/roborev.yml --wait
-# Reviews local work (committed or not) against origin/main with the model in
-# .roborev.toml (pi + Fireworks) and fails unless roborev reports a pass.
-# Mirrors oss-hq and gtm-sdk's .rwx/roborev.yml; keep them in step.
+# It reviews local work (committed or not) against origin/main with the model in
+# .roborev.toml (pi + Kilo gateway) and fails when roborev reports findings.
 on:
   cli:
     init:
@@ -15,13 +15,14 @@ base:
 
 tasks:
   - key: code
-    call: git/clone 2.2.0
+    call: git/clone 2.4.1
     cache: false
     with:
       repository: https://github.com/elviskahoro/sdk-python-linear.git
       ref: ${{ init.ref }}
-      fetch-full-depth: true
+      submodules: false
       preserve-git-dir: true
+      fetch-full-depth: true
 
   - key: node
     call: nodejs/install 1.2.1
@@ -32,38 +33,63 @@ tasks:
     use: [code, node]
     cache: false
     env:
+      GITHUB_REPOSITORY: elviskahoro/sdk-python-linear
       ROBOREV_VERSION: 0.63.0
-      ROBOREV_SHA256: c7dbbefed91747b80d04498358fa0207880adb7e2b57c95677214195a3ece887
       PI_VERSION: 1.4.0
+      # Kilo settings come from vars in the roborev vault (no repo change to switch model).
+      KILO_MODEL: ${{ vaults.roborev.vars.KILO_MODEL }}
+      KILO_BASE_URL: ${{ vaults.roborev.vars.KILO_BASE_URL }}
+      KILO_ORG_ID: ${{ vaults.roborev.vars.KILO_ORG_ID }}
+      KILO_CONTEXT: ${{ vaults.roborev.vars.KILO_CONTEXT }}
+      KILO_MAX_OUTPUT: ${{ vaults.roborev.vars.KILO_MAX_OUTPUT }}
+      ROBOREV_SHA256: c7dbbefed91747b80d04498358fa0207880adb7e2b57c95677214195a3ece887
     run: |
       set -euo pipefail
+      # Pinned here because the installer only fetches latest.
       mkdir -p "$HOME/.local/bin"
-      curl -fsSL -o roborev.tgz "https://github.com/kenn-io/roborev/releases/download/v${ROBOREV_VERSION}/roborev_${ROBOREV_VERSION}_linux_amd64.tar.gz"
-      # Fail closed if the release asset changes; update with ROBOREV_VERSION.
-      echo "${ROBOREV_SHA256}  roborev.tgz" | sha256sum -c -
-      tar -xzf roborev.tgz -C "$HOME/.local/bin" roborev
+      curl -fsSL -o /tmp/roborev.tar.gz "https://github.com/kenn-io/roborev/releases/download/v${ROBOREV_VERSION}/roborev_${ROBOREV_VERSION}_linux_amd64.tar.gz"
+      echo "${ROBOREV_SHA256}  /tmp/roborev.tar.gz" | sha256sum -c -
+      tar -xzf /tmp/roborev.tar.gz -C "$HOME/.local/bin" roborev
       export PATH="$HOME/.local/bin:$PATH"
       roborev version
       # .roborev.toml selects the pi agent; roborev finds no agent without it.
       npm install -g "@earendil-works/pi-coding-agent@${PI_VERSION}"
       pi --version
-      # Exported here, not in env:, so the key stays out of the task env.
-      export FIREWORKS_API_KEY="${{ secrets.FIREWORKS_API_KEY }}"
+      # Key is exported here, not in env:, so Semgrep's workflow-env-secret passes.
+      export KILO_API_KEY="${{ vaults.roborev.secrets.KILO_API_KEY }}"
+      [ -n "$KILO_API_KEY" ] || { echo "error: KILO_API_KEY unavailable" >&2; exit 1; }
+      # Register the Kilo gateway as a pi provider (pi has no built-in one).
+      mkdir -p "$HOME/.pi/agent"
+      node -e '
+        const e = process.env;
+        require("fs").writeFileSync(e.HOME + "/.pi/agent/models.json", JSON.stringify({providers: {kilo: {
+          name: "Kilo Gateway", baseUrl: e.KILO_BASE_URL, api: "openai-completions",
+          apiKey: "$KILO_API_KEY", authHeader: true,
+          headers: {"X-KiloCode-OrganizationId": e.KILO_ORG_ID},
+          models: [{id: e.KILO_MODEL, name: e.KILO_MODEL, contextWindow: +e.KILO_CONTEXT, maxTokens: +e.KILO_MAX_OUTPUT}]
+        }}}, null, 2));
+      '
       git fetch --no-tags origin main:refs/remotes/origin/main
-      # `rwx run` ships local work as a patch on the nearest pushed commit;
-      # commit it so roborev (committed ranges only) sees it.
+      # `rwx run` ships local work as a patch on top of the nearest pushed
+      # commit, so commit it here or roborev (committed ranges only) sees an
+      # empty diff. Merge-base, not origin/main, so a main that moved ahead
+      # of the clone isn't reviewed in reverse.
       if [ -n "$(git status --porcelain)" ]; then
         git add -A
         git -c user.name=roborev-ci -c user.email=roborev-ci@localhost commit -q -m "local changes under review"
       fi
-      # Merge-base, not origin/main, so a main that moved ahead isn't reviewed in reverse.
+      # Select the model from the vault after the commit above, so this edit is
+      # not part of the reviewed diff. .roborev.toml's model line is only a default.
+      sed -i "s|^model = .*|model = \"kilo/${KILO_MODEL}\"|" .roborev.toml
       base="$(git merge-base origin/main HEAD)"
       echo "reviewing ${base}..HEAD"
       git diff --stat "${base}..HEAD" | tail -5
-      # `roborev ci review` exits 0 even with findings: gate on the verdict
-      # header, failing closed if none is printed.
-      roborev ci review --ref "${base}..HEAD" 2>&1 | tee roborev-output.txt
-      if ! grep -q "^## roborev: Review Passed" roborev-output.txt; then
+      args=(--ref "${base}..HEAD")
+      # `roborev ci review` exits 0 even with findings, so gate on the verdict
+      # header ("Review Passed" vs "Review Complete"/"Review Failed"). Fails
+      # closed if no verdict is printed.
+      roborev ci review "${args[@]}" 2>&1 | tee roborev-output.txt
+      if ! grep -q "roborev: Review Passed" roborev-output.txt; then
         echo "roborev did not pass: see findings above" >&2
         exit 1
       fi

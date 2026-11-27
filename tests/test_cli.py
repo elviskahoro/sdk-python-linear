@@ -3608,3 +3608,63 @@ def test_issue_comments_pagination_stall_keeps_partial_json() -> None:
     payload = json.loads(result.stdout)
     assert payload["truncated"] is True  # noqa: S101
     assert payload["results"][0]["id"] == "c-1"  # noqa: S101
+
+
+def test_label_create_preview_sends_no_mutation() -> None:
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=_graphql_router())
+        result = runner.invoke(
+            app,
+            ["label", "create", "eng", "attio::known", "--color", "#ff0000", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    preview = json.loads(result.stdout)
+    assert preview["applied"] is False  # noqa: S101
+    assert preview["operation"] == "label.create"  # noqa: S101
+    assert preview["payload"] == {  # noqa: S101
+        "teamId": "team-1",
+        "name": "attio::known",
+        "color": "#ff0000",
+    }
+    assert "CreateIssueLabel" not in _operation_names(route)  # noqa: S101
+
+
+def test_label_create_apply_creates_label() -> None:
+    base = _graphql_router(labels=[])
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        query = json.loads(request.content)["query"]
+        if _named(query, "CreateIssueLabel"):
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "issueLabelCreate": {
+                            "success": True,
+                            "issueLabel": {"id": "l-9", "name": "New"},
+                        },
+                    },
+                },
+            )
+        return base(request)
+
+    with respx.mock:
+        route = respx.post(API_URL).mock(side_effect=respond)
+        result = runner.invoke(
+            app,
+            ["label", "create", "ENG", "New", "--apply", "--json"],
+            env=AUTH,
+        )
+    assert result.exit_code == 0  # noqa: S101
+    assert json.loads(result.stdout)["label"] == {"id": "l-9", "name": "New"}  # noqa: S101
+    assert "CreateIssueLabel" in _operation_names(route)  # noqa: S101
+
+
+def test_label_create_rejects_bad_color() -> None:
+    result = runner.invoke(
+        app,
+        ["label", "create", "ENG", "x", "--color", "red"],
+        env=AUTH,
+    )
+    assert result.exit_code != 0  # noqa: S101

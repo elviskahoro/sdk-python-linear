@@ -252,6 +252,7 @@ class LinearClient:
             LinearHTTPError: The response had a non-200 status.
             LinearResponseError: The body was not a usable GraphQL envelope.
         """
+        headers = {k.lower(): v for k, v in response.headers.items()}
         try:
             body = response.json()
         except ValueError:
@@ -267,7 +268,7 @@ class LinearClient:
             errors = [_coerce_error(e) for e in entries]
             summary = "; ".join(e.message for e in errors)
             msg = f"GraphQL error: {summary}"
-            raise LinearGraphQLError(msg, errors=errors)
+            raise LinearGraphQLError(msg, errors=errors, headers=headers)
 
         if response.status_code != HTTP_OK:
             msg = f"HTTP error: {response.status_code}"
@@ -275,6 +276,7 @@ class LinearClient:
                 msg,
                 status_code=response.status_code,
                 body=response.text,
+                headers=headers,
             )
 
         if not isinstance(body, dict):
