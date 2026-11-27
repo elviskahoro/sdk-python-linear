@@ -33,12 +33,15 @@ tasks:
     cache: false
     env:
       ROBOREV_VERSION: 0.63.0
+      ROBOREV_SHA256: c7dbbefed91747b80d04498358fa0207880adb7e2b57c95677214195a3ece887
       PI_VERSION: 1.4.0
     run: |
       set -euo pipefail
       mkdir -p "$HOME/.local/bin"
-      curl -fsSL "https://github.com/kenn-io/roborev/releases/download/v${ROBOREV_VERSION}/roborev_${ROBOREV_VERSION}_linux_amd64.tar.gz" \
-        | tar -xz -C "$HOME/.local/bin" roborev
+      curl -fsSL -o roborev.tgz "https://github.com/kenn-io/roborev/releases/download/v${ROBOREV_VERSION}/roborev_${ROBOREV_VERSION}_linux_amd64.tar.gz"
+      # Fail closed if the release asset changes; update with ROBOREV_VERSION.
+      echo "${ROBOREV_SHA256}  roborev.tgz" | sha256sum -c -
+      tar -xzf roborev.tgz -C "$HOME/.local/bin" roborev
       export PATH="$HOME/.local/bin:$PATH"
       roborev version
       # .roborev.toml selects the pi agent; roborev finds no agent without it.
